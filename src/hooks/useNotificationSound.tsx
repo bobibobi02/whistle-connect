@@ -1,53 +1,137 @@
 import { useCallback, useRef } from "react";
 
-// Simple notification sound using Web Audio API
-const createNotificationSound = () => {
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+export type SoundType = "ping" | "chime" | "pop" | "bell" | "none";
+
+const SOUND_OPTIONS: { value: SoundType; label: string }[] = [
+  { value: "ping", label: "Ping" },
+  { value: "chime", label: "Chime" },
+  { value: "pop", label: "Pop" },
+  { value: "bell", label: "Bell" },
+  { value: "none", label: "None" },
+];
+
+// Sound generators using Web Audio API
+const createPingSound = (ctx: AudioContext) => {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.frequency.setValueAtTime(880, ctx.currentTime);
+  osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.3);
+};
+
+const createChimeSound = (ctx: AudioContext) => {
+  const frequencies = [523, 659, 784]; // C5, E5, G5 chord
+  frequencies.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+    gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5 + i * 0.08);
+    osc.start(ctx.currentTime + i * 0.08);
+    osc.stop(ctx.currentTime + 0.5 + i * 0.08);
+  });
+};
+
+const createPopSound = (ctx: AudioContext) => {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(400, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.1);
+  gain.gain.setValueAtTime(0.4, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+  osc.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.15);
+};
+
+const createBellSound = (ctx: AudioContext) => {
+  const osc = ctx.createOscillator();
+  const osc2 = ctx.createOscillator();
+  const gain = ctx.createGain();
+  const gain2 = ctx.createGain();
+  osc.connect(gain);
+  osc2.connect(gain2);
+  gain.connect(ctx.destination);
+  gain2.connect(ctx.destination);
+  osc.type = "sine";
+  osc2.type = "sine";
+  osc.frequency.setValueAtTime(830, ctx.currentTime);
+  osc2.frequency.setValueAtTime(1245, ctx.currentTime);
+  gain.gain.setValueAtTime(0.3, ctx.currentTime);
+  gain2.gain.setValueAtTime(0.15, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+  gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+  osc.start(ctx.currentTime);
+  osc2.start(ctx.currentTime);
+  osc.stop(ctx.currentTime + 0.6);
+  osc2.stop(ctx.currentTime + 0.4);
+};
+
+const playNotificationSound = (soundType: SoundType) => {
+  if (soundType === "none") return;
   
-  // Create a pleasant "ping" notification sound
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
   
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-  
-  oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
-  oscillator.frequency.setValueAtTime(1320, audioContext.currentTime + 0.1); // E6 note
-  
-  gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-  
-  oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + 0.3);
+  switch (soundType) {
+    case "ping":
+      createPingSound(ctx);
+      break;
+    case "chime":
+      createChimeSound(ctx);
+      break;
+    case "pop":
+      createPopSound(ctx);
+      break;
+    case "bell":
+      createBellSound(ctx);
+      break;
+  }
 };
 
 export const useNotificationSound = () => {
   const lastPlayedRef = useRef<number>(0);
 
   const playSound = useCallback(() => {
-    // Prevent sound spam - minimum 1 second between sounds
     const now = Date.now();
     if (now - lastPlayedRef.current < 1000) return;
     
-    // Check if sounds are enabled
-    if (localStorage.getItem("notification-sound-enabled") === "false") return;
+    const soundType = (localStorage.getItem("notification-sound-type") || "ping") as SoundType;
+    if (soundType === "none") return;
     
     lastPlayedRef.current = now;
     
     try {
-      createNotificationSound();
+      playNotificationSound(soundType);
     } catch (error) {
       console.log("Could not play notification sound:", error);
     }
   }, []);
 
-  const setSoundEnabled = useCallback((enabled: boolean) => {
-    localStorage.setItem("notification-sound-enabled", String(enabled));
+  const previewSound = useCallback((soundType: SoundType) => {
+    try {
+      playNotificationSound(soundType);
+    } catch (error) {
+      console.log("Could not play sound:", error);
+    }
   }, []);
 
-  const isSoundEnabled = useCallback(() => {
-    return localStorage.getItem("notification-sound-enabled") !== "false";
+  const setSoundType = useCallback((type: SoundType) => {
+    localStorage.setItem("notification-sound-type", type);
   }, []);
 
-  return { playSound, setSoundEnabled, isSoundEnabled };
+  const getSoundType = useCallback((): SoundType => {
+    return (localStorage.getItem("notification-sound-type") || "ping") as SoundType;
+  }, []);
+
+  return { playSound, previewSound, setSoundType, getSoundType, soundOptions: SOUND_OPTIONS };
 };
