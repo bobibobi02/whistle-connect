@@ -8,6 +8,9 @@ export interface EmailPreferences {
   email_new_follower: boolean;
   email_post_upvote: boolean;
   email_comment: boolean;
+  inapp_new_follower: boolean;
+  inapp_post_upvote: boolean;
+  inapp_comment: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +37,9 @@ export const useEmailPreferences = () => {
           email_new_follower: true,
           email_post_upvote: false,
           email_comment: true,
+          inapp_new_follower: true,
+          inapp_post_upvote: true,
+          inapp_comment: true,
         } as Partial<EmailPreferences>;
       }
       
