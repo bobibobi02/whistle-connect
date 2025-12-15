@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Search, Bell, Plus, Menu } from "lucide-react";
+import { Search, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import UserMenu from "@/components/UserMenu";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationsPopover from "@/components/NotificationsPopover";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -64,9 +65,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
         <div className="flex items-center gap-1">
           <ThemeToggle />
           
-          <Button variant="ghost" size="icon" className="hidden sm:flex">
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationsPopover />
           
           {user ? (
             <Link to="/create">
