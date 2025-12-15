@@ -1,6 +1,8 @@
 import { X, Home, Search, Bell, User, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useUnreadCount } from "@/hooks/useNotifications";
 
 interface MobileNavProps {
   isOpen: boolean;
@@ -8,13 +10,15 @@ interface MobileNavProps {
 }
 
 const navItems = [
-  { name: "Home", icon: Home },
-  { name: "Search", icon: Search },
-  { name: "Notifications", icon: Bell },
-  { name: "Profile", icon: User },
+  { name: "Home", icon: Home, path: "/" },
+  { name: "Search", icon: Search, path: "/search" },
+  { name: "Notifications", icon: Bell, path: "/notifications" },
+  { name: "Profile", icon: User, path: "/profile" },
 ];
 
 const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
+  const { data: unreadCount } = useUnreadCount();
+
   return (
     <>
       {/* Overlay */}
@@ -50,18 +54,28 @@ const MobileNav = ({ isOpen, onClose }: MobileNavProps) => {
             <Button
               key={item.name}
               variant="ghost"
-              className="w-full justify-start gap-3 h-12"
+              className="w-full justify-start gap-3 h-12 relative"
+              asChild
             >
-              <item.icon className="h-5 w-5" />
-              {item.name}
+              <Link to={item.path} onClick={onClose}>
+                <item.icon className="h-5 w-5" />
+                {item.name}
+                {item.name === "Notifications" && unreadCount && unreadCount > 0 && (
+                  <span className="absolute right-4 h-5 min-w-5 px-1.5 rounded-full bg-primary text-[11px] font-bold text-primary-foreground flex items-center justify-center">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+              </Link>
             </Button>
           ))}
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
-          <Button className="w-full gap-2 bg-gradient-warm hover:opacity-90">
-            <Plus className="h-4 w-4" />
-            Create Post
+          <Button className="w-full gap-2 bg-gradient-warm hover:opacity-90" asChild>
+            <Link to="/create-post" onClick={onClose}>
+              <Plus className="h-4 w-4" />
+              Create Post
+            </Link>
           </Button>
         </div>
       </nav>
