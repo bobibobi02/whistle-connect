@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Check, MessageCircle, ArrowBigUp, UserPlus, Reply } from "lucide-react";
+import { Bell, Check, MessageCircle, ArrowBigUp, UserPlus, Reply, BellRing } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +11,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -48,6 +50,7 @@ const NotificationsPopover = () => {
   const { data: unreadCount } = useUnreadCount();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
+  const { permission, requestPermission, isSupported } = usePushNotifications();
 
   if (!user) {
     return (
@@ -66,6 +69,15 @@ const NotificationsPopover = () => {
     setOpen(false);
   };
 
+  const handleEnablePush = async () => {
+    const granted = await requestPermission();
+    if (granted) {
+      toast.success("Push notifications enabled!");
+    } else {
+      toast.error("Push notifications were denied");
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -81,17 +93,30 @@ const NotificationsPopover = () => {
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="font-semibold">Notifications</h3>
-          {unreadCount && unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7"
-              onClick={() => markAllAsRead.mutate()}
-            >
-              <Check className="h-3 w-3 mr-1" />
-              Mark all read
-            </Button>
-          )}
+          <div className="flex items-center gap-1">
+            {isSupported && permission !== "granted" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={handleEnablePush}
+              >
+                <BellRing className="h-3 w-3 mr-1" />
+                Enable
+              </Button>
+            )}
+            {unreadCount && unreadCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7"
+                onClick={() => markAllAsRead.mutate()}
+              >
+                <Check className="h-3 w-3 mr-1" />
+                Mark all read
+              </Button>
+            )}
+          </div>
         </div>
         <ScrollArea className="h-80">
           {notifications && notifications.length > 0 ? (

@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 export interface Notification {
   id: string;
@@ -20,6 +21,8 @@ export interface Notification {
 export const useNotifications = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { showNotification, permission } = usePushNotifications();
+  const lastNotificationIdRef = useRef<string | null>(null);
 
   // Subscribe to realtime notifications
   useEffect(() => {
@@ -30,13 +33,36 @@ export const useNotifications = () => {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotification = payload.new as Notification;
+          
+          // Show browser notification for new notifications
+          if (permission === "granted" && newNotification.id !== lastNotificationIdRef.current) {
+            lastNotificationIdRef.current = newNotification.id;
+            showNotification(newNotification.title, {
+              body: newNotification.message || undefined,
+              tag: newNotification.id,
+            });
+          }
+          
+          // Invalidate queries to refetch notifications
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          // Invalidate queries to refetch notifications
           queryClient.invalidateQueries({ queryKey: ["notifications"] });
         }
       )
@@ -45,7 +71,7 @@ export const useNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [user, queryClient, showNotification, permission]);
 
   return useQuery({
     queryKey: ["notifications", user?.id],
