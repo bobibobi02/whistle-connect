@@ -82,7 +82,9 @@ const NotificationCenter = () => {
   const deleteAllNotifications = useDeleteAllNotifications();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const notificationRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   // Pull to refresh
   const handleRefresh = useCallback(async () => {
@@ -113,12 +115,86 @@ const NotificationCenter = () => {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Flatten paginated data early for keyboard handler
+  const notifications = data?.pages.flatMap((page) => page.data) || [];
+  const filteredNotifications = notifications.filter((n) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "unread") return !n.read;
+    return n.type === activeFilter;
+  });
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      const maxIndex = filteredNotifications.length - 1;
+
+      switch (e.key) {
+        case "j":
+        case "ArrowDown":
+          e.preventDefault();
+          setFocusedIndex((prev) => Math.min(prev + 1, maxIndex));
+          break;
+        case "k":
+        case "ArrowUp":
+          e.preventDefault();
+          setFocusedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case "r":
+          if (focusedIndex >= 0 && focusedIndex <= maxIndex) {
+            const notification = filteredNotifications[focusedIndex];
+            if (notification && !notification.read) {
+              markAsRead.mutate(notification.id);
+              toast.success("Marked as read");
+            }
+          }
+          break;
+        case "d":
+        case "Delete":
+        case "Backspace":
+          if (focusedIndex >= 0 && focusedIndex <= maxIndex) {
+            e.preventDefault();
+            const notification = filteredNotifications[focusedIndex];
+            if (notification) {
+              // Use the undo delete flow
+              const event = new CustomEvent("deleteNotification", { detail: notification.id });
+              window.dispatchEvent(event);
+            }
+          }
+          break;
+        case "Enter":
+          if (focusedIndex >= 0 && focusedIndex <= maxIndex) {
+            const notification = filteredNotifications[focusedIndex];
+            if (notification?.link) {
+              window.location.href = notification.link;
+            }
+          }
+          break;
+        case "Escape":
+          setFocusedIndex(-1);
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [focusedIndex, filteredNotifications, markAsRead]);
+
+  // Scroll focused item into view
+  useEffect(() => {
+    if (focusedIndex >= 0) {
+      const element = notificationRefs.current.get(focusedIndex);
+      element?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [focusedIndex]);
+
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-
-  // Flatten paginated data
-  const notifications = data?.pages.flatMap((page) => page.data) || [];
 
   // Calculate counts per category
   const counts = {
@@ -128,12 +204,6 @@ const NotificationCenter = () => {
     upvote: notifications.filter((n) => n.type === "upvote").length,
     follow: notifications.filter((n) => n.type === "follow").length,
   };
-
-  const filteredNotifications = notifications.filter((n) => {
-    if (activeFilter === "all") return true;
-    if (activeFilter === "unread") return !n.read;
-    return n.type === activeFilter;
-  });
 
   // Group notifications by date
   const groupNotificationsByDate = (notifs: Notification[]) => {
@@ -213,10 +283,22 @@ const NotificationCenter = () => {
     });
   };
 
+  // Listen for keyboard delete events
+  useEffect(() => {
+    const handleDeleteEvent = (e: CustomEvent<string>) => {
+      handleDeleteWithUndo(e.detail);
+    };
+    window.addEventListener("deleteNotification" as any, handleDeleteEvent);
+    return () => window.removeEventListener("deleteNotification" as any, handleDeleteEvent);
+  }, [handleDeleteWithUndo]);
+
   const isMobile = useIsMobile();
 
-  const NotificationContent = ({ notification }: { notification: Notification }) => (
-    <div className="relative group">
+  const NotificationContent = ({ notification, isFocused }: { notification: Notification; isFocused?: boolean }) => (
+    <div className={cn(
+      "relative group",
+      isFocused && "ring-2 ring-primary ring-inset"
+    )}>
       <Link
         to={notification.link || "#"}
         onClick={() => {
@@ -273,20 +355,39 @@ const NotificationCenter = () => {
     </div>
   );
 
-  const NotificationItem = ({ notification }: { notification: Notification }) => {
+  const NotificationItem = ({ notification, index, isFocused }: { notification: Notification; index: number; isFocused: boolean }) => {
     const handleSwipeDelete = () => {
       handleDeleteWithUndo(notification.id);
     };
 
+    const setRef = (el: HTMLDivElement | null) => {
+      if (el) {
+        notificationRefs.current.set(index, el);
+      } else {
+        notificationRefs.current.delete(index);
+      }
+    };
+
     if (isMobile) {
       return (
-        <SwipeToDelete onDelete={handleSwipeDelete}>
-          <NotificationContent notification={notification} />
-        </SwipeToDelete>
+        <div ref={setRef}>
+          <SwipeToDelete onDelete={handleSwipeDelete}>
+            <NotificationContent notification={notification} isFocused={isFocused} />
+          </SwipeToDelete>
+        </div>
       );
     }
 
-    return <NotificationContent notification={notification} />;
+    return (
+      <div ref={setRef}>
+        <NotificationContent notification={notification} isFocused={isFocused} />
+      </div>
+    );
+  };
+
+  // Helper to get flat index for a notification
+  const getFlatIndex = (notification: Notification) => {
+    return filteredNotifications.findIndex(n => n.id === notification.id);
   };
 
   return (
@@ -347,6 +448,15 @@ const NotificationCenter = () => {
           </div>
         </div>
 
+        {/* Keyboard shortcuts hint - desktop only */}
+        {!isMobile && filteredNotifications.length > 0 && (
+          <p className="text-xs text-muted-foreground mb-4">
+            <span className="hidden sm:inline">
+              Shortcuts: <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↑</kbd>/<kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">↓</kbd> navigate • <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">r</kbd> mark read • <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">d</kbd> delete • <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px]">Enter</kbd> open
+            </span>
+          </p>
+        )}
+
         <Tabs defaultValue="all" className="space-y-4">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="all" onClick={() => setActiveFilter("all")} className="gap-1.5">
@@ -391,9 +501,17 @@ const NotificationCenter = () => {
                 <div key={group.label} className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground px-1">{group.label}</h3>
                   <Card className="divide-y divide-border">
-                    {group.notifications.map((notification) => (
-                      <NotificationItem key={notification.id} notification={notification} />
-                    ))}
+                    {group.notifications.map((notification) => {
+                      const flatIdx = getFlatIndex(notification);
+                      return (
+                        <NotificationItem 
+                          key={notification.id} 
+                          notification={notification} 
+                          index={flatIdx}
+                          isFocused={flatIdx === focusedIndex}
+                        />
+                      );
+                    })}
                   </Card>
                 </div>
               ))
@@ -416,9 +534,17 @@ const NotificationCenter = () => {
                   <div key={group.label} className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground px-1">{group.label}</h3>
                     <Card className="divide-y divide-border">
-                      {group.notifications.map((notification) => (
-                        <NotificationItem key={notification.id} notification={notification} />
-                      ))}
+                      {group.notifications.map((notification) => {
+                        const flatIdx = getFlatIndex(notification);
+                        return (
+                          <NotificationItem 
+                            key={notification.id} 
+                            notification={notification}
+                            index={flatIdx}
+                            isFocused={flatIdx === focusedIndex}
+                          />
+                        );
+                      })}
                     </Card>
                   </div>
                 ))
