@@ -1,16 +1,23 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, Filter, CheckCheck, Trash2 } from "lucide-react";
+import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, CheckCheck, Trash2, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
-import { useNotifications, useMarkAsRead, useMarkAllAsRead, Notification } from "@/hooks/useNotifications";
+import { 
+  useNotifications, 
+  useMarkAsRead, 
+  useMarkAllAsRead, 
+  useDeleteNotification,
+  useDeleteAllNotifications,
+  Notification 
+} from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
+import { toast } from "sonner";
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -59,6 +66,8 @@ const NotificationCenter = () => {
   const { data: notifications, isLoading } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
+  const deleteNotification = useDeleteNotification();
+  const deleteAllNotifications = useDeleteAllNotifications();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
 
@@ -73,51 +82,76 @@ const NotificationCenter = () => {
   }) || [];
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  const totalCount = notifications?.length || 0;
+
+  const handleDelete = (e: React.MouseEvent, notificationId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deleteNotification.mutate(notificationId, {
+      onSuccess: () => toast.success("Notification deleted"),
+    });
+  };
+
+  const handleDeleteAll = () => {
+    deleteAllNotifications.mutate(undefined, {
+      onSuccess: () => toast.success("All notifications cleared"),
+    });
+  };
 
   const NotificationItem = ({ notification }: { notification: Notification }) => (
-    <Link
-      to={notification.link || "#"}
-      onClick={() => {
-        if (!notification.read) {
-          markAsRead.mutate(notification.id);
-        }
-      }}
-      className={cn(
-        "flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-secondary/50",
-        !notification.read && "bg-primary/5"
-      )}
-    >
-      <div className={cn(
-        "flex h-10 w-10 items-center justify-center rounded-full shrink-0",
-        getNotificationColor(notification.type)
-      )}>
-        {getNotificationIcon(notification.type)}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className={cn(
-            "text-xs px-2 py-0.5 rounded-full",
-            getNotificationColor(notification.type)
-          )}>
-            {getNotificationLabel(notification.type)}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-          </span>
-        </div>
-        <p className={cn("font-medium", !notification.read && "text-foreground")}>
-          {notification.title}
-        </p>
-        {notification.message && (
-          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-            {notification.message}
-          </p>
+    <div className="relative group">
+      <Link
+        to={notification.link || "#"}
+        onClick={() => {
+          if (!notification.read) {
+            markAsRead.mutate(notification.id);
+          }
+        }}
+        className={cn(
+          "flex items-start gap-4 p-4 rounded-lg transition-colors hover:bg-secondary/50",
+          !notification.read && "bg-primary/5"
         )}
-      </div>
-      {!notification.read && (
-        <div className="h-2.5 w-2.5 rounded-full bg-primary shrink-0 mt-2" />
-      )}
-    </Link>
+      >
+        <div className={cn(
+          "flex h-10 w-10 items-center justify-center rounded-full shrink-0",
+          getNotificationColor(notification.type)
+        )}>
+          {getNotificationIcon(notification.type)}
+        </div>
+        <div className="flex-1 min-w-0 pr-8">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={cn(
+              "text-xs px-2 py-0.5 rounded-full",
+              getNotificationColor(notification.type)
+            )}>
+              {getNotificationLabel(notification.type)}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+            </span>
+          </div>
+          <p className={cn("font-medium", !notification.read && "text-foreground")}>
+            {notification.title}
+          </p>
+          {notification.message && (
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+              {notification.message}
+            </p>
+          )}
+        </div>
+        {!notification.read && (
+          <div className="h-2.5 w-2.5 rounded-full bg-primary shrink-0 mt-2" />
+        )}
+      </Link>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="absolute right-2 top-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={(e) => handleDelete(e, notification.id)}
+      >
+        <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+      </Button>
+    </div>
   );
 
   return (
@@ -133,17 +167,31 @@ const NotificationCenter = () => {
               {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
             </p>
           </div>
-          {unreadCount > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => markAllAsRead.mutate()}
-              disabled={markAllAsRead.isPending}
-            >
-              <CheckCheck className="h-4 w-4 mr-2" />
-              Mark all as read
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => markAllAsRead.mutate()}
+                disabled={markAllAsRead.isPending}
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Mark all read
+              </Button>
+            )}
+            {totalCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeleteAll}
+                disabled={deleteAllNotifications.isPending}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear all
+              </Button>
+            )}
+          </div>
         </div>
 
         <Tabs defaultValue="all" className="space-y-4">
