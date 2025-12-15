@@ -46,6 +46,94 @@ export const useCommunity = (name: string) => {
   });
 };
 
+export const useUserMemberships = (userId: string | undefined) => {
+  return useQuery({
+    queryKey: ["memberships", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from("community_members")
+        .select("community_id")
+        .eq("user_id", userId);
+
+      if (error) throw error;
+      return data.map((m) => m.community_id);
+    },
+    enabled: !!userId,
+  });
+};
+
+export const useIsMember = (communityId: string | undefined, userId: string | undefined) => {
+  return useQuery({
+    queryKey: ["membership", communityId, userId],
+    queryFn: async () => {
+      if (!communityId || !userId) return false;
+      const { data, error } = await supabase
+        .from("community_members")
+        .select("id")
+        .eq("community_id", communityId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!communityId && !!userId,
+  });
+};
+
+export const useJoinCommunity = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ communityId, userId }: { communityId: string; userId: string }) => {
+      const { error } = await supabase
+        .from("community_members")
+        .insert({ community_id: communityId, user_id: userId });
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["membership", variables.communityId] });
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
+      queryClient.invalidateQueries({ queryKey: ["community"] });
+      toast({ title: "Joined community!" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error joining community", description: error.message, variant: "destructive" });
+    },
+  });
+};
+
+export const useLeaveCommunity = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ communityId, userId }: { communityId: string; userId: string }) => {
+      const { error } = await supabase
+        .from("community_members")
+        .delete()
+        .eq("community_id", communityId)
+        .eq("user_id", userId);
+
+      if (error) throw error;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["membership", variables.communityId] });
+      queryClient.invalidateQueries({ queryKey: ["memberships"] });
+      queryClient.invalidateQueries({ queryKey: ["communities"] });
+      queryClient.invalidateQueries({ queryKey: ["community"] });
+      toast({ title: "Left community" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error leaving community", description: error.message, variant: "destructive" });
+    },
+  });
+};
+
 export const useCreateCommunity = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
