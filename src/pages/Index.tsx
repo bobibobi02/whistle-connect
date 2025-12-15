@@ -1,15 +1,27 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import PostCard from "@/components/PostCard";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
-import { usePosts } from "@/hooks/usePosts";
+import { usePosts, useJoinedCommunityPosts } from "@/hooks/usePosts";
+import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Users } from "lucide-react";
 
 const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const { data: posts, isLoading, error } = usePosts();
+  const [feedType, setFeedType] = useState<"all" | "joined">("all");
+  
+  const { user } = useAuth();
+  const { data: allPosts, isLoading: allLoading, error: allError } = usePosts();
+  const { data: joinedPosts, isLoading: joinedLoading, error: joinedError } = useJoinedCommunityPosts();
+
+  const posts = feedType === "joined" ? joinedPosts : allPosts;
+  const isLoading = feedType === "joined" ? joinedLoading : allLoading;
+  const error = feedType === "joined" ? joinedError : allError;
 
   return (
     <div className="min-h-screen bg-background">
@@ -21,6 +33,29 @@ const Index = () => {
           {/* Main Feed */}
           <div className="flex-1 max-w-2xl">
             <CreatePostBar />
+
+            {/* Feed Toggle */}
+            {user && (
+              <div className="flex gap-2 mb-4">
+                <Button
+                  variant={feedType === "all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFeedType("all")}
+                  className={feedType === "all" ? "bg-gradient-warm hover:opacity-90" : ""}
+                >
+                  All Posts
+                </Button>
+                <Button
+                  variant={feedType === "joined" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setFeedType("joined")}
+                  className={feedType === "joined" ? "bg-gradient-warm hover:opacity-90" : ""}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  My Communities
+                </Button>
+              </div>
+            )}
             
             {isLoading ? (
               <div className="space-y-4">
@@ -48,6 +83,15 @@ const Index = () => {
                 {posts.map((post, index) => (
                   <PostCard key={post.id} post={post} index={index} />
                 ))}
+              </div>
+            ) : feedType === "joined" ? (
+              <div className="bg-card rounded-xl shadow-card p-8 text-center">
+                <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-2">No posts from your communities yet.</p>
+                <p className="text-sm text-muted-foreground mb-4">Join some communities to see their posts here!</p>
+                <Link to="/communities">
+                  <Button>Browse Communities</Button>
+                </Link>
               </div>
             ) : (
               <div className="bg-card rounded-xl shadow-card p-8 text-center">
