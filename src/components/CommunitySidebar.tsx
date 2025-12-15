@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useCommunities } from "@/hooks/useCommunities";
 import { useAuth } from "@/hooks/useAuth";
 import CreateCommunityDialog from "@/components/CreateCommunityDialog";
+import { SortOption } from "@/hooks/usePosts";
 
 const formatMemberCount = (count: number | null) => {
   if (!count) return "0";
@@ -22,17 +23,19 @@ const trendingTopics = [
   { tag: "TechNews", posts: "4.3K" },
 ];
 
-const feedFilters = [
-  { name: "Best", icon: Flame, active: true },
-  { name: "Hot", icon: TrendingUp, active: false },
-  { name: "New", icon: Clock, active: false },
+const feedFilters: { name: string; value: SortOption; icon: typeof Flame }[] = [
+  { name: "Best", value: "best", icon: Flame },
+  { name: "Hot", value: "hot", icon: TrendingUp },
+  { name: "New", value: "new", icon: Clock },
 ];
 
 interface CommunitySidebarProps {
   className?: string;
+  sortBy?: SortOption;
+  onSortChange?: (sort: SortOption) => void;
 }
 
-const CommunitySidebar = ({ className }: CommunitySidebarProps) => {
+const CommunitySidebar = ({ className, sortBy = "best", onSortChange }: CommunitySidebarProps) => {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const { user } = useAuth();
   const { data: communities, isLoading } = useCommunities();
@@ -50,11 +53,12 @@ const CommunitySidebar = ({ className }: CommunitySidebarProps) => {
           {feedFilters.map((filter) => (
             <Button
               key={filter.name}
-              variant={filter.active ? "secondary" : "ghost"}
+              variant={sortBy === filter.value ? "secondary" : "ghost"}
               className={cn(
                 "w-full justify-start gap-3",
-                filter.active && "bg-primary/10 text-primary hover:bg-primary/15"
+                sortBy === filter.value && "bg-primary/10 text-primary hover:bg-primary/15"
               )}
+              onClick={() => onSortChange?.(filter.value)}
             >
               <filter.icon className="h-4 w-4" />
               {filter.name}

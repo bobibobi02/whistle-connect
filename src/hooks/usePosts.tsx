@@ -22,15 +22,29 @@ export interface Post {
   user_vote: number | null;
 }
 
-const fetchPosts = async (user: { id: string } | null, community?: string): Promise<Post[]> => {
-  // Fetch posts
-  let query = supabase
-    .from("posts")
-    .select("*")
-    .order("created_at", { ascending: false });
+export type SortOption = "best" | "hot" | "new";
+
+const fetchPosts = async (
+  user: { id: string } | null,
+  community?: string,
+  sort: SortOption = "best"
+): Promise<Post[]> => {
+  // Fetch posts with appropriate ordering
+  let query = supabase.from("posts").select("*");
 
   if (community) {
     query = query.eq("community", community);
+  }
+
+  // Apply sorting
+  if (sort === "new") {
+    query = query.order("created_at", { ascending: false });
+  } else if (sort === "hot") {
+    // Hot: recent posts with high engagement (last 24 hours weighted)
+    query = query.order("created_at", { ascending: false }).order("upvotes", { ascending: false });
+  } else {
+    // Best: highest upvotes
+    query = query.order("upvotes", { ascending: false }).order("created_at", { ascending: false });
   }
 
   const { data: posts, error } = await query;
@@ -38,9 +52,24 @@ const fetchPosts = async (user: { id: string } | null, community?: string): Prom
   if (error) throw error;
   if (!posts || posts.length === 0) return [];
 
+  // For "hot" sorting, we'll do additional client-side sorting
+  let sortedPosts = posts;
+  if (sort === "hot") {
+    const now = Date.now();
+    const hourInMs = 3600000;
+    sortedPosts = [...posts].sort((a, b) => {
+      const ageA = (now - new Date(a.created_at).getTime()) / hourInMs;
+      const ageB = (now - new Date(b.created_at).getTime()) / hourInMs;
+      // Hot score: upvotes / (age in hours + 2)^1.5
+      const scoreA = a.upvotes / Math.pow(ageA + 2, 1.5);
+      const scoreB = b.upvotes / Math.pow(ageB + 2, 1.5);
+      return scoreB - scoreA;
+    });
+  }
+
   // Get unique user IDs
-  const userIds = [...new Set(posts.map(p => p.user_id))];
-  
+  const userIds = [...new Set(sortedPosts.map((p) => p.user_id))];
+
   // Fetch profiles
   const { data: profiles } = await supabase
     .from("profiles")
@@ -48,19 +77,19 @@ const fetchPosts = async (user: { id: string } | null, community?: string): Prom
     .in("user_id", userIds);
 
   const profileMap: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null }> = {};
-  profiles?.forEach(p => {
+  profiles?.forEach((p) => {
     profileMap[p.user_id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
   });
 
   // Fetch comment counts
-  const postIds = posts.map(p => p.id);
+  const postIds = sortedPosts.map((p) => p.id);
   const { data: commentCounts } = await supabase
     .from("comments")
     .select("post_id")
     .in("post_id", postIds);
 
   const countMap: Record<string, number> = {};
-  commentCounts?.forEach(c => {
+  commentCounts?.forEach((c) => {
     countMap[c.post_id] = (countMap[c.post_id] || 0) + 1;
   });
 
@@ -72,12 +101,12 @@ const fetchPosts = async (user: { id: string } | null, community?: string): Prom
       .select("post_id, vote_type")
       .eq("user_id", user.id);
 
-    votes?.forEach(v => {
+    votes?.forEach((v) => {
       voteMap[v.post_id] = v.vote_type;
     });
   }
 
-  return posts.map(post => ({
+  return sortedPosts.map((post) => ({
     ...post,
     author: profileMap[post.user_id] || { username: null, display_name: null, avatar_url: null },
     comment_count: countMap[post.id] || 0,
@@ -85,12 +114,12 @@ const fetchPosts = async (user: { id: string } | null, community?: string): Prom
   }));
 };
 
-export const usePosts = () => {
+export const usePosts = (sort: SortOption = "best") => {
   const { user } = useAuth();
 
   return useQuery({
-    queryKey: ["posts", user?.id],
-    queryFn: () => fetchPosts(user),
+    queryKey: ["posts", sort, user?.id],
+    queryFn: () => fetchPosts(user, undefined, sort),
   });
 };
 
