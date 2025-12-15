@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { 
   useInfiniteNotifications, 
@@ -117,14 +118,23 @@ const NotificationCenter = () => {
   // Flatten paginated data
   const notifications = data?.pages.flatMap((page) => page.data) || [];
 
+  // Calculate counts per category
+  const counts = {
+    all: notifications.length,
+    unread: notifications.filter((n) => !n.read).length,
+    comment: notifications.filter((n) => n.type === "comment").length,
+    upvote: notifications.filter((n) => n.type === "upvote").length,
+    follow: notifications.filter((n) => n.type === "follow").length,
+  };
+
   const filteredNotifications = notifications.filter((n) => {
     if (activeFilter === "all") return true;
     if (activeFilter === "unread") return !n.read;
     return n.type === activeFilter;
   });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const totalCount = notifications.length;
+  const unreadCount = counts.unread;
+  const totalCount = counts.all;
 
   const handleDelete = (e: React.MouseEvent, notificationId: string) => {
     e.preventDefault();
@@ -256,20 +266,35 @@ const NotificationCenter = () => {
 
         <Tabs defaultValue="all" className="space-y-4">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all" onClick={() => setActiveFilter("all")}>
+            <TabsTrigger value="all" onClick={() => setActiveFilter("all")} className="gap-1.5">
               All
+              {counts.all > 0 && (
+                <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">{counts.all}</Badge>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="unread" onClick={() => setActiveFilter("unread")}>
+            <TabsTrigger value="unread" onClick={() => setActiveFilter("unread")} className="gap-1.5">
               Unread
+              {counts.unread > 0 && (
+                <Badge className="h-5 min-w-5 px-1.5 text-xs">{counts.unread}</Badge>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="comment" onClick={() => setActiveFilter("comment")}>
+            <TabsTrigger value="comment" onClick={() => setActiveFilter("comment")} className="gap-1.5">
               Comments
+              {counts.comment > 0 && (
+                <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">{counts.comment}</Badge>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="upvote" onClick={() => setActiveFilter("upvote")}>
+            <TabsTrigger value="upvote" onClick={() => setActiveFilter("upvote")} className="gap-1.5">
               Upvotes
+              {counts.upvote > 0 && (
+                <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">{counts.upvote}</Badge>
+              )}
             </TabsTrigger>
-            <TabsTrigger value="follow" onClick={() => setActiveFilter("follow")}>
+            <TabsTrigger value="follow" onClick={() => setActiveFilter("follow")} className="gap-1.5">
               Follows
+              {counts.follow > 0 && (
+                <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">{counts.follow}</Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
