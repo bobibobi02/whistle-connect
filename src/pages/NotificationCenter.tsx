@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, CheckCheck, Trash2, X, Loader2 } from "lucide-react";
+import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, CheckCheck, Trash2, X, Loader2, RefreshCw } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,10 +14,12 @@ import {
   useDeleteAllNotifications,
   Notification 
 } from "@/hooks/useNotifications";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { cn } from "@/lib/utils";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const getNotificationIcon = (type: string) => {
   switch (type) {
@@ -63,6 +65,7 @@ const getNotificationLabel = (type: string) => {
 
 const NotificationCenter = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { 
     data, 
     isLoading, 
@@ -77,6 +80,17 @@ const NotificationCenter = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Pull to refresh
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    toast.success("Notifications refreshed");
+  }, [queryClient]);
+
+  const { containerRef, isRefreshing, pullProgress } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+  });
 
   // Infinite scroll with Intersection Observer
   useEffect(() => {
@@ -187,7 +201,25 @@ const NotificationCenter = () => {
       <Header onMenuClick={() => setMobileNavOpen(true)} />
       <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-      <main className="container max-w-3xl mx-auto px-4 py-6">
+      <div ref={containerRef} className="h-[calc(100vh-4rem)] overflow-auto">
+        {/* Pull to refresh indicator */}
+        <div 
+          className="flex items-center justify-center transition-all duration-200 overflow-hidden"
+          style={{ height: pullProgress > 0 ? `${pullProgress * 60}px` : 0 }}
+        >
+          <RefreshCw 
+            className={cn(
+              "h-5 w-5 text-primary transition-transform",
+              isRefreshing && "animate-spin"
+            )}
+            style={{ 
+              transform: `rotate(${pullProgress * 360}deg)`,
+              opacity: pullProgress 
+            }}
+          />
+        </div>
+
+        <main className="container max-w-3xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Notifications</h1>
@@ -293,7 +325,8 @@ const NotificationCenter = () => {
             <p className="text-sm text-muted-foreground">No more notifications</p>
           )}
         </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };
