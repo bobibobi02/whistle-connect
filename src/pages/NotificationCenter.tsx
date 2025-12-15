@@ -16,9 +16,11 @@ import {
   Notification 
 } from "@/hooks/useNotifications";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
+import { SwipeToDelete } from "@/components/SwipeToDelete";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -150,7 +152,9 @@ const NotificationCenter = () => {
     });
   };
 
-  const NotificationItem = ({ notification }: { notification: Notification }) => (
+  const isMobile = useIsMobile();
+
+  const NotificationContent = ({ notification }: { notification: Notification }) => (
     <div className="relative group">
       <Link
         to={notification.link || "#"}
@@ -195,16 +199,36 @@ const NotificationCenter = () => {
           <div className="h-2.5 w-2.5 rounded-full bg-primary shrink-0 mt-2" />
         )}
       </Link>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute right-2 top-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-        onClick={(e) => handleDelete(e, notification.id)}
-      >
-        <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-      </Button>
+      {!isMobile && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-2 top-2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e) => handleDelete(e, notification.id)}
+        >
+          <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+        </Button>
+      )}
     </div>
   );
+
+  const NotificationItem = ({ notification }: { notification: Notification }) => {
+    const handleSwipeDelete = () => {
+      deleteNotification.mutate(notification.id, {
+        onSuccess: () => toast.success("Notification deleted"),
+      });
+    };
+
+    if (isMobile) {
+      return (
+        <SwipeToDelete onDelete={handleSwipeDelete}>
+          <NotificationContent notification={notification} />
+        </SwipeToDelete>
+      );
+    }
+
+    return <NotificationContent notification={notification} />;
+  };
 
   return (
     <div className="min-h-screen bg-background">
