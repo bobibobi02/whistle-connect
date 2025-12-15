@@ -1,12 +1,17 @@
-import { Search, Bell, Plus, User, Menu } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Search, Bell, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
+import UserMenu from "@/components/UserMenu";
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 const Header = ({ onMenuClick }: HeaderProps) => {
+  const { user } = useAuth();
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/80 backdrop-blur-xl">
       <div className="flex h-16 items-center justify-between px-4 md:px-6">
@@ -48,16 +53,23 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             <Bell className="h-5 w-5" />
           </Button>
           
-          <Button className="gap-2 bg-gradient-warm hover:opacity-90 transition-opacity shadow-glow">
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Create</span>
-          </Button>
+          {user ? (
+            <Link to="/create">
+              <Button className="gap-2 bg-gradient-warm hover:opacity-90 transition-opacity shadow-glow">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Create</span>
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/auth">
+              <Button className="gap-2 bg-gradient-warm hover:opacity-90 transition-opacity shadow-glow">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Create</span>
+              </Button>
+            </Link>
+          )}
 
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
-              <User className="h-4 w-4" />
-            </div>
-          </Button>
+          <UserMenu />
         </div>
       </div>
     </header>
