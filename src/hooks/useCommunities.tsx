@@ -46,6 +46,35 @@ export const useCommunity = (name: string) => {
   });
 };
 
+export const useUserJoinedCommunities = (userId: string | undefined) => {
+  return useQuery({
+    queryKey: ["user-communities", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      
+      const { data: memberships, error: memberError } = await supabase
+        .from("community_members")
+        .select("community_id")
+        .eq("user_id", userId);
+
+      if (memberError) throw memberError;
+      if (!memberships || memberships.length === 0) return [];
+
+      const communityIds = memberships.map((m) => m.community_id);
+
+      const { data: communities, error } = await supabase
+        .from("communities")
+        .select("*")
+        .in("id", communityIds)
+        .order("name");
+
+      if (error) throw error;
+      return communities as Community[];
+    },
+    enabled: !!userId,
+  });
+};
+
 export const useUserMemberships = (userId: string | undefined) => {
   return useQuery({
     queryKey: ["memberships", userId],
