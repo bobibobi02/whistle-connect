@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 
 export interface Notification {
   id: string;
@@ -22,6 +23,7 @@ export const useNotifications = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { showNotification, permission } = usePushNotifications();
+  const { playSound } = useNotificationSound();
   const lastNotificationIdRef = useRef<string | null>(null);
 
   // Subscribe to realtime notifications
@@ -41,9 +43,15 @@ export const useNotifications = () => {
         (payload) => {
           const newNotification = payload.new as Notification;
           
+          // Prevent duplicate handling
+          if (newNotification.id === lastNotificationIdRef.current) return;
+          lastNotificationIdRef.current = newNotification.id;
+          
+          // Play notification sound
+          playSound();
+          
           // Show browser notification for new notifications
-          if (permission === "granted" && newNotification.id !== lastNotificationIdRef.current) {
-            lastNotificationIdRef.current = newNotification.id;
+          if (permission === "granted") {
             showNotification(newNotification.title, {
               body: newNotification.message || undefined,
               tag: newNotification.id,
@@ -71,7 +79,7 @@ export const useNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient, showNotification, permission]);
+  }, [user, queryClient, showNotification, permission, playSound]);
 
   return useQuery({
     queryKey: ["notifications", user?.id],

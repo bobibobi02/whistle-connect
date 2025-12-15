@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Check, MessageCircle, ArrowBigUp, UserPlus, Reply, BellRing } from "lucide-react";
+import { Bell, Check, MessageCircle, ArrowBigUp, UserPlus, Reply, BellRing, Volume2, VolumeX } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -51,6 +52,8 @@ const NotificationsPopover = () => {
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const { permission, requestPermission, isSupported } = usePushNotifications();
+  const { setSoundEnabled, isSoundEnabled } = useNotificationSound();
+  const [soundOn, setSoundOn] = useState(isSoundEnabled);
 
   if (!user) {
     return (
@@ -78,6 +81,13 @@ const NotificationsPopover = () => {
     }
   };
 
+  const toggleSound = () => {
+    const newValue = !soundOn;
+    setSoundEnabled(newValue);
+    setSoundOn(newValue);
+    toast.success(newValue ? "Notification sound enabled" : "Notification sound muted");
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -94,6 +104,15 @@ const NotificationsPopover = () => {
         <div className="flex items-center justify-between px-4 py-3 border-b">
           <h3 className="font-semibold">Notifications</h3>
           <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs h-7 w-7 p-0"
+              onClick={toggleSound}
+              title={soundOn ? "Mute sounds" : "Enable sounds"}
+            >
+              {soundOn ? <Volume2 className="h-3 w-3" /> : <VolumeX className="h-3 w-3" />}
+            </Button>
             {isSupported && permission !== "granted" && (
               <Button
                 variant="ghost"
