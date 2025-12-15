@@ -49,7 +49,15 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
                 w/{post.community}
               </span>
               <span className="text-xs text-muted-foreground">
-                Posted by u/{authorName} · {timeAgo}
+                Posted by{" "}
+                <Link 
+                  to={`/u/${post.author.username || "anonymous"}`}
+                  className="hover:text-primary hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  u/{authorName}
+                </Link>
+                {" "}· {timeAgo}
               </span>
             </div>
           </div>
