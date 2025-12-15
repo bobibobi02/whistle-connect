@@ -1,4 +1,5 @@
 import { TrendingUp, Flame, Clock, Users, Hash, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -58,7 +59,7 @@ const CommunitySidebar = ({ className }: CommunitySidebarProps) => {
           <TrendingUp className="h-4 w-4 text-primary" />
         </div>
         <div className="space-y-2">
-          {trendingTopics.map((topic, idx) => (
+          {trendingTopics.map((topic) => (
             <div
               key={topic.tag}
               className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors group"
@@ -83,8 +84,9 @@ const CommunitySidebar = ({ className }: CommunitySidebarProps) => {
         </div>
         <div className="space-y-1">
           {communities.map((community) => (
-            <div
+            <Link
               key={community.name}
+              to={`/c/${community.name}`}
               className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/50 cursor-pointer transition-colors group"
             >
               <div className="flex items-center gap-3">
@@ -99,7 +101,7 @@ const CommunitySidebar = ({ className }: CommunitySidebarProps) => {
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            </div>
+            </Link>
           ))}
         </div>
         <Button variant="ghost" className="w-full mt-2 text-primary hover:text-primary hover:bg-primary/10">
