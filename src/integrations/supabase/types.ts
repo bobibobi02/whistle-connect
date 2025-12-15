@@ -94,6 +94,42 @@ export type Database = {
           },
         ]
       }
+      communities: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          display_name: string
+          icon: string | null
+          id: string
+          member_count: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          display_name: string
+          icon?: string | null
+          id?: string
+          member_count?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          display_name?: string
+          icon?: string | null
+          id?: string
+          member_count?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       post_votes: {
         Row: {
           created_at: string
