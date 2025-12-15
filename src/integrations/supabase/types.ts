@@ -195,6 +195,9 @@ export type Database = {
           email_new_follower: boolean
           email_post_upvote: boolean
           id: string
+          inapp_comment: boolean
+          inapp_new_follower: boolean
+          inapp_post_upvote: boolean
           updated_at: string
           user_id: string
         }
@@ -204,6 +207,9 @@ export type Database = {
           email_new_follower?: boolean
           email_post_upvote?: boolean
           id?: string
+          inapp_comment?: boolean
+          inapp_new_follower?: boolean
+          inapp_post_upvote?: boolean
           updated_at?: string
           user_id: string
         }
@@ -213,6 +219,9 @@ export type Database = {
           email_new_follower?: boolean
           email_post_upvote?: boolean
           id?: string
+          inapp_comment?: boolean
+          inapp_new_follower?: boolean
+          inapp_post_upvote?: boolean
           updated_at?: string
           user_id?: string
         }

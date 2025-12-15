@@ -31,6 +31,9 @@ const NotificationSettings = () => {
   const [emailFollower, setEmailFollower] = useState(true);
   const [emailUpvote, setEmailUpvote] = useState(false);
   const [emailComment, setEmailComment] = useState(true);
+  const [inappFollower, setInappFollower] = useState(true);
+  const [inappUpvote, setInappUpvote] = useState(true);
+  const [inappComment, setInappComment] = useState(true);
   const [selectedSound, setSelectedSound] = useState<SoundType>(getSoundType());
   const [volume, setVolumeState] = useState(getVolume());
 
@@ -39,6 +42,9 @@ const NotificationSettings = () => {
       setEmailFollower(preferences.email_new_follower ?? true);
       setEmailUpvote(preferences.email_post_upvote ?? false);
       setEmailComment(preferences.email_comment ?? true);
+      setInappFollower(preferences.inapp_new_follower ?? true);
+      setInappUpvote(preferences.inapp_post_upvote ?? true);
+      setInappComment(preferences.inapp_comment ?? true);
     }
   }, [preferences]);
 
@@ -62,6 +68,9 @@ const NotificationSettings = () => {
         email_new_follower: emailFollower,
         email_post_upvote: emailUpvote,
         email_comment: emailComment,
+        inapp_new_follower: inappFollower,
+        inapp_post_upvote: inappUpvote,
+        inapp_comment: inappComment,
       });
       setSoundType(selectedSound);
       setVolume(volume);
@@ -93,7 +102,44 @@ const NotificationSettings = () => {
               <Bell className="h-4 w-4" />
               In-App Notifications
             </div>
-            <div className="flex items-center justify-between gap-4">
+            
+            <div className="flex items-center justify-between">
+              <Label htmlFor="inapp-follower" className="text-sm">
+                New followers
+              </Label>
+              <Switch
+                id="inapp-follower"
+                checked={inappFollower}
+                onCheckedChange={setInappFollower}
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label htmlFor="inapp-upvote" className="text-sm">
+                Post upvotes
+              </Label>
+              <Switch
+                id="inapp-upvote"
+                checked={inappUpvote}
+                onCheckedChange={setInappUpvote}
+                disabled={isLoading}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <Label htmlFor="inapp-comment" className="text-sm">
+                New comments
+              </Label>
+              <Switch
+                id="inapp-comment"
+                checked={inappComment}
+                onCheckedChange={setInappComment}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-4 pt-2">
               <Label htmlFor="sound" className="text-sm">
                 Alert sound
               </Label>
