@@ -188,6 +188,69 @@ export type Database = {
           },
         ]
       }
+      email_preferences: {
+        Row: {
+          created_at: string
+          email_comment: boolean
+          email_new_follower: boolean
+          email_post_upvote: boolean
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_comment?: boolean
+          email_new_follower?: boolean
+          email_post_upvote?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_comment?: boolean
+          email_new_follower?: boolean
+          email_post_upvote?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_queue: {
+        Row: {
+          body_html: string
+          created_at: string
+          email_type: string
+          id: string
+          processed_at: string | null
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          body_html: string
+          created_at?: string
+          email_type: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          email_type?: string
+          id?: string
+          processed_at?: string | null
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string

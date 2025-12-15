@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import UserMenu from "@/components/UserMenu";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationsPopover from "@/components/NotificationsPopover";
+import NotificationSettings from "@/components/NotificationSettings";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -65,6 +66,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
         <div className="flex items-center gap-1">
           <ThemeToggle />
           
+          {user && <NotificationSettings />}
           <NotificationsPopover />
           
           {user ? (
