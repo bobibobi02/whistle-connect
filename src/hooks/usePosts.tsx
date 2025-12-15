@@ -191,49 +191,41 @@ export const useJoinedCommunityPosts = () => {
       if (error) throw error;
       if (!posts || posts.length === 0) return [];
 
-      // Get unique user IDs
-      const userIds = [...new Set(posts.map((p) => p.user_id))];
+      return enrichPosts(posts, user, "new");
+    },
+    enabled: !!user,
+  });
+};
 
-      // Fetch profiles
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, username, display_name, avatar_url")
-        .in("user_id", userIds);
+export const useFollowingPosts = () => {
+  const { user } = useAuth();
 
-      const profileMap: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null }> = {};
-      profiles?.forEach((p) => {
-        profileMap[p.user_id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
-      });
+  return useQuery({
+    queryKey: ["posts", "following", user?.id],
+    queryFn: async (): Promise<Post[]> => {
+      if (!user) return [];
 
-      // Fetch comment counts
-      const postIds = posts.map((p) => p.id);
-      const { data: commentCounts } = await supabase
-        .from("comments")
-        .select("post_id")
-        .in("post_id", postIds);
+      // Get users that the current user follows
+      const { data: follows } = await supabase
+        .from("follows")
+        .select("following_id")
+        .eq("follower_id", user.id);
 
-      const countMap: Record<string, number> = {};
-      commentCounts?.forEach((c) => {
-        countMap[c.post_id] = (countMap[c.post_id] || 0) + 1;
-      });
+      if (!follows || follows.length === 0) return [];
 
-      // Fetch user votes
-      const { data: votes } = await supabase
-        .from("post_votes")
-        .select("post_id, vote_type")
-        .eq("user_id", user.id);
+      const followingIds = follows.map((f) => f.following_id);
 
-      const voteMap: Record<string, number> = {};
-      votes?.forEach((v) => {
-        voteMap[v.post_id] = v.vote_type;
-      });
+      // Fetch posts from followed users
+      const { data: posts, error } = await supabase
+        .from("posts")
+        .select("*")
+        .in("user_id", followingIds)
+        .order("created_at", { ascending: false });
 
-      return posts.map((post) => ({
-        ...post,
-        author: profileMap[post.user_id] || { username: null, display_name: null, avatar_url: null },
-        comment_count: countMap[post.id] || 0,
-        user_vote: voteMap[post.id] || null,
-      }));
+      if (error) throw error;
+      if (!posts || posts.length === 0) return [];
+
+      return enrichPosts(posts, user, "new");
     },
     enabled: !!user,
   });
