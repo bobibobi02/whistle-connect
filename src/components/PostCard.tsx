@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ interface PostCardProps {
 }
 
 const PostCard = ({
+  id,
   community,
   communityIcon,
   author,
@@ -79,9 +81,11 @@ const PostCard = ({
         </div>
 
         {/* Content */}
-        <h2 className="text-lg font-semibold mb-2 hover:text-primary cursor-pointer transition-colors leading-snug">
-          {title}
-        </h2>
+        <Link to={`/post/${id}`}>
+          <h2 className="text-lg font-semibold mb-2 hover:text-primary cursor-pointer transition-colors leading-snug">
+            {title}
+          </h2>
+        </Link>
         
         {content && (
           <p className="text-muted-foreground text-sm mb-3 line-clamp-3">
