@@ -177,6 +177,15 @@ const NotificationsPopover = () => {
             </div>
           )}
         </ScrollArea>
+        <div className="border-t p-2">
+          <Link
+            to="/notifications"
+            onClick={() => setOpen(false)}
+            className="block w-full text-center text-sm text-primary hover:underline py-2"
+          >
+            View all notifications
+          </Link>
+        </div>
       </PopoverContent>
     </Popover>
   );
