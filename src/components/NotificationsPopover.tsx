@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, Check, MessageCircle } from "lucide-react";
+import { Bell, Check, MessageCircle, ArrowBigUp, UserPlus, Reply } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,34 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotifications, useUnreadCount, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+
+const getNotificationIcon = (type: string) => {
+  switch (type) {
+    case "upvote":
+      return <ArrowBigUp className="h-4 w-4" />;
+    case "follow":
+      return <UserPlus className="h-4 w-4" />;
+    case "reply":
+      return <Reply className="h-4 w-4" />;
+    case "comment":
+    default:
+      return <MessageCircle className="h-4 w-4" />;
+  }
+};
+
+const getNotificationColor = (type: string) => {
+  switch (type) {
+    case "upvote":
+      return "bg-orange-500/10 text-orange-500";
+    case "follow":
+      return "bg-blue-500/10 text-blue-500";
+    case "reply":
+      return "bg-purple-500/10 text-purple-500";
+    case "comment":
+    default:
+      return "bg-primary/10 text-primary";
+  }
+};
 
 const NotificationsPopover = () => {
   const [open, setOpen] = useState(false);
@@ -78,8 +106,11 @@ const NotificationsPopover = () => {
                     !notification.read && "bg-primary/5"
                   )}
                 >
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary shrink-0">
-                    <MessageCircle className="h-4 w-4" />
+                  <div className={cn(
+                    "flex h-8 w-8 items-center justify-center rounded-full shrink-0",
+                    getNotificationColor(notification.type)
+                  )}>
+                    {getNotificationIcon(notification.type)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={cn("text-sm", !notification.read && "font-medium")}>
