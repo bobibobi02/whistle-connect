@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import CreatePost from "./pages/CreatePost";
 import Profile from "./pages/Profile";
 import Community from "./pages/Community";
+import Communities from "./pages/Communities";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/create" element={<CreatePost />} />
             <Route path="/u/:username" element={<Profile />} />
+            <Route path="/communities" element={<Communities />} />
             <Route path="/c/:communityName" element={<Community />} />
             <Route path="/post/:postId" element={<PostDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
