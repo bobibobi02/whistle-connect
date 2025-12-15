@@ -26,6 +26,7 @@ const UserMenu = () => {
   }
 
   const displayName = profile?.display_name || profile?.username || "User";
+  const username = profile?.username || "user";
   const initials = displayName.slice(0, 2).toUpperCase();
 
   return (
@@ -46,16 +47,18 @@ const UserMenu = () => {
           <p className="text-xs text-muted-foreground">{user.email}</p>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <User className="mr-2 h-4 w-4" />
-          Profile
+        <DropdownMenuItem asChild>
+          <Link to={`/u/${username}`} className="cursor-pointer">
+            <User className="mr-2 h-4 w-4" />
+            Profile
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuItem>
           <Settings className="mr-2 h-4 w-4" />
           Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={signOut} className="text-destructive">
+        <DropdownMenuItem onClick={signOut} className="text-destructive cursor-pointer">
           <LogOut className="mr-2 h-4 w-4" />
           Sign out
         </DropdownMenuItem>

@@ -105,7 +105,14 @@ const PostDetail = () => {
                             w/{post.community}
                           </span>
                           <span className="text-sm text-muted-foreground">
-                            Posted by u/{authorName} · {timeAgo}
+                            Posted by{" "}
+                            <Link 
+                              to={`/u/${post.author.username || "anonymous"}`}
+                              className="hover:text-primary hover:underline"
+                            >
+                              u/{authorName}
+                            </Link>
+                            {" "}· {timeAgo}
                           </span>
                         </div>
                       </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,9 +85,12 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
           <div className="h-6 w-6 rounded-full bg-gradient-warm flex items-center justify-center text-xs font-semibold text-primary-foreground">
             {authorName[0].toUpperCase()}
           </div>
-          <span className="text-sm font-medium hover:text-primary cursor-pointer transition-colors">
+          <Link 
+            to={`/u/${comment.author.username || "anonymous"}`}
+            className="text-sm font-medium hover:text-primary cursor-pointer transition-colors"
+          >
             u/{authorName}
-          </span>
+          </Link>
           <span className="text-xs text-muted-foreground">· {timeAgo}</span>
           {isCollapsed && comment.replies && comment.replies.length > 0 && (
             <span className="text-xs text-muted-foreground">
