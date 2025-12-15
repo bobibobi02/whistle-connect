@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
 
 export interface CommentData {
   id: string;
@@ -19,11 +21,21 @@ interface CommentProps {
 }
 
 const Comment = ({ comment, depth = 0 }: CommentProps) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [upvotes, setUpvotes] = useState(comment.upvotes);
   const [voteState, setVoteState] = useState<"up" | "down" | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
+
+  const handleReplyClick = () => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    setIsReplying(!isReplying);
+  };
 
   const handleUpvote = () => {
     if (voteState === "up") {
@@ -126,7 +138,7 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
                 variant="ghost" 
                 size="sm" 
                 className="gap-1 text-muted-foreground hover:text-foreground h-7 text-xs"
-                onClick={() => setIsReplying(!isReplying)}
+                onClick={handleReplyClick}
               >
                 <MessageCircle className="h-3.5 w-3.5" />
                 Reply
