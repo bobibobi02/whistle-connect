@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, CheckCheck, Trash2, X } from "lucide-react";
+import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, CheckCheck, Trash2, X, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { 
-  useNotifications, 
+  useInfiniteNotifications, 
   useMarkAsRead, 
   useMarkAllAsRead, 
   useDeleteNotification,
@@ -63,7 +63,13 @@ const getNotificationLabel = (type: string) => {
 
 const NotificationCenter = () => {
   const { user } = useAuth();
-  const { data: notifications, isLoading } = useNotifications();
+  const { 
+    data, 
+    isLoading, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage 
+  } = useInfiniteNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
@@ -75,14 +81,17 @@ const NotificationCenter = () => {
     return <Navigate to="/auth" replace />;
   }
 
-  const filteredNotifications = notifications?.filter((n) => {
+  // Flatten paginated data
+  const notifications = data?.pages.flatMap((page) => page.data) || [];
+
+  const filteredNotifications = notifications.filter((n) => {
     if (activeFilter === "all") return true;
     if (activeFilter === "unread") return !n.read;
     return n.type === activeFilter;
-  }) || [];
+  });
 
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
-  const totalCount = notifications?.length || 0;
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const totalCount = notifications.length;
 
   const handleDelete = (e: React.MouseEvent, notificationId: string) => {
     e.preventDefault();
@@ -213,7 +222,7 @@ const NotificationCenter = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="space-y-0">
+          <TabsContent value="all" className="space-y-4">
             <Card className="divide-y divide-border">
               {isLoading ? (
                 <div className="p-8 text-center text-muted-foreground">
@@ -230,10 +239,28 @@ const NotificationCenter = () => {
                 </div>
               )}
             </Card>
+            {hasNextPage && activeFilter === "all" && (
+              <div className="flex justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                >
+                  {isFetchingNextPage ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "Load more"
+                  )}
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           {["unread", "comment", "upvote", "follow"].map((tab) => (
-            <TabsContent key={tab} value={tab} className="space-y-0">
+            <TabsContent key={tab} value={tab} className="space-y-4">
               <Card className="divide-y divide-border">
                 {isLoading ? (
                   <div className="p-8 text-center text-muted-foreground">
@@ -252,6 +279,24 @@ const NotificationCenter = () => {
                   </div>
                 )}
               </Card>
+              {hasNextPage && (
+                <div className="flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => fetchNextPage()}
+                    disabled={isFetchingNextPage}
+                  >
+                    {isFetchingNextPage ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      "Load more"
+                    )}
+                  </Button>
+                </div>
+              )}
             </TabsContent>
           ))}
         </Tabs>
