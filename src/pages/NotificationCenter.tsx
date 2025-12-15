@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, CheckCheck, Trash2, X, Loader2, RefreshCw } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, isToday, isYesterday, isThisWeek, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -134,6 +134,33 @@ const NotificationCenter = () => {
     if (activeFilter === "unread") return !n.read;
     return n.type === activeFilter;
   });
+
+  // Group notifications by date
+  const groupNotificationsByDate = (notifs: Notification[]) => {
+    const groups: { label: string; notifications: Notification[] }[] = [
+      { label: "Today", notifications: [] },
+      { label: "Yesterday", notifications: [] },
+      { label: "This Week", notifications: [] },
+      { label: "Older", notifications: [] },
+    ];
+
+    notifs.forEach((notification) => {
+      const date = new Date(notification.created_at);
+      if (isToday(date)) {
+        groups[0].notifications.push(notification);
+      } else if (isYesterday(date)) {
+        groups[1].notifications.push(notification);
+      } else if (isThisWeek(date)) {
+        groups[2].notifications.push(notification);
+      } else {
+        groups[3].notifications.push(notification);
+      }
+    });
+
+    return groups.filter((g) => g.notifications.length > 0);
+  };
+
+  const groupedNotifications = groupNotificationsByDate(filteredNotifications);
 
   const unreadCount = counts.unread;
   const totalCount = counts.all;
@@ -323,44 +350,54 @@ const NotificationCenter = () => {
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
-            <Card className="divide-y divide-border">
-              {isLoading ? (
-                <div className="p-8 text-center text-muted-foreground">
-                  Loading notifications...
+            {isLoading ? (
+              <Card className="p-8 text-center text-muted-foreground">
+                Loading notifications...
+              </Card>
+            ) : groupedNotifications.length > 0 ? (
+              groupedNotifications.map((group) => (
+                <div key={group.label} className="space-y-2">
+                  <h3 className="text-sm font-medium text-muted-foreground px-1">{group.label}</h3>
+                  <Card className="divide-y divide-border">
+                    {group.notifications.map((notification) => (
+                      <NotificationItem key={notification.id} notification={notification} />
+                    ))}
+                  </Card>
                 </div>
-              ) : filteredNotifications.length > 0 ? (
-                filteredNotifications.map((notification) => (
-                  <NotificationItem key={notification.id} notification={notification} />
-                ))
-              ) : (
-                <div className="p-8 text-center">
-                  <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">No notifications yet</p>
-                </div>
-              )}
-            </Card>
+              ))
+            ) : (
+              <Card className="p-8 text-center">
+                <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground">No notifications yet</p>
+              </Card>
+            )}
           </TabsContent>
 
           {["unread", "comment", "upvote", "follow"].map((tab) => (
             <TabsContent key={tab} value={tab} className="space-y-4">
-              <Card className="divide-y divide-border">
-                {isLoading ? (
-                  <div className="p-8 text-center text-muted-foreground">
-                    Loading notifications...
+              {isLoading ? (
+                <Card className="p-8 text-center text-muted-foreground">
+                  Loading notifications...
+                </Card>
+              ) : groupedNotifications.length > 0 ? (
+                groupedNotifications.map((group) => (
+                  <div key={group.label} className="space-y-2">
+                    <h3 className="text-sm font-medium text-muted-foreground px-1">{group.label}</h3>
+                    <Card className="divide-y divide-border">
+                      {group.notifications.map((notification) => (
+                        <NotificationItem key={notification.id} notification={notification} />
+                      ))}
+                    </Card>
                   </div>
-                ) : filteredNotifications.length > 0 ? (
-                  filteredNotifications.map((notification) => (
-                    <NotificationItem key={notification.id} notification={notification} />
-                  ))
-                ) : (
-                  <div className="p-8 text-center">
-                    <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground">
-                      No {tab === "unread" ? "unread" : tab} notifications
-                    </p>
-                  </div>
-                )}
-              </Card>
+                ))
+              ) : (
+                <Card className="p-8 text-center">
+                  <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-muted-foreground">
+                    No {tab === "unread" ? "unread" : tab} notifications
+                  </p>
+                </Card>
+              )}
             </TabsContent>
           ))}
         </Tabs>
