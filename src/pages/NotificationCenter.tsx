@@ -165,12 +165,46 @@ const NotificationCenter = () => {
   const unreadCount = counts.unread;
   const totalCount = counts.all;
 
-  const handleDelete = (e: React.MouseEvent, notificationId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    deleteNotification.mutate(notificationId, {
-      onSuccess: () => toast.success("Notification deleted"),
+  const pendingDeleteRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  const handleDeleteWithUndo = useCallback((notificationId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    // Cancel any existing pending delete for this notification
+    const existing = pendingDeleteRef.current.get(notificationId);
+    if (existing) {
+      clearTimeout(existing);
+    }
+
+    // Show toast with undo
+    toast("Notification deleted", {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          const timeout = pendingDeleteRef.current.get(notificationId);
+          if (timeout) {
+            clearTimeout(timeout);
+            pendingDeleteRef.current.delete(notificationId);
+          }
+        },
+      },
+      duration: 5000,
     });
+
+    // Schedule actual deletion after toast duration
+    const timeout = setTimeout(() => {
+      deleteNotification.mutate(notificationId);
+      pendingDeleteRef.current.delete(notificationId);
+    }, 5000);
+
+    pendingDeleteRef.current.set(notificationId, timeout);
+  }, [deleteNotification]);
+
+  const handleDelete = (e: React.MouseEvent, notificationId: string) => {
+    handleDeleteWithUndo(notificationId, e);
   };
 
   const handleDeleteAll = () => {
@@ -241,9 +275,7 @@ const NotificationCenter = () => {
 
   const NotificationItem = ({ notification }: { notification: Notification }) => {
     const handleSwipeDelete = () => {
-      deleteNotification.mutate(notification.id, {
-        onSuccess: () => toast.success("Notification deleted"),
-      });
+      handleDeleteWithUndo(notification.id);
     };
 
     if (isMobile) {
