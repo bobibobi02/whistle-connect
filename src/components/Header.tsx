@@ -1,4 +1,5 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Search, Bell, Plus, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,15 @@ interface HeaderProps {
 
 const Header = ({ onMenuClick }: HeaderProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-card/80 backdrop-blur-xl">
@@ -27,26 +37,28 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             <Menu className="h-5 w-5" />
           </Button>
           
-          <div className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-warm">
               <span className="text-lg font-bold text-primary-foreground">W</span>
             </div>
             <span className="text-xl font-bold tracking-tight">
               Whistle
             </span>
-          </div>
+          </Link>
         </div>
 
         {/* Center: Search */}
-        <div className="hidden flex-1 max-w-xl mx-8 md:block">
+        <form onSubmit={handleSearch} className="hidden flex-1 max-w-xl mx-8 md:block">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search communities, posts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-secondary/50 border-0 focus-visible:ring-1 focus-visible:ring-primary/50"
             />
           </div>
-        </div>
+        </form>
 
         {/* Right: Actions */}
         <div className="flex items-center gap-1">
