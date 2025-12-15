@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -24,32 +24,13 @@ export interface Post {
 
 export type SortOption = "best" | "hot" | "new";
 
-const fetchPosts = async (
+const POSTS_PER_PAGE = 10;
+
+const enrichPosts = async (
+  posts: any[],
   user: { id: string } | null,
-  community?: string,
-  sort: SortOption = "best"
+  sort: SortOption
 ): Promise<Post[]> => {
-  // Fetch posts with appropriate ordering
-  let query = supabase.from("posts").select("*");
-
-  if (community) {
-    query = query.eq("community", community);
-  }
-
-  // Apply sorting
-  if (sort === "new") {
-    query = query.order("created_at", { ascending: false });
-  } else if (sort === "hot") {
-    // Hot: recent posts with high engagement (last 24 hours weighted)
-    query = query.order("created_at", { ascending: false }).order("upvotes", { ascending: false });
-  } else {
-    // Best: highest upvotes
-    query = query.order("upvotes", { ascending: false }).order("created_at", { ascending: false });
-  }
-
-  const { data: posts, error } = await query;
-
-  if (error) throw error;
   if (!posts || posts.length === 0) return [];
 
   // For "hot" sorting, we'll do additional client-side sorting
@@ -60,7 +41,6 @@ const fetchPosts = async (
     sortedPosts = [...posts].sort((a, b) => {
       const ageA = (now - new Date(a.created_at).getTime()) / hourInMs;
       const ageB = (now - new Date(b.created_at).getTime()) / hourInMs;
-      // Hot score: upvotes / (age in hours + 2)^1.5
       const scoreA = a.upvotes / Math.pow(ageA + 2, 1.5);
       const scoreB = b.upvotes / Math.pow(ageB + 2, 1.5);
       return scoreB - scoreA;
@@ -114,12 +94,62 @@ const fetchPosts = async (
   }));
 };
 
+const fetchPostsPage = async (
+  user: { id: string } | null,
+  sort: SortOption = "best",
+  pageParam: number = 0,
+  community?: string
+): Promise<{ posts: Post[]; nextPage: number | null }> => {
+  let query = supabase.from("posts").select("*");
+
+  if (community) {
+    query = query.eq("community", community);
+  }
+
+  // Apply sorting
+  if (sort === "new") {
+    query = query.order("created_at", { ascending: false });
+  } else if (sort === "hot") {
+    query = query.order("created_at", { ascending: false }).order("upvotes", { ascending: false });
+  } else {
+    query = query.order("upvotes", { ascending: false }).order("created_at", { ascending: false });
+  }
+
+  // Apply pagination
+  query = query.range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+
+  const { data: posts, error } = await query;
+
+  if (error) throw error;
+
+  const enrichedPosts = await enrichPosts(posts || [], user, sort);
+
+  return {
+    posts: enrichedPosts,
+    nextPage: posts && posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
+  };
+};
+
+export const useInfinitePosts = (sort: SortOption = "best") => {
+  const { user } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: ["posts", "infinite", sort, user?.id],
+    queryFn: ({ pageParam }) => fetchPostsPage(user, sort, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+  });
+};
+
 export const usePosts = (sort: SortOption = "best") => {
   const { user } = useAuth();
 
   return useQuery({
     queryKey: ["posts", sort, user?.id],
-    queryFn: () => fetchPosts(user, undefined, sort),
+    queryFn: async () => {
+      const result = await fetchPostsPage(user, sort, 0);
+      return result.posts;
+    },
   });
 };
 
@@ -214,7 +244,10 @@ export const useCommunityPosts = (community: string) => {
 
   return useQuery({
     queryKey: ["posts", "community", community, user?.id],
-    queryFn: () => fetchPosts(user, community),
+    queryFn: async () => {
+      const result = await fetchPostsPage(user, "new", 0, community);
+      return result.posts;
+    },
     enabled: !!community,
   });
 };
