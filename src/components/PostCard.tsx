@@ -1,12 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal, Copy, Twitter, Facebook, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useVotePost, Post } from "@/hooks/usePosts";
 import { useBookmarks, useToggleBookmark } from "@/hooks/useBookmarks";
 import { formatDistanceToNow } from "date-fns";
-
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 interface PostCardProps {
   post: Post;
   index?: number;
@@ -32,6 +38,25 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
 
     const newVote = post.user_vote === type ? null : type;
     votePost.mutate({ postId: post.id, voteType: newVote });
+  };
+
+  const postUrl = `${window.location.origin}/post/${post.id}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(postUrl);
+    toast.success("Link copied to clipboard!");
+  };
+
+  const handleShareTwitter = () => {
+    window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(postUrl)}&text=${encodeURIComponent(post.title)}`, "_blank");
+  };
+
+  const handleShareFacebook = () => {
+    window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(postUrl)}`, "_blank");
+  };
+
+  const handleShareLinkedIn = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(postUrl)}`, "_blank");
   };
 
   const displayedUpvotes = post.upvotes + 
@@ -132,10 +157,32 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
             </Button>
           </Link>
 
-          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
-            <Share2 className="h-4 w-4" />
-            <span className="hidden sm:inline text-sm">Share</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
+                <Share2 className="h-4 w-4" />
+                <span className="hidden sm:inline text-sm">Share</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={handleCopyLink}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copy Link
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareTwitter}>
+                <Twitter className="h-4 w-4 mr-2" />
+                Share on X
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareFacebook}>
+                <Facebook className="h-4 w-4 mr-2" />
+                Share on Facebook
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleShareLinkedIn}>
+                <Linkedin className="h-4 w-4 mr-2" />
+                Share on LinkedIn
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             variant="ghost"
