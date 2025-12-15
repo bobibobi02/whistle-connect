@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Mail, Bell, Play } from "lucide-react";
+import { Settings, Mail, Bell, Play, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import {
   Select,
   SelectContent,
@@ -25,12 +26,13 @@ import { toast } from "sonner";
 const NotificationSettings = () => {
   const { data: preferences, isLoading } = useEmailPreferences();
   const updatePreferences = useUpdateEmailPreferences();
-  const { getSoundType, setSoundType, previewSound, soundOptions } = useNotificationSound();
+  const { getSoundType, setSoundType, getVolume, setVolume, previewSound, soundOptions } = useNotificationSound();
   
   const [emailFollower, setEmailFollower] = useState(true);
   const [emailUpvote, setEmailUpvote] = useState(false);
   const [emailComment, setEmailComment] = useState(true);
   const [selectedSound, setSelectedSound] = useState<SoundType>(getSoundType());
+  const [volume, setVolumeState] = useState(getVolume());
 
   useEffect(() => {
     if (preferences) {
@@ -44,9 +46,13 @@ const NotificationSettings = () => {
     setSelectedSound(value);
   };
 
+  const handleVolumeChange = (value: number[]) => {
+    setVolumeState(value[0]);
+  };
+
   const handlePreviewSound = () => {
     if (selectedSound !== "none") {
-      previewSound(selectedSound);
+      previewSound(selectedSound, volume);
     }
   };
 
@@ -58,6 +64,7 @@ const NotificationSettings = () => {
         email_comment: emailComment,
       });
       setSoundType(selectedSound);
+      setVolume(volume);
       toast.success("Notification settings saved!");
     } catch (error) {
       toast.error("Failed to save settings");
@@ -112,6 +119,26 @@ const NotificationSettings = () => {
                 >
                   <Play className="h-4 w-4" />
                 </Button>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <Label className="text-sm flex items-center gap-2">
+                <Volume2 className="h-4 w-4" />
+                Volume
+              </Label>
+              <div className="flex items-center gap-3 w-40">
+                <Slider
+                  value={[volume]}
+                  onValueChange={handleVolumeChange}
+                  max={1}
+                  min={0}
+                  step={0.1}
+                  disabled={selectedSound === "none"}
+                  className="flex-1"
+                />
+                <span className="text-xs text-muted-foreground w-8">
+                  {Math.round(volume * 100)}%
+                </span>
               </div>
             </div>
           </div>
