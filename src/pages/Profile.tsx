@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Edit2 } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { ArrowLeft, Calendar, Edit2, Users } from "lucide-react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import PostCard from "@/components/PostCard";
 import EditProfileDialog from "@/components/EditProfileDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfileByUsername, useUserPosts } from "@/hooks/useProfile";
+import { useUserJoinedCommunities } from "@/hooks/useCommunities";
 
 const Profile = () => {
   const { username } = useParams();
@@ -20,6 +21,7 @@ const Profile = () => {
 
   const { data: profile, isLoading: profileLoading } = useProfileByUsername(username || "");
   const { data: posts, isLoading: postsLoading } = useUserPosts(profile?.user_id || "");
+  const { data: joinedCommunities, isLoading: communitiesLoading } = useUserJoinedCommunities(profile?.user_id);
 
   const isOwnProfile = user && profile && user.id === profile.user_id;
   const displayName = profile?.display_name || profile?.username || "Anonymous";
@@ -107,9 +109,48 @@ const Profile = () => {
                     <span className="font-bold">{posts?.length || 0}</span>
                     <span className="text-muted-foreground ml-1">posts</span>
                   </div>
+                  <div>
+                    <span className="font-bold">{joinedCommunities?.length || 0}</span>
+                    <span className="text-muted-foreground ml-1">communities</span>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Joined Communities */}
+            {(joinedCommunities && joinedCommunities.length > 0) && (
+              <div className="mb-6 animate-fade-in" style={{ animationDelay: "50ms" }}>
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Communities
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {joinedCommunities.map((community) => (
+                    <Link
+                      key={community.id}
+                      to={`/c/${community.name}`}
+                      className="flex items-center gap-2 px-3 py-2 bg-card rounded-lg shadow-card hover:shadow-card-hover transition-all group"
+                    >
+                      <span className="text-lg">{community.icon || "💬"}</span>
+                      <span className="text-sm font-medium group-hover:text-primary transition-colors">
+                        w/{community.name}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {communitiesLoading && (
+              <div className="mb-6">
+                <Skeleton className="h-5 w-32 mb-3" />
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-10 w-28 rounded-lg" />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Posts */}
             <div className="space-y-4">
