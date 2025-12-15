@@ -5,11 +5,11 @@ import PostCard from "@/components/PostCard";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
-import { useInfinitePosts, useJoinedCommunityPosts, SortOption } from "@/hooks/usePosts";
+import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOption } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Users, Flame, TrendingUp, Clock, Loader2 } from "lucide-react";
+import { Users, Flame, TrendingUp, Clock, Loader2, UserPlus } from "lucide-react";
 
 const sortOptions = [
   { value: "best" as SortOption, label: "Best", icon: Flame },
@@ -19,7 +19,7 @@ const sortOptions = [
 
 const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [feedType, setFeedType] = useState<"all" | "joined">("all");
+  const [feedType, setFeedType] = useState<"all" | "joined" | "following">("all");
   const [sortBy, setSortBy] = useState<SortOption>("best");
   const loadMoreRef = useRef<HTMLDivElement>(null);
   
@@ -33,11 +33,12 @@ const Index = () => {
     isFetchingNextPage,
   } = useInfinitePosts(sortBy);
   const { data: joinedPosts, isLoading: joinedLoading, error: joinedError } = useJoinedCommunityPosts();
+  const { data: followingPosts, isLoading: followingLoading, error: followingError } = useFollowingPosts();
 
   const allPosts = infiniteData?.pages.flatMap((page) => page.posts) ?? [];
-  const posts = feedType === "joined" ? joinedPosts : allPosts;
-  const isLoading = feedType === "joined" ? joinedLoading : allLoading;
-  const error = feedType === "joined" ? joinedError : allError;
+  const posts = feedType === "joined" ? joinedPosts : feedType === "following" ? followingPosts : allPosts;
+  const isLoading = feedType === "joined" ? joinedLoading : feedType === "following" ? followingLoading : allLoading;
+  const error = feedType === "joined" ? joinedError : feedType === "following" ? followingError : allError;
 
   // Infinite scroll observer
   const handleObserver = useCallback(
@@ -112,6 +113,15 @@ const Index = () => {
                     <Users className="h-4 w-4 mr-1.5" />
                     Joined
                   </Button>
+                  <Button
+                    variant={feedType === "following" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setFeedType("following")}
+                    className={feedType === "following" ? "bg-gradient-warm hover:opacity-90" : ""}
+                  >
+                    <UserPlus className="h-4 w-4 mr-1.5" />
+                    Following
+                  </Button>
                 </div>
               )}
             </div>
@@ -173,6 +183,12 @@ const Index = () => {
                 <Link to="/communities">
                   <Button>Browse Communities</Button>
                 </Link>
+              </div>
+            ) : feedType === "following" ? (
+              <div className="bg-card rounded-xl shadow-card p-8 text-center">
+                <UserPlus className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-2">No posts from users you follow yet.</p>
+                <p className="text-sm text-muted-foreground mb-4">Follow some users to see their posts here!</p>
               </div>
             ) : (
               <div className="bg-card rounded-xl shadow-card p-8 text-center">

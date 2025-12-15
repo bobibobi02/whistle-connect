@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Edit2, Users, Bookmark } from "lucide-react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { ArrowLeft, Calendar, Edit2, Users, Bookmark, UserPlus, UserMinus } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,10 +14,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfileByUsername, useUserPosts } from "@/hooks/useProfile";
 import { useUserJoinedCommunities } from "@/hooks/useCommunities";
 import { useBookmarkedPosts } from "@/hooks/useBookmarks";
+import { useIsFollowing, useToggleFollow, useFollowCounts } from "@/hooks/useFollows";
 
 const Profile = () => {
   const { username } = useParams();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -25,6 +27,9 @@ const Profile = () => {
   const { data: posts, isLoading: postsLoading } = useUserPosts(profile?.user_id || "");
   const { data: joinedCommunities, isLoading: communitiesLoading } = useUserJoinedCommunities(profile?.user_id);
   const { data: savedPosts, isLoading: savedLoading } = useBookmarkedPosts();
+  const { data: isFollowing } = useIsFollowing(profile?.user_id);
+  const { data: followCounts } = useFollowCounts(profile?.user_id);
+  const toggleFollow = useToggleFollow();
 
   const isOwnProfile = user && profile && user.id === profile.user_id;
   const displayName = profile?.display_name || profile?.username || "Anonymous";
@@ -83,7 +88,7 @@ const Profile = () => {
                         <p className="text-muted-foreground">u/{profile.username || "anonymous"}</p>
                       </div>
                       
-                      {isOwnProfile && (
+                      {isOwnProfile ? (
                         <Button
                           variant="outline"
                           size="sm"
@@ -92,6 +97,36 @@ const Profile = () => {
                         >
                           <Edit2 className="h-4 w-4" />
                           Edit Profile
+                        </Button>
+                      ) : user ? (
+                        <Button
+                          variant={isFollowing ? "outline" : "default"}
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => toggleFollow.mutate({ targetUserId: profile.user_id, isFollowing: isFollowing ?? false })}
+                          disabled={toggleFollow.isPending}
+                        >
+                          {isFollowing ? (
+                            <>
+                              <UserMinus className="h-4 w-4" />
+                              Unfollow
+                            </>
+                          ) : (
+                            <>
+                              <UserPlus className="h-4 w-4" />
+                              Follow
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => navigate("/auth")}
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          Follow
                         </Button>
                       )}
                     </div>
@@ -111,6 +146,14 @@ const Profile = () => {
                   <div>
                     <span className="font-bold">{posts?.length || 0}</span>
                     <span className="text-muted-foreground ml-1">posts</span>
+                  </div>
+                  <div>
+                    <span className="font-bold">{followCounts?.followers || 0}</span>
+                    <span className="text-muted-foreground ml-1">followers</span>
+                  </div>
+                  <div>
+                    <span className="font-bold">{followCounts?.following || 0}</span>
+                    <span className="text-muted-foreground ml-1">following</span>
                   </div>
                   <div>
                     <span className="font-bold">{joinedCommunities?.length || 0}</span>
