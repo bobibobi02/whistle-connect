@@ -104,9 +104,11 @@ const CommunitySidebar = ({ className }: CommunitySidebarProps) => {
             </Link>
           ))}
         </div>
-        <Button variant="ghost" className="w-full mt-2 text-primary hover:text-primary hover:bg-primary/10">
-          View All Communities
-        </Button>
+        <Link to="/communities">
+          <Button variant="ghost" className="w-full mt-2 text-primary hover:text-primary hover:bg-primary/10">
+            View All Communities
+          </Button>
+        </Link>
       </div>
 
       {/* Create Community CTA */}
