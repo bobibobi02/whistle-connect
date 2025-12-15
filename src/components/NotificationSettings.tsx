@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Mail, Bell, Play, Volume2 } from "lucide-react";
+import { Settings, Mail, Bell, Play, Volume2, BellOff, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,13 +19,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useEmailPreferences, useUpdateEmailPreferences } from "@/hooks/useEmailPreferences";
+import { useEmailPreferences, useUpdateEmailPreferences, useSnoozeNotifications } from "@/hooks/useEmailPreferences";
 import { useNotificationSound, SoundType } from "@/hooks/useNotificationSound";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+
+const SNOOZE_OPTIONS = [
+  { label: "1 hour", value: 1 },
+  { label: "4 hours", value: 4 },
+  { label: "8 hours", value: 8 },
+  { label: "24 hours", value: 24 },
+];
 
 const NotificationSettings = () => {
   const { data: preferences, isLoading } = useEmailPreferences();
   const updatePreferences = useUpdateEmailPreferences();
+  const snoozeNotifications = useSnoozeNotifications();
   const { getSoundType, setSoundType, getVolume, setVolume, previewSound, soundOptions } = useNotificationSound();
   
   const [emailFollower, setEmailFollower] = useState(true);
@@ -36,6 +45,9 @@ const NotificationSettings = () => {
   const [inappComment, setInappComment] = useState(true);
   const [selectedSound, setSelectedSound] = useState<SoundType>(getSoundType());
   const [volume, setVolumeState] = useState(getVolume());
+
+  const snoozeUntil = preferences?.snooze_until ? new Date(preferences.snooze_until) : null;
+  const isSnoozed = snoozeUntil && snoozeUntil > new Date();
 
   useEffect(() => {
     if (preferences) {
@@ -59,6 +71,26 @@ const NotificationSettings = () => {
   const handlePreviewSound = () => {
     if (selectedSound !== "none") {
       previewSound(selectedSound, volume);
+    }
+  };
+
+  const handleSnooze = async (hours: number) => {
+    const snoozeUntil = new Date();
+    snoozeUntil.setHours(snoozeUntil.getHours() + hours);
+    try {
+      await snoozeNotifications.mutateAsync(snoozeUntil);
+      toast.success(`Notifications snoozed for ${hours} hour${hours > 1 ? "s" : ""}`);
+    } catch (error) {
+      toast.error("Failed to snooze notifications");
+    }
+  };
+
+  const handleUnsnooze = async () => {
+    try {
+      await snoozeNotifications.mutateAsync(null);
+      toast.success("Notifications resumed");
+    } catch (error) {
+      toast.error("Failed to resume notifications");
     }
   };
 
@@ -87,7 +119,7 @@ const NotificationSettings = () => {
           <Settings className="h-5 w-5" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Notification Settings</DialogTitle>
           <DialogDescription>
@@ -96,7 +128,46 @@ const NotificationSettings = () => {
         </DialogHeader>
         
         <div className="space-y-6 py-4">
-          {/* Sound Settings */}
+          {/* Snooze Section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <BellOff className="h-4 w-4" />
+              Snooze Notifications
+            </div>
+            
+            {isSnoozed ? (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                  <span>Snoozed for {formatDistanceToNow(snoozeUntil)}</span>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleUnsnooze}
+                  disabled={snoozeNotifications.isPending}
+                >
+                  Resume
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {SNOOZE_OPTIONS.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSnooze(option.value)}
+                    disabled={snoozeNotifications.isPending}
+                  >
+                    {option.label}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* In-App Notification Settings */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 text-sm font-medium">
               <Bell className="h-4 w-4" />

@@ -11,6 +11,7 @@ export interface EmailPreferences {
   inapp_new_follower: boolean;
   inapp_post_upvote: boolean;
   inapp_comment: boolean;
+  snooze_until: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ export const useEmailPreferences = () => {
           inapp_new_follower: true,
           inapp_post_upvote: true,
           inapp_comment: true,
+          snooze_until: null,
         } as Partial<EmailPreferences>;
       }
       
@@ -75,6 +77,41 @@ export const useUpdateEmailPreferences = () => {
         const { error } = await supabase
           .from("email_preferences")
           .insert({ ...preferences, user_id: user.id });
+
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-preferences"] });
+    },
+  });
+};
+
+export const useSnoozeNotifications = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (snoozeUntil: Date | null) => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: existing } = await supabase
+        .from("email_preferences")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (existing) {
+        const { error } = await supabase
+          .from("email_preferences")
+          .update({ snooze_until: snoozeUntil?.toISOString() ?? null })
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("email_preferences")
+          .insert({ user_id: user.id, snooze_until: snoozeUntil?.toISOString() ?? null });
 
         if (error) throw error;
       }
