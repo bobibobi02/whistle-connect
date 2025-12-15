@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Mail, Bell } from "lucide-react";
+import { Settings, Mail, Bell, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,19 +11,26 @@ import {
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useEmailPreferences, useUpdateEmailPreferences } from "@/hooks/useEmailPreferences";
-import { useNotificationSound } from "@/hooks/useNotificationSound";
+import { useNotificationSound, SoundType } from "@/hooks/useNotificationSound";
 import { toast } from "sonner";
 
 const NotificationSettings = () => {
   const { data: preferences, isLoading } = useEmailPreferences();
   const updatePreferences = useUpdateEmailPreferences();
-  const { isSoundEnabled, setSoundEnabled } = useNotificationSound();
+  const { getSoundType, setSoundType, previewSound, soundOptions } = useNotificationSound();
   
   const [emailFollower, setEmailFollower] = useState(true);
   const [emailUpvote, setEmailUpvote] = useState(false);
   const [emailComment, setEmailComment] = useState(true);
-  const [soundEnabled, setSoundEnabledState] = useState(isSoundEnabled);
+  const [selectedSound, setSelectedSound] = useState<SoundType>(getSoundType());
 
   useEffect(() => {
     if (preferences) {
@@ -33,6 +40,16 @@ const NotificationSettings = () => {
     }
   }, [preferences]);
 
+  const handleSoundChange = (value: SoundType) => {
+    setSelectedSound(value);
+  };
+
+  const handlePreviewSound = () => {
+    if (selectedSound !== "none") {
+      previewSound(selectedSound);
+    }
+  };
+
   const handleSave = async () => {
     try {
       await updatePreferences.mutateAsync({
@@ -40,7 +57,7 @@ const NotificationSettings = () => {
         email_post_upvote: emailUpvote,
         email_comment: emailComment,
       });
-      setSoundEnabled(soundEnabled);
+      setSoundType(selectedSound);
       toast.success("Notification settings saved!");
     } catch (error) {
       toast.error("Failed to save settings");
@@ -69,15 +86,33 @@ const NotificationSettings = () => {
               <Bell className="h-4 w-4" />
               In-App Notifications
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-4">
               <Label htmlFor="sound" className="text-sm">
-                Notification sound
+                Alert sound
               </Label>
-              <Switch
-                id="sound"
-                checked={soundEnabled}
-                onCheckedChange={setSoundEnabledState}
-              />
+              <div className="flex items-center gap-2">
+                <Select value={selectedSound} onValueChange={handleSoundChange}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {soundOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handlePreviewSound}
+                  disabled={selectedSound === "none"}
+                  className="h-9 w-9"
+                >
+                  <Play className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
 

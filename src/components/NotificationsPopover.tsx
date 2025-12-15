@@ -52,8 +52,8 @@ const NotificationsPopover = () => {
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const { permission, requestPermission, isSupported } = usePushNotifications();
-  const { setSoundEnabled, isSoundEnabled } = useNotificationSound();
-  const [soundOn, setSoundOn] = useState(isSoundEnabled);
+  const { setSoundType, getSoundType } = useNotificationSound();
+  const [soundOn, setSoundOn] = useState(getSoundType() !== "none");
 
   if (!user) {
     return (
@@ -82,8 +82,9 @@ const NotificationsPopover = () => {
   };
 
   const toggleSound = () => {
-    const newValue = !soundOn;
-    setSoundEnabled(newValue);
+    const currentType = getSoundType();
+    const newValue = currentType === "none";
+    setSoundType(newValue ? "ping" : "none");
     setSoundOn(newValue);
     toast.success(newValue ? "Notification sound enabled" : "Notification sound muted");
   };
