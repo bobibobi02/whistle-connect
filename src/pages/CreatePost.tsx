@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Image, X } from "lucide-react";
+import { ArrowLeft, Image, X, Upload, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,10 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreatePost } from "@/hooks/usePosts";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { cn } from "@/lib/utils";
 
 const communities = [
   { value: "general", label: "General", icon: "💬" },
@@ -28,7 +31,7 @@ const communities = [
 const postSchema = z.object({
   title: z.string().min(1, "Title is required").max(300, "Title must be less than 300 characters"),
   content: z.string().max(10000, "Content must be less than 10000 characters").optional(),
-  image_url: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  image_url: z.string().optional(),
   community: z.string().min(1, "Please select a community"),
 });
 
@@ -38,7 +41,12 @@ const CreatePost = () => {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const createPost = useCreatePost();
+  const { uploadImage, isUploading, progress } = useImageUpload({ bucket: "post-images", maxSizeMB: 5 });
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -56,7 +64,46 @@ const CreatePost = () => {
     }
   }, [user, loading, navigate]);
 
-  const selectedCommunity = communities.find(c => c.value === form.watch("community"));
+  const handleFileSelect = async (file: File) => {
+    const url = await uploadImage(file);
+    if (url) {
+      form.setValue("image_url", url);
+      setImagePreview(url);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("image/")) {
+      handleFileSelect(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const removeImage = () => {
+    form.setValue("image_url", "");
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleSubmit = (data: PostFormData) => {
     const community = communities.find(c => c.value === data.community);
@@ -153,40 +200,66 @@ const CreatePost = () => {
               )}
             </div>
 
-            {/* Image URL */}
+            {/* Image Upload */}
             <div className="space-y-2">
-              <Label htmlFor="image_url">Image URL (optional)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="image_url"
-                  placeholder="https://example.com/image.jpg"
-                  {...form.register("image_url")}
-                  className="bg-secondary/50 border-border/50"
-                />
-                {form.watch("image_url") && (
+              <Label>Image (optional)</Label>
+              
+              {!imagePreview && !isUploading ? (
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={cn(
+                    "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all",
+                    isDragging
+                      ? "border-primary bg-primary/5"
+                      : "border-border/50 hover:border-primary/50 hover:bg-secondary/30"
+                  )}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileInput}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="p-3 rounded-full bg-secondary">
+                      <Upload className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Drop an image here or click to upload</p>
+                      <p className="text-sm text-muted-foreground">JPG, PNG, GIF, WebP up to 5MB</p>
+                    </div>
+                  </div>
+                </div>
+              ) : isUploading ? (
+                <div className="border rounded-lg p-6 bg-secondary/30">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="text-sm">Uploading image...</span>
+                  </div>
+                  <Progress value={progress} className="h-2" />
+                </div>
+              ) : (
+                <div className="relative">
+                  <div className="rounded-lg overflow-hidden border border-border">
+                    <img
+                      src={imagePreview!}
+                      alt="Preview"
+                      className="w-full h-auto max-h-80 object-cover"
+                    />
+                  </div>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="destructive"
                     size="icon"
-                    onClick={() => form.setValue("image_url", "")}
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={removeImage}
                   >
                     <X className="h-4 w-4" />
                   </Button>
-                )}
-              </div>
-              {form.formState.errors.image_url && (
-                <p className="text-sm text-destructive">{form.formState.errors.image_url.message}</p>
-              )}
-              {form.watch("image_url") && !form.formState.errors.image_url && (
-                <div className="mt-2 rounded-lg overflow-hidden border border-border">
-                  <img
-                    src={form.watch("image_url")}
-                    alt="Preview"
-                    className="w-full h-auto max-h-64 object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
                 </div>
               )}
             </div>
@@ -199,7 +272,7 @@ const CreatePost = () => {
               <Button
                 type="submit"
                 className="bg-gradient-warm hover:opacity-90 transition-opacity shadow-glow"
-                disabled={createPost.isPending}
+                disabled={createPost.isPending || isUploading}
               >
                 {createPost.isPending ? "Posting..." : "Post"}
               </Button>
