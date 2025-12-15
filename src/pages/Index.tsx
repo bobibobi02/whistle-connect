@@ -5,18 +5,25 @@ import PostCard from "@/components/PostCard";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
-import { usePosts, useJoinedCommunityPosts } from "@/hooks/usePosts";
+import { usePosts, useJoinedCommunityPosts, SortOption } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Users } from "lucide-react";
+import { Users, Flame, TrendingUp, Clock } from "lucide-react";
+
+const sortOptions = [
+  { value: "best" as SortOption, label: "Best", icon: Flame },
+  { value: "hot" as SortOption, label: "Hot", icon: TrendingUp },
+  { value: "new" as SortOption, label: "New", icon: Clock },
+];
 
 const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [feedType, setFeedType] = useState<"all" | "joined">("all");
+  const [sortBy, setSortBy] = useState<SortOption>("best");
   
   const { user } = useAuth();
-  const { data: allPosts, isLoading: allLoading, error: allError } = usePosts();
+  const { data: allPosts, isLoading: allLoading, error: allError } = usePosts(sortBy);
   const { data: joinedPosts, isLoading: joinedLoading, error: joinedError } = useJoinedCommunityPosts();
 
   const posts = feedType === "joined" ? joinedPosts : allPosts;
@@ -34,28 +41,47 @@ const Index = () => {
           <div className="flex-1 max-w-2xl">
             <CreatePostBar />
 
-            {/* Feed Toggle */}
-            {user && (
-              <div className="flex gap-2 mb-4">
-                <Button
-                  variant={feedType === "all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFeedType("all")}
-                  className={feedType === "all" ? "bg-gradient-warm hover:opacity-90" : ""}
-                >
-                  All Posts
-                </Button>
-                <Button
-                  variant={feedType === "joined" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setFeedType("joined")}
-                  className={feedType === "joined" ? "bg-gradient-warm hover:opacity-90" : ""}
-                >
-                  <Users className="h-4 w-4 mr-2" />
-                  My Communities
-                </Button>
+            {/* Feed Controls */}
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              {/* Sort Options */}
+              <div className="flex gap-1 p-1 bg-card rounded-lg shadow-card">
+                {sortOptions.map((option) => (
+                  <Button
+                    key={option.value}
+                    variant={sortBy === option.value ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setSortBy(option.value)}
+                    className={sortBy === option.value ? "bg-gradient-warm hover:opacity-90" : ""}
+                  >
+                    <option.icon className="h-4 w-4 mr-1.5" />
+                    {option.label}
+                  </Button>
+                ))}
               </div>
-            )}
+
+              {/* Feed Type Toggle */}
+              {user && (
+                <div className="flex gap-1 p-1 bg-card rounded-lg shadow-card">
+                  <Button
+                    variant={feedType === "all" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setFeedType("all")}
+                    className={feedType === "all" ? "bg-gradient-warm hover:opacity-90" : ""}
+                  >
+                    All
+                  </Button>
+                  <Button
+                    variant={feedType === "joined" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setFeedType("joined")}
+                    className={feedType === "joined" ? "bg-gradient-warm hover:opacity-90" : ""}
+                  >
+                    <Users className="h-4 w-4 mr-1.5" />
+                    Joined
+                  </Button>
+                </div>
+              )}
+            </div>
             
             {isLoading ? (
               <div className="space-y-4">
@@ -102,7 +128,7 @@ const Index = () => {
           </div>
 
           {/* Sidebar */}
-          <CommunitySidebar className="hidden lg:block sticky top-24 h-fit" />
+          <CommunitySidebar className="hidden lg:block sticky top-24 h-fit" sortBy={sortBy} onSortChange={setSortBy} />
         </div>
       </main>
     </div>
