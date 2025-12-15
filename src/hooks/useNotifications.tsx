@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
@@ -96,6 +96,39 @@ export const useNotifications = () => {
       if (error) throw error;
       return data as Notification[];
     },
+    enabled: !!user,
+  });
+};
+
+const PAGE_SIZE = 20;
+
+export const useInfiniteNotifications = () => {
+  const { user } = useAuth();
+
+  return useInfiniteQuery({
+    queryKey: ["notifications", "infinite", user?.id],
+    queryFn: async ({ pageParam = 0 }) => {
+      if (!user) return { data: [], nextPage: null };
+
+      const from = pageParam * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+
+      if (error) throw error;
+
+      return {
+        data: data as Notification[],
+        nextPage: data.length === PAGE_SIZE ? pageParam + 1 : null,
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    initialPageParam: 0,
     enabled: !!user,
   });
 };
