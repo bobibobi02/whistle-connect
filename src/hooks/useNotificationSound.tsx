@@ -10,12 +10,12 @@ const SOUND_OPTIONS: { value: SoundType; label: string }[] = [
   { value: "none", label: "None" },
 ];
 
-// Sound generators using Web Audio API
-const createPingSound = (ctx: AudioContext) => {
+// Sound generators using Web Audio API with volume control
+const createPingSound = (ctx: AudioContext, masterGain: GainNode) => {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(masterGain);
   osc.frequency.setValueAtTime(880, ctx.currentTime);
   osc.frequency.setValueAtTime(1320, ctx.currentTime + 0.1);
   gain.gain.setValueAtTime(0.3, ctx.currentTime);
@@ -24,13 +24,13 @@ const createPingSound = (ctx: AudioContext) => {
   osc.stop(ctx.currentTime + 0.3);
 };
 
-const createChimeSound = (ctx: AudioContext) => {
-  const frequencies = [523, 659, 784]; // C5, E5, G5 chord
+const createChimeSound = (ctx: AudioContext, masterGain: GainNode) => {
+  const frequencies = [523, 659, 784];
   frequencies.forEach((freq, i) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(masterGain);
     osc.type = "sine";
     osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
     gain.gain.setValueAtTime(0.2, ctx.currentTime + i * 0.08);
@@ -40,11 +40,11 @@ const createChimeSound = (ctx: AudioContext) => {
   });
 };
 
-const createPopSound = (ctx: AudioContext) => {
+const createPopSound = (ctx: AudioContext, masterGain: GainNode) => {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
-  gain.connect(ctx.destination);
+  gain.connect(masterGain);
   osc.type = "sine";
   osc.frequency.setValueAtTime(400, ctx.currentTime);
   osc.frequency.exponentialRampToValueAtTime(150, ctx.currentTime + 0.1);
@@ -54,15 +54,15 @@ const createPopSound = (ctx: AudioContext) => {
   osc.stop(ctx.currentTime + 0.15);
 };
 
-const createBellSound = (ctx: AudioContext) => {
+const createBellSound = (ctx: AudioContext, masterGain: GainNode) => {
   const osc = ctx.createOscillator();
   const osc2 = ctx.createOscillator();
   const gain = ctx.createGain();
   const gain2 = ctx.createGain();
   osc.connect(gain);
   osc2.connect(gain2);
-  gain.connect(ctx.destination);
-  gain2.connect(ctx.destination);
+  gain.connect(masterGain);
+  gain2.connect(masterGain);
   osc.type = "sine";
   osc2.type = "sine";
   osc.frequency.setValueAtTime(830, ctx.currentTime);
@@ -77,23 +77,26 @@ const createBellSound = (ctx: AudioContext) => {
   osc2.stop(ctx.currentTime + 0.4);
 };
 
-const playNotificationSound = (soundType: SoundType) => {
-  if (soundType === "none") return;
+const playNotificationSound = (soundType: SoundType, volume: number) => {
+  if (soundType === "none" || volume === 0) return;
   
   const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const masterGain = ctx.createGain();
+  masterGain.connect(ctx.destination);
+  masterGain.gain.setValueAtTime(volume, ctx.currentTime);
   
   switch (soundType) {
     case "ping":
-      createPingSound(ctx);
+      createPingSound(ctx, masterGain);
       break;
     case "chime":
-      createChimeSound(ctx);
+      createChimeSound(ctx, masterGain);
       break;
     case "pop":
-      createPopSound(ctx);
+      createPopSound(ctx, masterGain);
       break;
     case "bell":
-      createBellSound(ctx);
+      createBellSound(ctx, masterGain);
       break;
   }
 };
@@ -101,29 +104,40 @@ const playNotificationSound = (soundType: SoundType) => {
 export const useNotificationSound = () => {
   const lastPlayedRef = useRef<number>(0);
 
+  const getVolume = useCallback((): number => {
+    const stored = localStorage.getItem("notification-sound-volume");
+    return stored ? parseFloat(stored) : 0.7;
+  }, []);
+
+  const setVolume = useCallback((volume: number) => {
+    localStorage.setItem("notification-sound-volume", String(Math.max(0, Math.min(1, volume))));
+  }, []);
+
   const playSound = useCallback(() => {
     const now = Date.now();
     if (now - lastPlayedRef.current < 1000) return;
     
     const soundType = (localStorage.getItem("notification-sound-type") || "ping") as SoundType;
-    if (soundType === "none") return;
+    const volume = getVolume();
+    if (soundType === "none" || volume === 0) return;
     
     lastPlayedRef.current = now;
     
     try {
-      playNotificationSound(soundType);
+      playNotificationSound(soundType, volume);
     } catch (error) {
       console.log("Could not play notification sound:", error);
     }
-  }, []);
+  }, [getVolume]);
 
-  const previewSound = useCallback((soundType: SoundType) => {
+  const previewSound = useCallback((soundType: SoundType, volume?: number) => {
     try {
-      playNotificationSound(soundType);
+      const vol = volume ?? getVolume();
+      playNotificationSound(soundType, vol);
     } catch (error) {
       console.log("Could not play sound:", error);
     }
-  }, []);
+  }, [getVolume]);
 
   const setSoundType = useCallback((type: SoundType) => {
     localStorage.setItem("notification-sound-type", type);
@@ -133,5 +147,13 @@ export const useNotificationSound = () => {
     return (localStorage.getItem("notification-sound-type") || "ping") as SoundType;
   }, []);
 
-  return { playSound, previewSound, setSoundType, getSoundType, soundOptions: SOUND_OPTIONS };
+  return { 
+    playSound, 
+    previewSound, 
+    setSoundType, 
+    getSoundType, 
+    getVolume, 
+    setVolume, 
+    soundOptions: SOUND_OPTIONS 
+  };
 };
