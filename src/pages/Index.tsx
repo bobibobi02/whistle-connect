@@ -1,15 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import PostCard from "@/components/PostCard";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
-import { usePosts, useJoinedCommunityPosts, SortOption } from "@/hooks/usePosts";
+import { useInfinitePosts, useJoinedCommunityPosts, SortOption } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Users, Flame, TrendingUp, Clock } from "lucide-react";
+import { Users, Flame, TrendingUp, Clock, Loader2 } from "lucide-react";
 
 const sortOptions = [
   { value: "best" as SortOption, label: "Best", icon: Flame },
@@ -21,14 +21,47 @@ const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [feedType, setFeedType] = useState<"all" | "joined">("all");
   const [sortBy, setSortBy] = useState<SortOption>("best");
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuth();
-  const { data: allPosts, isLoading: allLoading, error: allError } = usePosts(sortBy);
+  const {
+    data: infiniteData,
+    isLoading: allLoading,
+    error: allError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfinitePosts(sortBy);
   const { data: joinedPosts, isLoading: joinedLoading, error: joinedError } = useJoinedCommunityPosts();
 
+  const allPosts = infiniteData?.pages.flatMap((page) => page.posts) ?? [];
   const posts = feedType === "joined" ? joinedPosts : allPosts;
   const isLoading = feedType === "joined" ? joinedLoading : allLoading;
   const error = feedType === "joined" ? joinedError : allError;
+
+  // Infinite scroll observer
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      const [target] = entries;
+      if (target.isIntersecting && hasNextPage && !isFetchingNextPage && feedType === "all") {
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetchingNextPage, feedType]
+  );
+
+  useEffect(() => {
+    const element = loadMoreRef.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(handleObserver, {
+      threshold: 0.1,
+      rootMargin: "100px",
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [handleObserver]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -109,6 +142,28 @@ const Index = () => {
                 {posts.map((post, index) => (
                   <PostCard key={post.id} post={post} index={index} />
                 ))}
+                
+                {/* Load more trigger */}
+                {feedType === "all" && (
+                  <div ref={loadMoreRef} className="py-4 flex justify-center">
+                    {isFetchingNextPage ? (
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span className="text-sm">Loading more...</span>
+                      </div>
+                    ) : hasNextPage ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => fetchNextPage()}
+                        className="w-full max-w-xs"
+                      >
+                        Load More
+                      </Button>
+                    ) : posts.length > 10 ? (
+                      <p className="text-sm text-muted-foreground">You've reached the end</p>
+                    ) : null}
+                  </div>
+                )}
               </div>
             ) : feedType === "joined" ? (
               <div className="bg-card rounded-xl shadow-card p-8 text-center">
