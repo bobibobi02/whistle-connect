@@ -1,58 +1,36 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useVotePost, Post } from "@/hooks/usePosts";
+import { formatDistanceToNow } from "date-fns";
 
 interface PostCardProps {
-  id: string;
-  community: string;
-  communityIcon: string;
-  author: string;
-  timeAgo: string;
-  title: string;
-  content?: string;
-  image?: string;
-  upvotes: number;
-  comments: number;
+  post: Post;
   index?: number;
 }
 
-const PostCard = ({
-  id,
-  community,
-  communityIcon,
-  author,
-  timeAgo,
-  title,
-  content,
-  image,
-  upvotes: initialUpvotes,
-  comments,
-  index = 0,
-}: PostCardProps) => {
-  const [upvotes, setUpvotes] = useState(initialUpvotes);
-  const [voteState, setVoteState] = useState<"up" | "down" | null>(null);
+const PostCard = ({ post, index = 0 }: PostCardProps) => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const votePost = useVotePost();
 
-  const handleUpvote = () => {
-    if (voteState === "up") {
-      setUpvotes(initialUpvotes);
-      setVoteState(null);
-    } else {
-      setUpvotes(initialUpvotes + 1);
-      setVoteState("up");
+  const authorName = post.author.display_name || post.author.username || "Anonymous";
+  const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
+
+  const handleVote = (type: 1 | -1) => {
+    if (!user) {
+      navigate("/auth");
+      return;
     }
+
+    const newVote = post.user_vote === type ? null : type;
+    votePost.mutate({ postId: post.id, voteType: newVote });
   };
 
-  const handleDownvote = () => {
-    if (voteState === "down") {
-      setUpvotes(initialUpvotes);
-      setVoteState(null);
-    } else {
-      setUpvotes(initialUpvotes - 1);
-      setVoteState("down");
-    }
-  };
+  const displayedUpvotes = post.upvotes + 
+    (post.user_vote ? 0 : 0); // Vote is already counted in upvotes
 
   return (
     <article
@@ -64,14 +42,14 @@ const PostCard = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-warm text-primary-foreground text-sm font-semibold">
-              {communityIcon}
+              {post.community_icon || "💬"}
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold hover:text-primary cursor-pointer transition-colors">
-                w/{community}
+                w/{post.community}
               </span>
               <span className="text-xs text-muted-foreground">
-                Posted by u/{author} · {timeAgo}
+                Posted by u/{authorName} · {timeAgo}
               </span>
             </div>
           </div>
@@ -81,23 +59,23 @@ const PostCard = ({
         </div>
 
         {/* Content */}
-        <Link to={`/post/${id}`}>
+        <Link to={`/post/${post.id}`}>
           <h2 className="text-lg font-semibold mb-2 hover:text-primary cursor-pointer transition-colors leading-snug">
-            {title}
+            {post.title}
           </h2>
         </Link>
         
-        {content && (
+        {post.content && (
           <p className="text-muted-foreground text-sm mb-3 line-clamp-3">
-            {content}
+            {post.content}
           </p>
         )}
 
-        {image && (
+        {post.image_url && (
           <div className="relative -mx-4 mb-3 overflow-hidden">
             <img
-              src={image}
-              alt={title}
+              src={post.image_url}
+              alt={post.title}
               className="w-full h-auto max-h-96 object-cover"
             />
           </div>
@@ -108,36 +86,38 @@ const PostCard = ({
           {/* Votes */}
           <div className="flex items-center gap-0.5 bg-secondary/50 rounded-full px-1">
             <button
-              onClick={handleUpvote}
+              onClick={() => handleVote(1)}
               className={cn(
                 "vote-button vote-button-up",
-                voteState === "up" && "active animate-vote-pop"
+                post.user_vote === 1 && "active animate-vote-pop"
               )}
             >
-              <ArrowBigUp className={cn("h-5 w-5", voteState === "up" && "fill-current")} />
+              <ArrowBigUp className={cn("h-5 w-5", post.user_vote === 1 && "fill-current")} />
             </button>
             <span className={cn(
               "text-sm font-semibold min-w-[2rem] text-center",
-              voteState === "up" && "text-upvote",
-              voteState === "down" && "text-downvote"
+              post.user_vote === 1 && "text-upvote",
+              post.user_vote === -1 && "text-downvote"
             )}>
-              {upvotes.toLocaleString()}
+              {displayedUpvotes.toLocaleString()}
             </span>
             <button
-              onClick={handleDownvote}
+              onClick={() => handleVote(-1)}
               className={cn(
                 "vote-button vote-button-down",
-                voteState === "down" && "active animate-vote-pop"
+                post.user_vote === -1 && "active animate-vote-pop"
               )}
             >
-              <ArrowBigDown className={cn("h-5 w-5", voteState === "down" && "fill-current")} />
+              <ArrowBigDown className={cn("h-5 w-5", post.user_vote === -1 && "fill-current")} />
             </button>
           </div>
 
-          <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
-            <MessageCircle className="h-4 w-4" />
-            <span className="text-sm">{comments}</span>
-          </Button>
+          <Link to={`/post/${post.id}`}>
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
+              <MessageCircle className="h-4 w-4" />
+              <span className="text-sm">{post.comment_count}</span>
+            </Button>
+          </Link>
 
           <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
             <Share2 className="h-4 w-4" />

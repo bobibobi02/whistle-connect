@@ -1,0 +1,233 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+
+export interface Post {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string | null;
+  image_url: string | null;
+  community: string;
+  community_icon: string | null;
+  upvotes: number;
+  created_at: string;
+  author: {
+    username: string | null;
+    display_name: string | null;
+    avatar_url: string | null;
+  };
+  comment_count: number;
+  user_vote: number | null;
+}
+
+export const usePosts = () => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["posts", user?.id],
+    queryFn: async (): Promise<Post[]> => {
+      // Fetch posts
+      const { data: posts, error } = await supabase
+        .from("posts")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (!posts || posts.length === 0) return [];
+
+      // Get unique user IDs
+      const userIds = [...new Set(posts.map(p => p.user_id))];
+      
+      // Fetch profiles
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, username, display_name, avatar_url")
+        .in("user_id", userIds);
+
+      const profileMap: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null }> = {};
+      profiles?.forEach(p => {
+        profileMap[p.user_id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
+      });
+
+      // Fetch comment counts
+      const postIds = posts.map(p => p.id);
+      const { data: commentCounts } = await supabase
+        .from("comments")
+        .select("post_id")
+        .in("post_id", postIds);
+
+      const countMap: Record<string, number> = {};
+      commentCounts?.forEach(c => {
+        countMap[c.post_id] = (countMap[c.post_id] || 0) + 1;
+      });
+
+      // Fetch user votes if logged in
+      let voteMap: Record<string, number> = {};
+      if (user) {
+        const { data: votes } = await supabase
+          .from("post_votes")
+          .select("post_id, vote_type")
+          .eq("user_id", user.id);
+
+        votes?.forEach(v => {
+          voteMap[v.post_id] = v.vote_type;
+        });
+      }
+
+      return posts.map(post => ({
+        ...post,
+        author: profileMap[post.user_id] || { username: null, display_name: null, avatar_url: null },
+        comment_count: countMap[post.id] || 0,
+        user_vote: voteMap[post.id] || null,
+      }));
+    },
+  });
+};
+
+export const usePost = (postId: string) => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["post", postId, user?.id],
+    queryFn: async (): Promise<Post | null> => {
+      const { data: post, error } = await supabase
+        .from("posts")
+        .select("*")
+        .eq("id", postId)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!post) return null;
+
+      // Fetch profile
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("username, display_name, avatar_url")
+        .eq("user_id", post.user_id)
+        .maybeSingle();
+
+      // Fetch comment count
+      const { count } = await supabase
+        .from("comments")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId);
+
+      // Fetch user vote
+      let userVote: number | null = null;
+      if (user) {
+        const { data: vote } = await supabase
+          .from("post_votes")
+          .select("vote_type")
+          .eq("post_id", postId)
+          .eq("user_id", user.id)
+          .maybeSingle();
+        userVote = vote?.vote_type || null;
+      }
+
+      return {
+        ...post,
+        author: profile || { username: null, display_name: null, avatar_url: null },
+        comment_count: count || 0,
+        user_vote: userVote,
+      };
+    },
+    enabled: !!postId,
+  });
+};
+
+export const useCreatePost = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      title,
+      content,
+      image_url,
+      community,
+      community_icon,
+    }: {
+      title: string;
+      content?: string;
+      image_url?: string;
+      community?: string;
+      community_icon?: string;
+    }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data, error } = await supabase
+        .from("posts")
+        .insert({
+          user_id: user.id,
+          title,
+          content: content || null,
+          image_url: image_url || null,
+          community: community || "general",
+          community_icon: community_icon || "💬",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      toast({ title: "Post created!", description: "Your post is now live." });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error creating post",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+};
+
+export const useVotePost = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ postId, voteType }: { postId: string; voteType: 1 | -1 | null }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      if (voteType === null) {
+        await supabase
+          .from("post_votes")
+          .delete()
+          .eq("post_id", postId)
+          .eq("user_id", user.id);
+      } else {
+        const { error } = await supabase
+          .from("post_votes")
+          .upsert(
+            { post_id: postId, user_id: user.id, vote_type: voteType },
+            { onConflict: "post_id,user_id" }
+          );
+        if (error) throw error;
+      }
+
+      // Update post upvotes count
+      const { data: votes } = await supabase
+        .from("post_votes")
+        .select("vote_type")
+        .eq("post_id", postId);
+
+      const totalVotes = votes?.reduce((sum, v) => sum + v.vote_type, 0) || 0;
+
+      await supabase
+        .from("posts")
+        .update({ upvotes: totalVotes })
+        .eq("id", postId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post"] });
+    },
+  });
+};
