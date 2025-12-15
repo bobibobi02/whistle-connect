@@ -1,4 +1,4 @@
-import { useState, useRef, ReactNode } from "react";
+import { useState, useRef, ReactNode, useCallback } from "react";
 import { Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -7,6 +7,13 @@ interface SwipeToDeleteProps {
   onDelete: () => void;
   threshold?: number;
 }
+
+// Haptic feedback utility
+const triggerHaptic = (pattern: number | number[]) => {
+  if ("vibrate" in navigator) {
+    navigator.vibrate(pattern);
+  }
+};
 
 export const SwipeToDelete = ({ 
   children, 
@@ -17,13 +24,15 @@ export const SwipeToDelete = ({
   const [isDragging, setIsDragging] = useState(false);
   const startX = useRef(0);
   const currentX = useRef(0);
+  const hasReachedThreshold = useRef(false);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
+    hasReachedThreshold.current = false;
     setIsDragging(true);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging) return;
     
     currentX.current = e.touches[0].clientX;
@@ -31,14 +40,27 @@ export const SwipeToDelete = ({
     
     // Only allow swiping left (positive diff)
     if (diff > 0) {
-      setTranslateX(Math.min(diff, threshold + 50));
+      const newTranslateX = Math.min(diff, threshold + 50);
+      setTranslateX(newTranslateX);
+      
+      // Trigger haptic when crossing threshold
+      if (newTranslateX >= threshold && !hasReachedThreshold.current) {
+        hasReachedThreshold.current = true;
+        triggerHaptic(20); // Light vibration when threshold reached
+      } else if (newTranslateX < threshold && hasReachedThreshold.current) {
+        hasReachedThreshold.current = false;
+        triggerHaptic(10); // Very light vibration when going back
+      }
     }
-  };
+  }, [isDragging, threshold]);
 
   const handleTouchEnd = () => {
     setIsDragging(false);
     
     if (translateX >= threshold) {
+      // Strong haptic feedback on delete
+      triggerHaptic([30, 50, 30]);
+      
       // Animate off screen then delete
       setTranslateX(window.innerWidth);
       setTimeout(() => {
