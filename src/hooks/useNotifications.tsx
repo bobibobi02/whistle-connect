@@ -160,3 +160,42 @@ export const useMarkAllAsRead = () => {
     },
   });
 };
+
+export const useDeleteNotification = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", notificationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+};
+
+export const useDeleteAllNotifications = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+};
