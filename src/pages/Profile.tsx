@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Calendar, Edit2, Users } from "lucide-react";
+import { ArrowLeft, Calendar, Edit2, Users, Bookmark } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PostCard from "@/components/PostCard";
@@ -12,6 +13,7 @@ import EditProfileDialog from "@/components/EditProfileDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfileByUsername, useUserPosts } from "@/hooks/useProfile";
 import { useUserJoinedCommunities } from "@/hooks/useCommunities";
+import { useBookmarkedPosts } from "@/hooks/useBookmarks";
 
 const Profile = () => {
   const { username } = useParams();
@@ -22,6 +24,7 @@ const Profile = () => {
   const { data: profile, isLoading: profileLoading } = useProfileByUsername(username || "");
   const { data: posts, isLoading: postsLoading } = useUserPosts(profile?.user_id || "");
   const { data: joinedCommunities, isLoading: communitiesLoading } = useUserJoinedCommunities(profile?.user_id);
+  const { data: savedPosts, isLoading: savedLoading } = useBookmarkedPosts();
 
   const isOwnProfile = user && profile && user.id === profile.user_id;
   const displayName = profile?.display_name || profile?.username || "Anonymous";
@@ -152,33 +155,74 @@ const Profile = () => {
               </div>
             )}
 
-            {/* Posts */}
-            <div className="space-y-4">
-              <h2 className="text-lg font-semibold">Posts</h2>
-              
-              {postsLoading ? (
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="bg-card rounded-xl shadow-card p-4">
-                      <Skeleton className="h-6 w-3/4 mb-2" />
-                      <Skeleton className="h-4 w-full" />
+            {/* Posts and Saved Tabs */}
+            <Tabs defaultValue="posts" className="w-full">
+              <TabsList className="mb-4">
+                <TabsTrigger value="posts">
+                  Posts ({posts?.length || 0})
+                </TabsTrigger>
+                {isOwnProfile && (
+                  <TabsTrigger value="saved">
+                    <Bookmark className="h-4 w-4 mr-1.5" />
+                    Saved ({savedPosts?.length || 0})
+                  </TabsTrigger>
+                )}
+              </TabsList>
+
+              <TabsContent value="posts" className="space-y-4">
+                {postsLoading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="bg-card rounded-xl shadow-card p-4">
+                        <Skeleton className="h-6 w-3/4 mb-2" />
+                        <Skeleton className="h-4 w-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : posts && posts.length > 0 ? (
+                  <div className="space-y-4">
+                    {posts.map((post, index) => (
+                      <PostCard key={post.id} post={post} index={index} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="bg-card rounded-xl shadow-card p-8 text-center">
+                    <p className="text-muted-foreground">
+                      {isOwnProfile ? "You haven't posted anything yet." : "No posts yet."}
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+
+              {isOwnProfile && (
+                <TabsContent value="saved" className="space-y-4">
+                  {savedLoading ? (
+                    <div className="space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="bg-card rounded-xl shadow-card p-4">
+                          <Skeleton className="h-6 w-3/4 mb-2" />
+                          <Skeleton className="h-4 w-full" />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : posts && posts.length > 0 ? (
-                <div className="space-y-4">
-                  {posts.map((post, index) => (
-                    <PostCard key={post.id} post={post} index={index} />
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-card rounded-xl shadow-card p-8 text-center">
-                  <p className="text-muted-foreground">
-                    {isOwnProfile ? "You haven't posted anything yet." : "No posts yet."}
-                  </p>
-                </div>
+                  ) : savedPosts && savedPosts.length > 0 ? (
+                    <div className="space-y-4">
+                      {savedPosts.map((post, index) => (
+                        <PostCard key={post.id} post={post} index={index} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-card rounded-xl shadow-card p-8 text-center">
+                      <Bookmark className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-muted-foreground mb-2">No saved posts yet</p>
+                      <p className="text-sm text-muted-foreground">
+                        Click the bookmark icon on posts to save them for later
+                      </p>
+                    </div>
+                  )}
+                </TabsContent>
               )}
-            </div>
+            </Tabs>
 
             {/* Edit Profile Dialog */}
             {isOwnProfile && (

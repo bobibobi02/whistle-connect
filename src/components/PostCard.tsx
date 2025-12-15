@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useVotePost, Post } from "@/hooks/usePosts";
+import { useBookmarks, useToggleBookmark } from "@/hooks/useBookmarks";
 import { formatDistanceToNow } from "date-fns";
 
 interface PostCardProps {
@@ -15,6 +16,10 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const votePost = useVotePost();
+  const { data: bookmarks } = useBookmarks();
+  const toggleBookmark = useToggleBookmark();
+
+  const isBookmarked = bookmarks?.includes(post.id) ?? false;
 
   const authorName = post.author.display_name || post.author.username || "Anonymous";
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
@@ -132,8 +137,23 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
             <span className="hidden sm:inline text-sm">Share</span>
           </Button>
 
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground rounded-full ml-auto">
-            <Bookmark className="h-4 w-4" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "text-muted-foreground hover:text-foreground rounded-full ml-auto",
+              isBookmarked && "text-primary"
+            )}
+            onClick={() => {
+              if (!user) {
+                navigate("/auth");
+                return;
+              }
+              toggleBookmark.mutate({ postId: post.id, isBookmarked });
+            }}
+            disabled={toggleBookmark.isPending}
+          >
+            <Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current")} />
           </Button>
         </div>
       </div>
