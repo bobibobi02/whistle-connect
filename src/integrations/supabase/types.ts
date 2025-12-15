@@ -198,6 +198,7 @@ export type Database = {
           inapp_comment: boolean
           inapp_new_follower: boolean
           inapp_post_upvote: boolean
+          snooze_until: string | null
           updated_at: string
           user_id: string
         }
@@ -210,6 +211,7 @@ export type Database = {
           inapp_comment?: boolean
           inapp_new_follower?: boolean
           inapp_post_upvote?: boolean
+          snooze_until?: string | null
           updated_at?: string
           user_id: string
         }
@@ -222,6 +224,7 @@ export type Database = {
           inapp_comment?: boolean
           inapp_new_follower?: boolean
           inapp_post_upvote?: boolean
+          snooze_until?: string | null
           updated_at?: string
           user_id?: string
         }
