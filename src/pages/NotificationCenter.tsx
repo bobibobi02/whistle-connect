@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { Bell, MessageCircle, ArrowBigUp, UserPlus, Reply, CheckCheck, Trash2, X, Loader2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -76,6 +76,25 @@ const NotificationCenter = () => {
   const deleteAllNotifications = useDeleteAllNotifications();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll with Intersection Observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -239,24 +258,6 @@ const NotificationCenter = () => {
                 </div>
               )}
             </Card>
-            {hasNextPage && activeFilter === "all" && (
-              <div className="flex justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                >
-                  {isFetchingNextPage ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    "Load more"
-                  )}
-                </Button>
-              </div>
-            )}
           </TabsContent>
 
           {["unread", "comment", "upvote", "follow"].map((tab) => (
@@ -279,27 +280,19 @@ const NotificationCenter = () => {
                   </div>
                 )}
               </Card>
-              {hasNextPage && (
-                <div className="flex justify-center">
-                  <Button
-                    variant="outline"
-                    onClick={() => fetchNextPage()}
-                    disabled={isFetchingNextPage}
-                  >
-                    {isFetchingNextPage ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      "Load more"
-                    )}
-                  </Button>
-                </div>
-              )}
             </TabsContent>
           ))}
         </Tabs>
+
+        {/* Infinite scroll trigger */}
+        <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+          {isFetchingNextPage && (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          )}
+          {!hasNextPage && notifications.length > 0 && (
+            <p className="text-sm text-muted-foreground">No more notifications</p>
+          )}
+        </div>
       </main>
     </div>
   );
