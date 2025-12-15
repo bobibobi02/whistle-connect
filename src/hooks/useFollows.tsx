@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
+import { sendEmailNotification } from "@/lib/emailNotifications";
 import { toast } from "sonner";
 
 export const useFollowing = () => {
@@ -92,6 +94,7 @@ export const useIsFollowing = (targetUserId: string | undefined) => {
 export const useToggleFollow = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { data: profile } = useProfile(user?.id);
 
   return useMutation({
     mutationFn: async ({
@@ -116,9 +119,18 @@ export const useToggleFollow = () => {
           following_id: targetUserId,
         });
         if (error) throw error;
+        
+        // Send email notification for new follow (non-blocking)
+        sendEmailNotification({
+          user_id: targetUserId,
+          email_type: "follower",
+          data: {
+            actor_name: profile?.display_name || profile?.username || "Someone",
+          },
+        }).catch(console.error);
       }
     },
-    onSuccess: (_, { targetUserId, isFollowing }) => {
+    onSuccess: (_, { isFollowing }) => {
       queryClient.invalidateQueries({ queryKey: ["following"] });
       queryClient.invalidateQueries({ queryKey: ["followers"] });
       queryClient.invalidateQueries({ queryKey: ["followCounts"] });
