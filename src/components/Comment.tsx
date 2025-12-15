@@ -5,29 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-
-export interface CommentData {
-  id: string;
-  author: string;
-  timeAgo: string;
-  content: string;
-  upvotes: number;
-  replies?: CommentData[];
-}
+import { Comment as CommentType, useCreateComment, useVoteComment } from "@/hooks/useComments";
+import { formatDistanceToNow } from "date-fns";
 
 interface CommentProps {
-  comment: CommentData;
+  comment: CommentType;
   depth?: number;
 }
 
 const Comment = ({ comment, depth = 0 }: CommentProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [upvotes, setUpvotes] = useState(comment.upvotes);
-  const [voteState, setVoteState] = useState<"up" | "down" | null>(null);
+  const createComment = useCreateComment();
+  const voteComment = useVoteComment();
+  
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
+
+  const authorName = comment.author.display_name || comment.author.username || "Anonymous";
+  const timeAgo = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true });
 
   const handleReplyClick = () => {
     if (!user) {
@@ -37,24 +34,26 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
     setIsReplying(!isReplying);
   };
 
-  const handleUpvote = () => {
-    if (voteState === "up") {
-      setUpvotes(comment.upvotes);
-      setVoteState(null);
-    } else {
-      setUpvotes(comment.upvotes + 1);
-      setVoteState("up");
+  const handleVote = (type: 1 | -1) => {
+    if (!user) {
+      navigate("/auth");
+      return;
     }
+    const newVote = comment.user_vote === type ? null : type;
+    voteComment.mutate({ commentId: comment.id, postId: comment.post_id, voteType: newVote });
   };
 
-  const handleDownvote = () => {
-    if (voteState === "down") {
-      setUpvotes(comment.upvotes);
-      setVoteState(null);
-    } else {
-      setUpvotes(comment.upvotes - 1);
-      setVoteState("down");
-    }
+  const handleSubmitReply = () => {
+    if (!replyText.trim()) return;
+    createComment.mutate(
+      { postId: comment.post_id, content: replyText, parentId: comment.id },
+      {
+        onSuccess: () => {
+          setReplyText("");
+          setIsReplying(false);
+        },
+      }
+    );
   };
 
   const maxDepth = 5;
@@ -84,12 +83,12 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
             )}
           </button>
           <div className="h-6 w-6 rounded-full bg-gradient-warm flex items-center justify-center text-xs font-semibold text-primary-foreground">
-            {comment.author[0].toUpperCase()}
+            {authorName[0].toUpperCase()}
           </div>
           <span className="text-sm font-medium hover:text-primary cursor-pointer transition-colors">
-            u/{comment.author}
+            u/{authorName}
           </span>
-          <span className="text-xs text-muted-foreground">· {comment.timeAgo}</span>
+          <span className="text-xs text-muted-foreground">· {timeAgo}</span>
           {isCollapsed && comment.replies && comment.replies.length > 0 && (
             <span className="text-xs text-muted-foreground">
               ({comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'})
@@ -108,29 +107,29 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
             <div className="flex items-center gap-1 -ml-1.5 pb-2">
               <div className="flex items-center gap-0.5">
                 <button
-                  onClick={handleUpvote}
+                  onClick={() => handleVote(1)}
                   className={cn(
                     "vote-button vote-button-up h-7 w-7",
-                    voteState === "up" && "active"
+                    comment.user_vote === 1 && "active"
                   )}
                 >
-                  <ArrowBigUp className={cn("h-4 w-4", voteState === "up" && "fill-current")} />
+                  <ArrowBigUp className={cn("h-4 w-4", comment.user_vote === 1 && "fill-current")} />
                 </button>
                 <span className={cn(
                   "text-xs font-semibold min-w-[1.5rem] text-center",
-                  voteState === "up" && "text-upvote",
-                  voteState === "down" && "text-downvote"
+                  comment.user_vote === 1 && "text-upvote",
+                  comment.user_vote === -1 && "text-downvote"
                 )}>
-                  {upvotes}
+                  {comment.upvotes}
                 </span>
                 <button
-                  onClick={handleDownvote}
+                  onClick={() => handleVote(-1)}
                   className={cn(
                     "vote-button vote-button-down h-7 w-7",
-                    voteState === "down" && "active"
+                    comment.user_vote === -1 && "active"
                   )}
                 >
-                  <ArrowBigDown className={cn("h-4 w-4", voteState === "down" && "fill-current")} />
+                  <ArrowBigDown className={cn("h-4 w-4", comment.user_vote === -1 && "fill-current")} />
                 </button>
               </div>
 
@@ -169,8 +168,12 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
                   >
                     Cancel
                   </Button>
-                  <Button size="sm" disabled={!replyText.trim()}>
-                    Reply
+                  <Button 
+                    size="sm" 
+                    disabled={!replyText.trim() || createComment.isPending}
+                    onClick={handleSubmitReply}
+                  >
+                    {createComment.isPending ? "Posting..." : "Reply"}
                   </Button>
                 </div>
               </div>
