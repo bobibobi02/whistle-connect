@@ -94,6 +94,92 @@ export const usePosts = () => {
   });
 };
 
+export const useJoinedCommunityPosts = () => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["posts", "joined", user?.id],
+    queryFn: async (): Promise<Post[]> => {
+      if (!user) return [];
+
+      // Get user's joined communities
+      const { data: memberships } = await supabase
+        .from("community_members")
+        .select("community_id")
+        .eq("user_id", user.id);
+
+      if (!memberships || memberships.length === 0) return [];
+
+      const communityIds = memberships.map((m) => m.community_id);
+
+      // Get community names from IDs
+      const { data: communities } = await supabase
+        .from("communities")
+        .select("name")
+        .in("id", communityIds);
+
+      if (!communities || communities.length === 0) return [];
+
+      const communityNames = communities.map((c) => c.name);
+
+      // Fetch posts from joined communities
+      const { data: posts, error } = await supabase
+        .from("posts")
+        .select("*")
+        .in("community", communityNames)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      if (!posts || posts.length === 0) return [];
+
+      // Get unique user IDs
+      const userIds = [...new Set(posts.map((p) => p.user_id))];
+
+      // Fetch profiles
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, username, display_name, avatar_url")
+        .in("user_id", userIds);
+
+      const profileMap: Record<string, { username: string | null; display_name: string | null; avatar_url: string | null }> = {};
+      profiles?.forEach((p) => {
+        profileMap[p.user_id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
+      });
+
+      // Fetch comment counts
+      const postIds = posts.map((p) => p.id);
+      const { data: commentCounts } = await supabase
+        .from("comments")
+        .select("post_id")
+        .in("post_id", postIds);
+
+      const countMap: Record<string, number> = {};
+      commentCounts?.forEach((c) => {
+        countMap[c.post_id] = (countMap[c.post_id] || 0) + 1;
+      });
+
+      // Fetch user votes
+      const { data: votes } = await supabase
+        .from("post_votes")
+        .select("post_id, vote_type")
+        .eq("user_id", user.id);
+
+      const voteMap: Record<string, number> = {};
+      votes?.forEach((v) => {
+        voteMap[v.post_id] = v.vote_type;
+      });
+
+      return posts.map((post) => ({
+        ...post,
+        author: profileMap[post.user_id] || { username: null, display_name: null, avatar_url: null },
+        comment_count: countMap[post.id] || 0,
+        user_vote: voteMap[post.id] || null,
+      }));
+    },
+    enabled: !!user,
+  });
+};
+
 export const useCommunityPosts = (community: string) => {
   const { user } = useAuth();
 
