@@ -6,6 +6,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { useAuth } from "@/hooks/useAuth";
@@ -274,16 +285,42 @@ const ReportsList = ({ reports, loading }: { reports: Report[]; loading: boolean
 
               {report.status === 'pending' && (
                 <div className="flex gap-2 flex-wrap">
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDelete(report)}
-                    disabled={deleteContent.isPending || !report.post && !report.comment}
-                    title={!report.post && !report.comment ? "Content already deleted" : "Delete content"}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={deleteContent.isPending || !report.post && !report.comment}
+                        title={!report.post && !report.comment ? "Content already deleted" : "Delete content"}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete {report.content_type}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will permanently delete the reported {report.content_type} from the platform.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <div className="bg-muted rounded p-3 my-2">
+                        <p className="text-sm font-medium mb-1">Content to be deleted:</p>
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {report.post?.title || report.comment?.content || 'Content preview unavailable'}
+                        </p>
+                      </div>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(report)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete {report.content_type}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button
                     size="sm"
                     variant="outline"
