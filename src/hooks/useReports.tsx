@@ -131,10 +131,12 @@ export const useUpdateReportStatus = () => {
   return useMutation({
     mutationFn: async ({
       reportId,
-      status
+      status,
+      onAuditLog
     }: {
       reportId: string;
       status: 'reviewed' | 'resolved' | 'dismissed';
+      onAuditLog?: () => void;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -151,10 +153,21 @@ export const useUpdateReportStatus = () => {
         .single();
 
       if (error) throw error;
+      
+      // Log to audit
+      await supabase.from("audit_logs").insert({
+        actor_id: user.id,
+        action: status === 'resolved' ? 'resolve_report' : 'dismiss_report',
+        target_type: 'report',
+        target_id: reportId,
+        details: { status }
+      });
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       toast({ title: "Report updated" });
     },
     onError: (error) => {
@@ -183,37 +196,72 @@ export const useDeleteReportedContent = () => {
       commentId?: string | null;
       reportId: string;
     }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const targetId = contentType === 'post' ? postId : commentId;
+      
       if (contentType === 'post' && postId) {
+        // Get post details before deletion for audit log
+        const { data: post } = await supabase
+          .from("posts")
+          .select("title")
+          .eq("id", postId)
+          .single();
+          
         const { error } = await supabase
           .from("posts")
           .delete()
           .eq("id", postId);
         if (error) throw error;
+        
+        // Log to audit
+        await supabase.from("audit_logs").insert({
+          actor_id: user.id,
+          action: 'delete_post',
+          target_type: 'post',
+          target_id: postId,
+          details: { title: post?.title, report_id: reportId }
+        });
       } else if (contentType === 'comment' && commentId) {
+        // Get comment details before deletion for audit log
+        const { data: comment } = await supabase
+          .from("comments")
+          .select("content")
+          .eq("id", commentId)
+          .single();
+          
         const { error } = await supabase
           .from("comments")
           .delete()
           .eq("id", commentId);
         if (error) throw error;
+        
+        // Log to audit
+        await supabase.from("audit_logs").insert({
+          actor_id: user.id,
+          action: 'delete_comment',
+          target_type: 'comment',
+          target_id: commentId,
+          details: { content_preview: comment?.content?.slice(0, 100), report_id: reportId }
+        });
       }
 
       // Mark report as resolved
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from("reports")
-          .update({
-            status: 'resolved',
-            reviewed_by: user.id,
-            reviewed_at: new Date().toISOString()
-          })
-          .eq("id", reportId);
-      }
+      await supabase
+        .from("reports")
+        .update({
+          status: 'resolved',
+          reviewed_by: user.id,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq("id", reportId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["comments"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       toast({ title: "Content deleted", description: "The reported content has been removed." });
     },
     onError: (error) => {

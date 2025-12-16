@@ -52,16 +52,29 @@ export const useAssignRole = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
+    mutationFn: async ({ userId, role, username }: { userId: string; role: AppRole; username?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { error } = await supabase
         .from("user_roles")
         .insert({ user_id: userId, role });
 
       if (error) throw error;
+      
+      // Log to audit
+      await supabase.from("audit_logs").insert({
+        actor_id: user.id,
+        action: 'assign_role',
+        target_type: 'user',
+        target_id: userId,
+        details: { role, username }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
       queryClient.invalidateQueries({ queryKey: ["user-roles"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       toast({ title: "Role assigned successfully" });
     },
     onError: (error: any) => {
@@ -79,7 +92,10 @@ export const useRemoveRole = () => {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: AppRole }) => {
+    mutationFn: async ({ userId, role, username }: { userId: string; role: AppRole; username?: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
       const { error } = await supabase
         .from("user_roles")
         .delete()
@@ -87,10 +103,20 @@ export const useRemoveRole = () => {
         .eq("role", role);
 
       if (error) throw error;
+      
+      // Log to audit
+      await supabase.from("audit_logs").insert({
+        actor_id: user.id,
+        action: 'remove_role',
+        target_type: 'user',
+        target_id: userId,
+        details: { role, username }
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
       queryClient.invalidateQueries({ queryKey: ["user-roles"] });
+      queryClient.invalidateQueries({ queryKey: ["audit-logs"] });
       toast({ title: "Role removed successfully" });
     },
     onError: (error: any) => {
