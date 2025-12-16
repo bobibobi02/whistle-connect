@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Shield, AlertTriangle, CheckCircle, FileText, MessageSquare, Clock, Lock, Flag, Eye, XCircle } from "lucide-react";
+import { ArrowLeft, Shield, AlertTriangle, CheckCircle, FileText, MessageSquare, Clock, Lock, Flag, Eye, XCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import MobileNav from "@/components/MobileNav";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsModerator } from "@/hooks/useUserRoles";
 import { useModerationLogs, useModerationStats } from "@/hooks/useModerationLogs";
-import { useReports, useUpdateReportStatus, Report } from "@/hooks/useReports";
+import { useReports, useUpdateReportStatus, useDeleteReportedContent, Report } from "@/hooks/useReports";
 import { formatDistanceToNow } from "date-fns";
 
 const Moderation = () => {
@@ -198,6 +198,7 @@ const Moderation = () => {
 
 const ReportsList = ({ reports, loading }: { reports: Report[]; loading: boolean }) => {
   const updateStatus = useUpdateReportStatus();
+  const deleteContent = useDeleteReportedContent();
 
   if (loading) {
     return <div className="text-center py-8 text-muted-foreground">Loading reports...</div>;
@@ -209,6 +210,15 @@ const ReportsList = ({ reports, loading }: { reports: Report[]; loading: boolean
 
   const handleAction = (reportId: string, status: 'resolved' | 'dismissed') => {
     updateStatus.mutate({ reportId, status });
+  };
+
+  const handleDelete = (report: Report) => {
+    deleteContent.mutate({
+      contentType: report.content_type,
+      postId: report.post_id,
+      commentId: report.comment_id,
+      reportId: report.id
+    });
   };
 
   return (
@@ -263,7 +273,17 @@ const ReportsList = ({ reports, loading }: { reports: Report[]; loading: boolean
               </div>
 
               {report.status === 'pending' && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleDelete(report)}
+                    disabled={deleteContent.isPending || !report.post && !report.comment}
+                    title={!report.post && !report.comment ? "Content already deleted" : "Delete content"}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
