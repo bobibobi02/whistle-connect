@@ -115,6 +115,15 @@ export const useCreateComment = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Moderate content before posting
+      const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
+        body: { content, type: 'comment' }
+      });
+
+      if (moderationResult?.allowed === false) {
+        throw new Error(moderationResult.reason || 'Your comment was flagged for violating community guidelines.');
+      }
+
       const { data, error } = await supabase
         .from("comments")
         .insert({
