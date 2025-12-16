@@ -166,3 +166,62 @@ export const useUpdateReportStatus = () => {
     }
   });
 };
+
+export const useDeleteReportedContent = () => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({
+      contentType,
+      postId,
+      commentId,
+      reportId
+    }: {
+      contentType: 'post' | 'comment';
+      postId?: string | null;
+      commentId?: string | null;
+      reportId: string;
+    }) => {
+      if (contentType === 'post' && postId) {
+        const { error } = await supabase
+          .from("posts")
+          .delete()
+          .eq("id", postId);
+        if (error) throw error;
+      } else if (contentType === 'comment' && commentId) {
+        const { error } = await supabase
+          .from("comments")
+          .delete()
+          .eq("id", commentId);
+        if (error) throw error;
+      }
+
+      // Mark report as resolved
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("reports")
+          .update({
+            status: 'resolved',
+            reviewed_by: user.id,
+            reviewed_at: new Date().toISOString()
+          })
+          .eq("id", reportId);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["comments"] });
+      toast({ title: "Content deleted", description: "The reported content has been removed." });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error deleting content",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+};
