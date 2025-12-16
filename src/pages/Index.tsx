@@ -10,6 +10,7 @@ import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOptio
 import { useAuth } from "@/hooks/useAuth";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import PostSkeleton from "@/components/PostSkeleton";
+import FloatingActionButton from "@/components/FloatingActionButton";
 import { Button } from "@/components/ui/button";
 import { Users, Flame, TrendingUp, Clock, Loader2, UserPlus, RefreshCw } from "lucide-react";
 
@@ -222,6 +223,8 @@ const Index = () => {
           <CommunitySidebar className="hidden lg:block sticky top-24 h-fit" sortBy={sortBy} onSortChange={setSortBy} />
         </div>
       </main>
+
+      <FloatingActionButton />
     </div>
   );
 };
