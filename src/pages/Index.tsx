@@ -7,7 +7,7 @@ import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
 import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOption } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuth";
-import { Skeleton } from "@/components/ui/skeleton";
+import PostSkeleton from "@/components/PostSkeleton";
 import { Button } from "@/components/ui/button";
 import { Users, Flame, TrendingUp, Clock, Loader2, UserPlus } from "lucide-react";
 
@@ -127,22 +127,7 @@ const Index = () => {
             </div>
             
             {isLoading ? (
-              <div className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="bg-card rounded-xl shadow-card p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Skeleton className="h-8 w-8 rounded-full" />
-                      <div className="space-y-1">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-3 w-32" />
-                      </div>
-                    </div>
-                    <Skeleton className="h-6 w-3/4 mb-2" />
-                    <Skeleton className="h-4 w-full mb-1" />
-                    <Skeleton className="h-4 w-2/3" />
-                  </div>
-                ))}
-              </div>
+              <PostSkeleton count={4} />
             ) : error ? (
               <div className="bg-card rounded-xl shadow-card p-8 text-center">
                 <p className="text-muted-foreground">Failed to load posts. Please try again.</p>
