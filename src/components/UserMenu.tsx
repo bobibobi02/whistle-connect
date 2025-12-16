@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { LogOut, User, Settings } from "lucide-react";
+import { LogOut, User, Settings, Shield } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,6 +51,12 @@ const UserMenu = () => {
           <Link to={`/u/${username}`} className="cursor-pointer">
             <User className="mr-2 h-4 w-4" />
             Profile
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/moderation" className="cursor-pointer">
+            <Shield className="mr-2 h-4 w-4" />
+            Moderation
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem>

@@ -319,7 +319,7 @@ export const useCreatePost = () => {
       // Moderate content before posting
       const textToModerate = `${title}\n${content || ''}`;
       const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
-        body: { content: textToModerate, type: 'post' }
+        body: { content: textToModerate, type: 'post', userId: user.id }
       });
 
       if (moderationResult?.allowed === false) {
