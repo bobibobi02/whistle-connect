@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, M
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import CommentSkeleton from "@/components/CommentSkeleton";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import CommunitySidebar from "@/components/CommunitySidebar";
@@ -222,18 +223,7 @@ const PostDetail = () => {
                 <div className="bg-card rounded-xl shadow-card p-4 mt-4 animate-fade-in" style={{ animationDelay: "100ms" }}>
                   <h2 className="font-semibold mb-4">Comments ({post.comment_count.toLocaleString()})</h2>
                   {commentsLoading ? (
-                    <div className="space-y-4">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <Skeleton className="h-6 w-6 rounded-full" />
-                            <Skeleton className="h-4 w-24" />
-                          </div>
-                          <Skeleton className="h-4 w-full" />
-                          <Skeleton className="h-4 w-3/4" />
-                        </div>
-                      ))}
-                    </div>
+                    <CommentSkeleton count={4} />
                   ) : comments && comments.length > 0 ? (
                     <div className="space-y-4">
                       {comments.map((comment) => (
