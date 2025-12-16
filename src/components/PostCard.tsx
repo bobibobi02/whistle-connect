@@ -66,7 +66,7 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
 
   return (
     <article
-      className="group bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in overflow-hidden"
+      className="group bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in overflow-hidden card-interactive"
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="p-4">
