@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal, Copy, Twitter, Facebook, Linkedin } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal, Copy, Twitter, Facebook, Linkedin, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,10 +7,12 @@ import { useVotePost, Post } from "@/hooks/usePosts";
 import { useBookmarks, useToggleBookmark } from "@/hooks/useBookmarks";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import ReportDialog from "@/components/ReportDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 interface PostCardProps {
@@ -91,9 +93,25 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
               </span>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <ReportDialog 
+                contentType="post" 
+                postId={post.id}
+                trigger={
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                    <Flag className="h-4 w-4 mr-2" />
+                    Report
+                  </DropdownMenuItem>
+                }
+              />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Content */}
