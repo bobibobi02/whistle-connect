@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Shield, AlertTriangle, CheckCircle, FileText, MessageSquare, Clock } from "lucide-react";
+import { ArrowLeft, Shield, AlertTriangle, CheckCircle, FileText, MessageSquare, Clock, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,24 +9,44 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsModerator } from "@/hooks/useUserRoles";
 import { useModerationLogs, useModerationStats } from "@/hooks/useModerationLogs";
 import { formatDistanceToNow } from "date-fns";
 
 const Moderation = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { isModerator, isLoading: rolesLoading } = useIsModerator();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   
   const { data: logs, isLoading: logsLoading } = useModerationLogs(100);
   const { data: stats, isLoading: statsLoading } = useModerationStats();
 
-  if (authLoading) {
+  if (authLoading || rolesLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
   }
 
   if (!user) {
     navigate("/auth");
     return null;
+  }
+
+  if (!isModerator) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header onMenuClick={() => setIsMobileNavOpen(true)} />
+        <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
+        <main className="container max-w-2xl mx-auto px-4 py-16 text-center">
+          <Lock className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
+          <p className="text-muted-foreground mb-6">
+            You don't have permission to access the moderation dashboard.
+            This area is restricted to administrators and moderators.
+          </p>
+          <Button onClick={() => navigate("/")}>Back to Home</Button>
+        </main>
+      </div>
+    );
   }
 
   const flaggedLogs = logs?.filter(l => !l.allowed) || [];
