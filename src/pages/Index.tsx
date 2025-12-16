@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/Header";
 import PostCard from "@/components/PostCard";
 import CommunitySidebar from "@/components/CommunitySidebar";
@@ -7,9 +8,10 @@ import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
 import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOption } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuth";
+import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import PostSkeleton from "@/components/PostSkeleton";
 import { Button } from "@/components/ui/button";
-import { Users, Flame, TrendingUp, Clock, Loader2, UserPlus } from "lucide-react";
+import { Users, Flame, TrendingUp, Clock, Loader2, UserPlus, RefreshCw } from "lucide-react";
 
 const sortOptions = [
   { value: "best" as SortOption, label: "Best", icon: Flame },
@@ -24,6 +26,20 @@ const Index = () => {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  
+  // Pull to refresh
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["posts"] });
+    await queryClient.invalidateQueries({ queryKey: ["joinedCommunityPosts"] });
+    await queryClient.invalidateQueries({ queryKey: ["followingPosts"] });
+  }, [queryClient]);
+
+  const { containerRef, isRefreshing, pullDistance, pullProgress } = usePullToRefresh({
+    onRefresh: handleRefresh,
+    threshold: 80,
+  });
+  
   const {
     data: infiniteData,
     isLoading: allLoading,
@@ -65,9 +81,28 @@ const Index = () => {
   }, [handleObserver]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background" ref={containerRef}>
       <Header onMenuClick={() => setIsMobileNavOpen(true)} />
       <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
+
+      {/* Pull to refresh indicator */}
+      <div 
+        className="flex items-center justify-center overflow-hidden transition-all duration-200 lg:hidden"
+        style={{ 
+          height: pullDistance > 0 ? `${pullDistance}px` : 0,
+          opacity: pullProgress 
+        }}
+      >
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <RefreshCw 
+            className={`h-5 w-5 transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
+            style={{ transform: isRefreshing ? undefined : `rotate(${pullProgress * 360}deg)` }}
+          />
+          <span className="text-sm">
+            {isRefreshing ? 'Refreshing...' : pullProgress >= 1 ? 'Release to refresh' : 'Pull to refresh'}
+          </span>
+        </div>
+      </div>
 
       <main className="container max-w-7xl mx-auto px-4 py-6">
         <div className="flex gap-6">
