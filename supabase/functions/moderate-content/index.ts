@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { content, type } = await req.json();
+    const { content, type, userId } = await req.json();
     
     if (!content) {
       return new Response(JSON.stringify({ allowed: true }), {
@@ -57,7 +58,7 @@ Respond with a JSON object only: {"allowed": boolean, "reason": string or null}`
           },
           {
             role: "user",
-            content: content.substring(0, 2000) // Limit content length
+            content: content.substring(0, 2000)
           }
         ],
         temperature: 0.1,
@@ -76,24 +77,42 @@ Respond with a JSON object only: {"allowed": boolean, "reason": string or null}`
     
     console.log("AI moderation response:", aiResponse);
 
+    let result = { allowed: true, reason: null as string | null };
+
     // Parse the JSON response from AI
     try {
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const result = JSON.parse(jsonMatch[0]);
-        return new Response(JSON.stringify({
-          allowed: result.allowed !== false,
-          reason: result.reason || null
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        const parsed = JSON.parse(jsonMatch[0]);
+        result = {
+          allowed: parsed.allowed !== false,
+          reason: parsed.reason || null
+        };
       }
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
     }
 
-    // Default to allowed if parsing fails
-    return new Response(JSON.stringify({ allowed: true }), {
+    // Log moderation result to database
+    if (userId) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        await supabase.from('moderation_logs').insert({
+          content_type: type || 'unknown',
+          content_text: content.substring(0, 500),
+          user_id: userId,
+          allowed: result.allowed,
+          reason: result.reason
+        });
+      } catch (logError) {
+        console.error("Failed to log moderation:", logError);
+      }
+    }
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
