@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp, Flag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { Comment as CommentType, useCreateComment, useVoteComment } from "@/hooks/useComments";
 import { formatDistanceToNow } from "date-fns";
+import ReportDialog from "@/components/ReportDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CommentProps {
   comment: CommentType;
@@ -146,9 +153,26 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
                 Reply
               </Button>
 
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground h-7 w-7">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground h-7 w-7">
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <ReportDialog 
+                    contentType="comment" 
+                    commentId={comment.id}
+                    postId={comment.post_id}
+                    trigger={
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                        <Flag className="h-4 w-4 mr-2" />
+                        Report
+                      </DropdownMenuItem>
+                    }
+                  />
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* Reply form */}

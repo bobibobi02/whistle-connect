@@ -475,6 +475,63 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          comment_id: string | null
+          content_type: string
+          created_at: string
+          details: string | null
+          id: string
+          post_id: string | null
+          reason: string
+          reporter_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          comment_id?: string | null
+          content_type: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          post_id?: string | null
+          reason: string
+          reporter_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          comment_id?: string | null
+          content_type?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          post_id?: string | null
+          reason?: string
+          reporter_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
