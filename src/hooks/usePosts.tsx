@@ -316,6 +316,16 @@ export const useCreatePost = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Moderate content before posting
+      const textToModerate = `${title}\n${content || ''}`;
+      const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
+        body: { content: textToModerate, type: 'post' }
+      });
+
+      if (moderationResult?.allowed === false) {
+        throw new Error(moderationResult.reason || 'Your post was flagged for violating community guidelines.');
+      }
+
       const { data, error } = await supabase
         .from("posts")
         .insert({
