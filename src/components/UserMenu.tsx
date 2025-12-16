@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
-import { LogOut, User, Settings, Shield } from "lucide-react";
+import { LogOut, User, Settings, Shield, UserCog } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useIsModerator } from "@/hooks/useUserRoles";
+import { useIsModerator, useIsAdmin } from "@/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const UserMenu = () => {
   const { user, profile, signOut } = useAuth();
   const { isModerator } = useIsModerator();
+  const { isAdmin } = useIsAdmin();
 
   if (!user) {
     return (
@@ -60,6 +61,14 @@ const UserMenu = () => {
             <Link to="/moderation" className="cursor-pointer">
               <Shield className="mr-2 h-4 w-4" />
               Moderation
+            </Link>
+          </DropdownMenuItem>
+        )}
+        {isAdmin && (
+          <DropdownMenuItem asChild>
+            <Link to="/admin" className="cursor-pointer">
+              <UserCog className="mr-2 h-4 w-4" />
+              Admin Settings
             </Link>
           </DropdownMenuItem>
         )}

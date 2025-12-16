@@ -14,6 +14,7 @@ import Communities from "./pages/Communities";
 import Search from "./pages/Search";
 import NotificationCenter from "./pages/NotificationCenter";
 import Moderation from "./pages/Moderation";
+import AdminSettings from "./pages/AdminSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/notifications" element={<NotificationCenter />} />
             <Route path="/moderation" element={<Moderation />} />
+            <Route path="/admin" element={<AdminSettings />} />
             <Route path="/c/:communityName" element={<Community />} />
             <Route path="/post/:postId" element={<PostDetail />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
