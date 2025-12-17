@@ -3,11 +3,13 @@ import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizont
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { useVotePost, Post } from "@/hooks/usePosts";
+import { useVotePost, useDeletePost, Post } from "@/hooks/usePosts";
 import { useBookmarks, useToggleBookmark } from "@/hooks/useBookmarks";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import ReportDialog from "@/components/ReportDialog";
+import { SwipeToDelete } from "@/components/SwipeToDelete";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 interface PostCardProps {
   post: Post;
   index?: number;
@@ -24,10 +27,13 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const votePost = useVotePost();
+  const deletePost = useDeletePost();
   const { data: bookmarks } = useBookmarks();
   const toggleBookmark = useToggleBookmark();
+  const isMobile = useIsMobile();
 
   const isBookmarked = bookmarks?.includes(post.id) ?? false;
+  const isOwner = user?.id === post.user_id;
 
   const authorName = post.author.display_name || post.author.username || "Anonymous";
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
@@ -64,7 +70,11 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
   const displayedUpvotes = post.upvotes + 
     (post.user_vote ? 0 : 0); // Vote is already counted in upvotes
 
-  return (
+  const handleDelete = () => {
+    deletePost.mutate(post.id);
+  };
+
+  const cardContent = (
     <article
       className="group bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in overflow-hidden card-interactive"
       style={{ animationDelay: `${index * 50}ms` }}
@@ -224,6 +234,17 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
       </div>
     </article>
   );
+
+  // Wrap in SwipeToDelete for owner on mobile
+  if (isMobile && isOwner) {
+    return (
+      <SwipeToDelete onDelete={handleDelete}>
+        {cardContent}
+      </SwipeToDelete>
+    );
+  }
+
+  return cardContent;
 };
 
 export default PostCard;

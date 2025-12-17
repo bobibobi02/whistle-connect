@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
-import { Comment as CommentType, useCreateComment, useVoteComment } from "@/hooks/useComments";
+import { Comment as CommentType, useCreateComment, useVoteComment, useDeleteComment } from "@/hooks/useComments";
 import { formatDistanceToNow } from "date-fns";
 import ReportDialog from "@/components/ReportDialog";
+import { SwipeToDelete } from "@/components/SwipeToDelete";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,6 +27,8 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
   const navigate = useNavigate();
   const createComment = useCreateComment();
   const voteComment = useVoteComment();
+  const deleteComment = useDeleteComment();
+  const isMobile = useIsMobile();
   
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
@@ -65,8 +69,13 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
 
   const maxDepth = 5;
   const shouldNest = depth < maxDepth;
+  const isOwner = user?.id === comment.user_id;
 
-  return (
+  const handleDelete = () => {
+    deleteComment.mutate({ commentId: comment.id, postId: comment.post_id });
+  };
+
+  const commentContent = (
     <div className={cn("relative", depth > 0 && "ml-4 sm:ml-6")}>
       {/* Thread line */}
       {depth > 0 && (
@@ -223,6 +232,17 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
       </div>
     </div>
   );
+
+  // Wrap in SwipeToDelete for owner on mobile (only at depth 0 to avoid nesting issues)
+  if (isMobile && isOwner && depth === 0) {
+    return (
+      <SwipeToDelete onDelete={handleDelete}>
+        {commentContent}
+      </SwipeToDelete>
+    );
+  }
+
+  return commentContent;
 };
 
 export default Comment;
