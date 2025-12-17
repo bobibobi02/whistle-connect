@@ -236,7 +236,11 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
   // Wrap in SwipeToDelete for owner on mobile (only at depth 0 to avoid nesting issues)
   if (isMobile && isOwner && depth === 0) {
     return (
-      <SwipeToDelete onDelete={handleDelete}>
+      <SwipeToDelete 
+        onDelete={handleDelete}
+        confirmTitle="Delete this comment?"
+        confirmDescription="This will permanently delete your comment and all replies."
+      >
         {commentContent}
       </SwipeToDelete>
     );
