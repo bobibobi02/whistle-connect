@@ -3,6 +3,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
+export interface PostFlair {
+  id: string;
+  name: string;
+  color: string;
+  background_color: string;
+}
+
 export interface Post {
   id: string;
   user_id: string;
@@ -20,6 +27,12 @@ export interface Post {
   };
   comment_count: number;
   user_vote: number | null;
+  // Moderation fields
+  is_locked: boolean;
+  is_pinned: boolean;
+  is_removed: boolean;
+  flair_id: string | null;
+  flair: PostFlair | null;
 }
 
 export type SortOption = "best" | "hot" | "new";
@@ -86,11 +99,30 @@ const enrichPosts = async (
     });
   }
 
+  // Fetch flairs for posts that have flair_id
+  const flairIds = [...new Set(sortedPosts.filter(p => p.flair_id).map(p => p.flair_id))];
+  let flairMap: Record<string, PostFlair> = {};
+  if (flairIds.length > 0) {
+    const { data: flairs } = await supabase
+      .from("community_flairs")
+      .select("id, name, color, background_color")
+      .in("id", flairIds);
+
+    flairs?.forEach((f) => {
+      flairMap[f.id] = f;
+    });
+  }
+
   return sortedPosts.map((post) => ({
     ...post,
     author: profileMap[post.user_id] || { username: null, display_name: null, avatar_url: null },
     comment_count: countMap[post.id] || 0,
     user_vote: voteMap[post.id] || null,
+    is_locked: post.is_locked ?? false,
+    is_pinned: post.is_pinned ?? false,
+    is_removed: post.is_removed ?? false,
+    flair_id: post.flair_id || null,
+    flair: post.flair_id ? flairMap[post.flair_id] || null : null,
   }));
 };
 
@@ -310,11 +342,27 @@ export const usePost = (postId: string) => {
         userVote = vote?.vote_type || null;
       }
 
+      // Fetch flair if exists
+      let flair: PostFlair | null = null;
+      if (post.flair_id) {
+        const { data: flairData } = await supabase
+          .from("community_flairs")
+          .select("id, name, color, background_color")
+          .eq("id", post.flair_id)
+          .maybeSingle();
+        flair = flairData;
+      }
+
       return {
         ...post,
         author: profile || { username: null, display_name: null, avatar_url: null },
         comment_count: count || 0,
         user_vote: userVote,
+        is_locked: post.is_locked ?? false,
+        is_pinned: post.is_pinned ?? false,
+        is_removed: post.is_removed ?? false,
+        flair_id: post.flair_id || null,
+        flair,
       };
     },
     enabled: !!postId,

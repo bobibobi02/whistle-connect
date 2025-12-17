@@ -78,11 +78,30 @@ export const useUserPosts = (userId: string) => {
         countMap[c.post_id] = (countMap[c.post_id] || 0) + 1;
       });
 
+      // Get flairs
+      const flairIds = [...new Set(posts.filter(p => p.flair_id).map(p => p.flair_id))];
+      let flairMap: Record<string, { id: string; name: string; color: string; background_color: string }> = {};
+      if (flairIds.length > 0) {
+        const { data: flairs } = await supabase
+          .from("community_flairs")
+          .select("id, name, color, background_color")
+          .in("id", flairIds);
+
+        flairs?.forEach((f) => {
+          flairMap[f.id] = f;
+        });
+      }
+
       return posts.map(post => ({
         ...post,
         author: profile || { username: null, display_name: null, avatar_url: null },
         comment_count: countMap[post.id] || 0,
         user_vote: null,
+        is_locked: post.is_locked ?? false,
+        is_pinned: post.is_pinned ?? false,
+        is_removed: post.is_removed ?? false,
+        flair_id: post.flair_id || null,
+        flair: post.flair_id ? flairMap[post.flair_id] || null : null,
       }));
     },
     enabled: !!userId,
