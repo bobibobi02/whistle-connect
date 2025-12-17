@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Shield, Users, FileText, Tag, History, Settings } from "lucide-react";
+import { Shield, Users, FileText, Tag, History, Ban } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import CommunityFlairManager from "./CommunityFlairManager";
 import CommunityModeratorsManager from "./CommunityModeratorsManager";
+import CommunityBanManager from "./CommunityBanManager";
 import { useCommunityModLog } from "@/hooks/useCommunityModeration";
 
 interface ModeratorPanelProps {
@@ -73,6 +74,13 @@ const ModeratorPanel = ({ communityId, communityName }: ModeratorPanelProps) => 
             Flairs
           </TabsTrigger>
           <TabsTrigger
+            value="bans"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          >
+            <Ban className="h-4 w-4 mr-2" />
+            Bans
+          </TabsTrigger>
+          <TabsTrigger
             value="log"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
           >
@@ -88,6 +96,10 @@ const ModeratorPanel = ({ communityId, communityName }: ModeratorPanelProps) => 
 
           <TabsContent value="flairs" className="mt-0">
             <CommunityFlairManager communityId={communityId} />
+          </TabsContent>
+
+          <TabsContent value="bans" className="mt-0">
+            <CommunityBanManager communityId={communityId} />
           </TabsContent>
 
           <TabsContent value="log" className="mt-0">
