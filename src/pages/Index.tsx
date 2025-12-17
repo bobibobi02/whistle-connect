@@ -1,18 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/Header";
-import PostCard from "@/components/PostCard";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
+import VirtualizedPostList from "@/components/VirtualizedPostList";
 import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOption } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuth";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
-import PostSkeleton from "@/components/PostSkeleton";
 import FloatingActionButton from "@/components/FloatingActionButton";
 import { Button } from "@/components/ui/button";
-import { Users, Flame, TrendingUp, Clock, Loader2, UserPlus, RefreshCw } from "lucide-react";
+import { Users, Flame, TrendingUp, Clock, UserPlus, RefreshCw } from "lucide-react";
 
 const sortOptions = [
   { value: "best" as SortOption, label: "Best", icon: Flame },
@@ -24,7 +23,6 @@ const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [feedType, setFeedType] = useState<"all" | "joined" | "following">("all");
   const [sortBy, setSortBy] = useState<SortOption>("best");
-  const loadMoreRef = useRef<HTMLDivElement>(null);
   
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -32,8 +30,6 @@ const Index = () => {
   // Pull to refresh
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ["posts"] });
-    await queryClient.invalidateQueries({ queryKey: ["joinedCommunityPosts"] });
-    await queryClient.invalidateQueries({ queryKey: ["followingPosts"] });
   }, [queryClient]);
 
   const { containerRef, isRefreshing, pullDistance, pullProgress } = usePullToRefresh({
@@ -41,45 +37,44 @@ const Index = () => {
     threshold: 80,
   });
   
-  const {
-    data: infiniteData,
-    isLoading: allLoading,
-    error: allError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfinitePosts(sortBy);
-  const { data: joinedPosts, isLoading: joinedLoading, error: joinedError } = useJoinedCommunityPosts();
-  const { data: followingPosts, isLoading: followingLoading, error: followingError } = useFollowingPosts();
+  // All feeds now use infinite queries
+  const allQuery = useInfinitePosts(sortBy);
+  const joinedQuery = useJoinedCommunityPosts();
+  const followingQuery = useFollowingPosts();
 
-  const allPosts = infiniteData?.pages.flatMap((page) => page.posts) ?? [];
-  const posts = feedType === "joined" ? joinedPosts : feedType === "following" ? followingPosts : allPosts;
-  const isLoading = feedType === "joined" ? joinedLoading : feedType === "following" ? followingLoading : allLoading;
-  const error = feedType === "joined" ? joinedError : feedType === "following" ? followingError : allError;
+  // Get the current feed data
+  const getCurrentFeed = () => {
+    if (feedType === "joined") {
+      return {
+        posts: joinedQuery.data?.pages.flatMap((page) => page.posts) ?? [],
+        isLoading: joinedQuery.isLoading,
+        error: joinedQuery.error,
+        fetchNextPage: joinedQuery.fetchNextPage,
+        hasNextPage: joinedQuery.hasNextPage,
+        isFetchingNextPage: joinedQuery.isFetchingNextPage,
+      };
+    }
+    if (feedType === "following") {
+      return {
+        posts: followingQuery.data?.pages.flatMap((page) => page.posts) ?? [],
+        isLoading: followingQuery.isLoading,
+        error: followingQuery.error,
+        fetchNextPage: followingQuery.fetchNextPage,
+        hasNextPage: followingQuery.hasNextPage,
+        isFetchingNextPage: followingQuery.isFetchingNextPage,
+      };
+    }
+    return {
+      posts: allQuery.data?.pages.flatMap((page) => page.posts) ?? [],
+      isLoading: allQuery.isLoading,
+      error: allQuery.error,
+      fetchNextPage: allQuery.fetchNextPage,
+      hasNextPage: allQuery.hasNextPage,
+      isFetchingNextPage: allQuery.isFetchingNextPage,
+    };
+  };
 
-  // Infinite scroll observer
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const [target] = entries;
-      if (target.isIntersecting && hasNextPage && !isFetchingNextPage && feedType === "all") {
-        fetchNextPage();
-      }
-    },
-    [fetchNextPage, hasNextPage, isFetchingNextPage, feedType]
-  );
-
-  useEffect(() => {
-    const element = loadMoreRef.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(handleObserver, {
-      threshold: 0.1,
-      rootMargin: "100px",
-    });
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [handleObserver]);
+  const { posts, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = getCurrentFeed();
 
   return (
     <div className="min-h-screen bg-background" ref={containerRef}>
@@ -162,40 +157,18 @@ const Index = () => {
               )}
             </div>
             
-            {isLoading ? (
-              <PostSkeleton count={4} />
-            ) : error ? (
+            {error ? (
               <div className="bg-card rounded-xl shadow-card p-8 text-center">
                 <p className="text-muted-foreground">Failed to load posts. Please try again.</p>
               </div>
-            ) : posts && posts.length > 0 ? (
-              <div className="space-y-4">
-                {posts.map((post, index) => (
-                  <PostCard key={post.id} post={post} index={index} />
-                ))}
-                
-                {/* Load more trigger */}
-                {feedType === "all" && (
-                  <div ref={loadMoreRef} className="py-4 flex justify-center">
-                    {isFetchingNextPage ? (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span className="text-sm">Loading more...</span>
-                      </div>
-                    ) : hasNextPage ? (
-                      <Button
-                        variant="outline"
-                        onClick={() => fetchNextPage()}
-                        className="w-full max-w-xs"
-                      >
-                        Load More
-                      </Button>
-                    ) : posts.length > 10 ? (
-                      <p className="text-sm text-muted-foreground">You've reached the end</p>
-                    ) : null}
-                  </div>
-                )}
-              </div>
+            ) : posts.length > 0 || isLoading ? (
+              <VirtualizedPostList
+                posts={posts}
+                hasNextPage={hasNextPage}
+                isFetchingNextPage={isFetchingNextPage}
+                fetchNextPage={fetchNextPage}
+                isLoading={isLoading}
+              />
             ) : feedType === "joined" ? (
               <div className="bg-card rounded-xl shadow-card p-8 text-center">
                 <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
