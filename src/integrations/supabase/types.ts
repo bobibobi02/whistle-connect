@@ -110,8 +110,13 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          is_distinguished: boolean | null
+          is_removed: boolean | null
           parent_id: string | null
           post_id: string
+          removal_reason: string | null
+          removed_at: string | null
+          removed_by: string | null
           updated_at: string
           upvotes: number
           user_id: string
@@ -120,8 +125,13 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          is_distinguished?: boolean | null
+          is_removed?: boolean | null
           parent_id?: string | null
           post_id: string
+          removal_reason?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
           updated_at?: string
           upvotes?: number
           user_id: string
@@ -130,8 +140,13 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_distinguished?: boolean | null
+          is_removed?: boolean | null
           parent_id?: string | null
           post_id?: string
+          removal_reason?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
           updated_at?: string
           upvotes?: number
           user_id?: string
@@ -155,6 +170,7 @@ export type Database = {
       }
       communities: {
         Row: {
+          allow_user_flair: boolean | null
           created_at: string
           created_by: string
           description: string | null
@@ -163,9 +179,11 @@ export type Database = {
           id: string
           member_count: number | null
           name: string
+          require_post_flair: boolean | null
           updated_at: string
         }
         Insert: {
+          allow_user_flair?: boolean | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -174,9 +192,11 @@ export type Database = {
           id?: string
           member_count?: number | null
           name: string
+          require_post_flair?: boolean | null
           updated_at?: string
         }
         Update: {
+          allow_user_flair?: boolean | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -185,9 +205,48 @@ export type Database = {
           id?: string
           member_count?: number | null
           name?: string
+          require_post_flair?: boolean | null
           updated_at?: string
         }
         Relationships: []
+      }
+      community_flairs: {
+        Row: {
+          background_color: string | null
+          color: string | null
+          community_id: string
+          created_at: string
+          id: string
+          is_mod_only: boolean | null
+          name: string
+        }
+        Insert: {
+          background_color?: string | null
+          color?: string | null
+          community_id: string
+          created_at?: string
+          id?: string
+          is_mod_only?: boolean | null
+          name: string
+        }
+        Update: {
+          background_color?: string | null
+          color?: string | null
+          community_id?: string
+          created_at?: string
+          id?: string
+          is_mod_only?: boolean | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_flairs_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       community_members: {
         Row: {
@@ -211,6 +270,170 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "community_members_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_mod_log: {
+        Row: {
+          action: string
+          community_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          mod_id: string
+          target_id: string | null
+          target_type: string
+          target_user_id: string | null
+        }
+        Insert: {
+          action: string
+          community_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          mod_id: string
+          target_id?: string | null
+          target_type: string
+          target_user_id?: string | null
+        }
+        Update: {
+          action?: string
+          community_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          mod_id?: string
+          target_id?: string | null
+          target_type?: string
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_mod_log_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_roles: {
+        Row: {
+          community_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          reason: string | null
+          role: Database["public"]["Enums"]["community_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          reason?: string | null
+          role?: Database["public"]["Enums"]["community_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          reason?: string | null
+          role?: Database["public"]["Enums"]["community_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_roles_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_rules: {
+        Row: {
+          community_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          rule_number: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          rule_number: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          rule_number?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_rules_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_user_flairs: {
+        Row: {
+          community_id: string
+          created_at: string
+          flair_color: string | null
+          flair_text: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          community_id: string
+          created_at?: string
+          flair_color?: string | null
+          flair_text?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          community_id?: string
+          created_at?: string
+          flair_color?: string | null
+          flair_text?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_user_flairs_community_id_fkey"
             columns: ["community_id"]
             isOneToOne: false
             referencedRelation: "communities"
@@ -439,8 +662,16 @@ export type Database = {
           community_icon: string | null
           content: string | null
           created_at: string
+          flair_id: string | null
           id: string
           image_url: string | null
+          is_locked: boolean | null
+          is_pinned: boolean | null
+          is_removed: boolean | null
+          pin_position: number | null
+          removal_reason: string | null
+          removed_at: string | null
+          removed_by: string | null
           title: string
           updated_at: string
           upvotes: number
@@ -451,8 +682,16 @@ export type Database = {
           community_icon?: string | null
           content?: string | null
           created_at?: string
+          flair_id?: string | null
           id?: string
           image_url?: string | null
+          is_locked?: boolean | null
+          is_pinned?: boolean | null
+          is_removed?: boolean | null
+          pin_position?: number | null
+          removal_reason?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
           title: string
           updated_at?: string
           upvotes?: number
@@ -463,14 +702,30 @@ export type Database = {
           community_icon?: string | null
           content?: string | null
           created_at?: string
+          flair_id?: string | null
           id?: string
           image_url?: string | null
+          is_locked?: boolean | null
+          is_pinned?: boolean | null
+          is_removed?: boolean | null
+          pin_position?: number | null
+          removal_reason?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
           title?: string
           updated_at?: string
           upvotes?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_flair_id_fkey"
+            columns: ["flair_id"]
+            isOneToOne: false
+            referencedRelation: "community_flairs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -624,6 +879,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_community_role: {
+        Args: {
+          _community_id: string
+          _role: Database["public"]["Enums"]["community_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -631,11 +894,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_community_mod: {
+        Args: { _community_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_notifications_snoozed: { Args: { _user_id: string }; Returns: boolean }
       is_user_banned: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      community_role: "owner" | "moderator" | "member" | "banned" | "muted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -764,6 +1032,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      community_role: ["owner", "moderator", "member", "banned", "muted"],
     },
   },
 } as const

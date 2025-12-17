@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal, Copy, Twitter, Facebook, Linkedin, Flag } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal, Copy, Twitter, Facebook, Linkedin, Flag, Lock, Pin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useVotePost, useDeletePost, Post } from "@/hooks/usePosts";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 import ReportDialog from "@/components/ReportDialog";
 import { SwipeToDelete } from "@/components/SwipeToDelete";
 import { useIsMobile } from "@/hooks/use-mobile";
+import PostModActions from "@/components/community/PostModActions";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,9 +23,10 @@ import {
 interface PostCardProps {
   post: Post;
   index?: number;
+  showModActions?: boolean;
 }
 
-const PostCard = ({ post, index = 0 }: PostCardProps) => {
+const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const votePost = useVotePost();
@@ -41,6 +44,12 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
   const handleVote = (type: 1 | -1) => {
     if (!user) {
       navigate("/auth");
+      return;
+    }
+
+    // Don't allow voting on locked posts
+    if (post.is_locked) {
+      toast.error("This post is locked");
       return;
     }
 
@@ -76,10 +85,36 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
 
   const cardContent = (
     <article
-      className="group bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in overflow-hidden card-interactive"
+      className={cn(
+        "group bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in overflow-hidden card-interactive",
+        post.is_removed && "opacity-60 border border-destructive/30"
+      )}
       style={{ animationDelay: `${index * 50}ms` }}
     >
       <div className="p-4">
+        {/* Status indicators */}
+        {(post.is_pinned || post.is_locked || post.is_removed) && (
+          <div className="flex items-center gap-2 mb-2">
+            {post.is_pinned && (
+              <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10">
+                <Pin className="h-3 w-3 mr-1" />
+                Pinned
+              </Badge>
+            )}
+            {post.is_locked && (
+              <Badge variant="outline" className="text-orange-500 border-orange-500/30 bg-orange-500/10">
+                <Lock className="h-3 w-3 mr-1" />
+                Locked
+              </Badge>
+            )}
+            {post.is_removed && (
+              <Badge variant="destructive">
+                Removed
+              </Badge>
+            )}
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -103,26 +138,54 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
               </span>
             </div>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <ReportDialog 
-                contentType="post" 
+          <div className="flex items-center gap-1">
+            {showModActions && (
+              <PostModActions
                 postId={post.id}
-                trigger={
-                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                    <Flag className="h-4 w-4 mr-2" />
-                    Report
-                  </DropdownMenuItem>
-                }
+                communityName={post.community}
+                isLocked={post.is_locked}
+                isPinned={post.is_pinned}
+                isRemoved={post.is_removed}
+                currentFlairId={post.flair_id}
               />
-            </DropdownMenuContent>
-          </DropdownMenu>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <ReportDialog 
+                  contentType="post" 
+                  postId={post.id}
+                  trigger={
+                    <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                      <Flag className="h-4 w-4 mr-2" />
+                      Report
+                    </DropdownMenuItem>
+                  }
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
+
+        {/* Flair */}
+        {post.flair && (
+          <div className="mb-2">
+            <Badge
+              variant="outline"
+              style={{
+                backgroundColor: post.flair.background_color,
+                color: post.flair.color,
+                borderColor: post.flair.color,
+              }}
+            >
+              {post.flair.name}
+            </Badge>
+          </div>
+        )}
 
         {/* Content */}
         <Link to={`/post/${post.id}`}>
@@ -157,6 +220,7 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
                 "vote-button vote-button-up",
                 post.user_vote === 1 && "active animate-vote-pop"
               )}
+              disabled={post.is_locked}
             >
               <ArrowBigUp className={cn("h-5 w-5", post.user_vote === 1 && "fill-current")} />
             </button>
@@ -173,6 +237,7 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
                 "vote-button vote-button-down",
                 post.user_vote === -1 && "active animate-vote-pop"
               )}
+              disabled={post.is_locked}
             >
               <ArrowBigDown className={cn("h-5 w-5", post.user_vote === -1 && "fill-current")} />
             </button>
@@ -182,6 +247,7 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
             <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
               <MessageCircle className="h-4 w-4" />
               <span className="text-sm">{post.comment_count}</span>
+              {post.is_locked && <Lock className="h-3 w-3 ml-1 text-orange-500" />}
             </Button>
           </Link>
 
