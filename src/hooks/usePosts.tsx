@@ -153,46 +153,94 @@ export const usePosts = (sort: SortOption = "best") => {
   });
 };
 
+const fetchJoinedCommunityPostsPage = async (
+  user: { id: string } | null,
+  pageParam: number = 0
+): Promise<{ posts: Post[]; nextPage: number | null }> => {
+  if (!user) return { posts: [], nextPage: null };
+
+  // Get user's joined communities
+  const { data: memberships } = await supabase
+    .from("community_members")
+    .select("community_id")
+    .eq("user_id", user.id);
+
+  if (!memberships || memberships.length === 0) return { posts: [], nextPage: null };
+
+  const communityIds = memberships.map((m) => m.community_id);
+
+  // Get community names from IDs
+  const { data: communities } = await supabase
+    .from("communities")
+    .select("name")
+    .in("id", communityIds);
+
+  if (!communities || communities.length === 0) return { posts: [], nextPage: null };
+
+  const communityNames = communities.map((c) => c.name);
+
+  // Fetch posts from joined communities with pagination
+  const { data: posts, error } = await supabase
+    .from("posts")
+    .select("*")
+    .in("community", communityNames)
+    .order("created_at", { ascending: false })
+    .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+
+  if (error) throw error;
+  if (!posts || posts.length === 0) return { posts: [], nextPage: null };
+
+  const enrichedPosts = await enrichPosts(posts, user, "new");
+
+  return {
+    posts: enrichedPosts,
+    nextPage: posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
+  };
+};
+
+const fetchFollowingPostsPage = async (
+  user: { id: string } | null,
+  pageParam: number = 0
+): Promise<{ posts: Post[]; nextPage: number | null }> => {
+  if (!user) return { posts: [], nextPage: null };
+
+  // Get users that the current user follows
+  const { data: follows } = await supabase
+    .from("follows")
+    .select("following_id")
+    .eq("follower_id", user.id);
+
+  if (!follows || follows.length === 0) return { posts: [], nextPage: null };
+
+  const followingIds = follows.map((f) => f.following_id);
+
+  // Fetch posts from followed users with pagination
+  const { data: posts, error } = await supabase
+    .from("posts")
+    .select("*")
+    .in("user_id", followingIds)
+    .order("created_at", { ascending: false })
+    .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+
+  if (error) throw error;
+  if (!posts || posts.length === 0) return { posts: [], nextPage: null };
+
+  const enrichedPosts = await enrichPosts(posts, user, "new");
+
+  return {
+    posts: enrichedPosts,
+    nextPage: posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
+  };
+};
+
 export const useJoinedCommunityPosts = () => {
   const { user } = useAuth();
 
-  return useQuery({
-    queryKey: ["posts", "joined", user?.id],
-    queryFn: async (): Promise<Post[]> => {
-      if (!user) return [];
-
-      // Get user's joined communities
-      const { data: memberships } = await supabase
-        .from("community_members")
-        .select("community_id")
-        .eq("user_id", user.id);
-
-      if (!memberships || memberships.length === 0) return [];
-
-      const communityIds = memberships.map((m) => m.community_id);
-
-      // Get community names from IDs
-      const { data: communities } = await supabase
-        .from("communities")
-        .select("name")
-        .in("id", communityIds);
-
-      if (!communities || communities.length === 0) return [];
-
-      const communityNames = communities.map((c) => c.name);
-
-      // Fetch posts from joined communities
-      const { data: posts, error } = await supabase
-        .from("posts")
-        .select("*")
-        .in("community", communityNames)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (!posts || posts.length === 0) return [];
-
-      return enrichPosts(posts, user, "new");
-    },
+  return useInfiniteQuery({
+    queryKey: ["posts", "joined", "infinite", user?.id],
+    queryFn: ({ pageParam }) => fetchJoinedCommunityPostsPage(user, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
     enabled: !!user,
   });
 };
@@ -200,33 +248,11 @@ export const useJoinedCommunityPosts = () => {
 export const useFollowingPosts = () => {
   const { user } = useAuth();
 
-  return useQuery({
-    queryKey: ["posts", "following", user?.id],
-    queryFn: async (): Promise<Post[]> => {
-      if (!user) return [];
-
-      // Get users that the current user follows
-      const { data: follows } = await supabase
-        .from("follows")
-        .select("following_id")
-        .eq("follower_id", user.id);
-
-      if (!follows || follows.length === 0) return [];
-
-      const followingIds = follows.map((f) => f.following_id);
-
-      // Fetch posts from followed users
-      const { data: posts, error } = await supabase
-        .from("posts")
-        .select("*")
-        .in("user_id", followingIds)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      if (!posts || posts.length === 0) return [];
-
-      return enrichPosts(posts, user, "new");
-    },
+  return useInfiniteQuery({
+    queryKey: ["posts", "following", "infinite", user?.id],
+    queryFn: ({ pageParam }) => fetchFollowingPostsPage(user, pageParam),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage) => lastPage.nextPage,
     enabled: !!user,
   });
 };
