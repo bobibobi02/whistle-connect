@@ -96,7 +96,9 @@ const Community = () => {
                     <div className="flex items-center gap-2">
                       <h1 className="text-2xl font-bold">w/{community.name}</h1>
                       {isMod && (
-                        <Shield className="h-5 w-5 text-primary" title="You're a moderator" />
+                        <span title="You're a moderator">
+                          <Shield className="h-5 w-5 text-primary" />
+                        </span>
                       )}
                     </div>
                     <p className="text-muted-foreground mt-1">{community.description || "A community for discussions"}</p>
