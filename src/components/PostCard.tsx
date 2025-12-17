@@ -238,7 +238,11 @@ const PostCard = ({ post, index = 0 }: PostCardProps) => {
   // Wrap in SwipeToDelete for owner on mobile
   if (isMobile && isOwner) {
     return (
-      <SwipeToDelete onDelete={handleDelete}>
+      <SwipeToDelete 
+        onDelete={handleDelete}
+        confirmTitle="Delete this post?"
+        confirmDescription="This will permanently delete your post and all its comments."
+      >
         {cardContent}
       </SwipeToDelete>
     );
