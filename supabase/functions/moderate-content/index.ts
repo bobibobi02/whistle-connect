@@ -12,7 +12,33 @@ serve(async (req) => {
   }
 
   try {
-    const { content, type, userId } = await req.json();
+    // Authenticate the request
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Verify the JWT token
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    if (authError || !user) {
+      console.error("Auth error:", authError);
+      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userId = user.id;
+    const { content, type } = await req.json();
     
     if (!content) {
       return new Response(JSON.stringify({ allowed: true }), {
@@ -94,22 +120,20 @@ Respond with a JSON object only: {"allowed": boolean, "reason": string or null}`
     }
 
     // Log moderation result to database
-    if (userId) {
-      try {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-        const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-        const supabase = createClient(supabaseUrl, supabaseKey);
+    try {
+      const supabaseServiceUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabaseService = createClient(supabaseServiceUrl, supabaseServiceKey);
 
-        await supabase.from('moderation_logs').insert({
-          content_type: type || 'unknown',
-          content_text: content.substring(0, 500),
-          user_id: userId,
-          allowed: result.allowed,
-          reason: result.reason
-        });
-      } catch (logError) {
-        console.error("Failed to log moderation:", logError);
-      }
+      await supabaseService.from('moderation_logs').insert({
+        content_type: type || 'unknown',
+        content_text: content.substring(0, 500),
+        user_id: userId,
+        allowed: result.allowed,
+        reason: result.reason
+      });
+    } catch (logError) {
+      console.error("Failed to log moderation:", logError);
     }
 
     return new Response(JSON.stringify(result), {
