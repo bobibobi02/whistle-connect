@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import Slider from '@react-native-community/slider';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { theme } from '@/theme';
@@ -17,11 +18,20 @@ import { useAuth } from '@/hooks/useAuth';
 import { useEmailPreferences, useUpdateEmailPreferences, useSnoozeNotifications, useUnsnoozeNotifications } from '@/hooks/useEmailPreferences';
 import { useUserRoles, useIsAdmin, useIsModerator } from '@/hooks/useUserRoles';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useNotificationSoundSettings } from '@/hooks/useNotificationSoundSettings';
 import { RootStackParamList } from '@/navigation/types';
 
 type SettingsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type ThemeMode = 'dark' | 'light' | 'system';
+
+const SOUND_TYPES = [
+  { value: 'default', label: 'Default', icon: '🔔' },
+  { value: 'chime', label: 'Chime', icon: '🎵' },
+  { value: 'bell', label: 'Bell', icon: '🔔' },
+  { value: 'pop', label: 'Pop', icon: '💫' },
+  { value: 'none', label: 'None', icon: '🔇' },
+] as const;
 
 export function SettingsScreen() {
   const navigation = useNavigation<SettingsNavigationProp>();
@@ -33,6 +43,15 @@ export function SettingsScreen() {
   const { isAdmin } = useIsAdmin();
   const { isModerator } = useIsModerator();
   const { expoPushToken } = usePushNotifications();
+  const {
+    settings: soundSettings,
+    isLoading: soundLoading,
+    toggleSound,
+    toggleVibrate,
+    setSoundType,
+    setVolume,
+    toggleTypeSound,
+  } = useNotificationSoundSettings();
 
   // Local state for theme (would be persisted in AsyncStorage in production)
   const [themeMode, setThemeMode] = useState<ThemeMode>('dark');
@@ -252,7 +271,155 @@ export function SettingsScreen() {
             trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
             thumbColor={theme.colors.text}
           />
+      </View>
+
+      {/* Sound Settings Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Notification Sounds</Text>
+
+        <View style={styles.item}>
+          <View style={styles.itemContent}>
+            <Text style={styles.itemIcon}>🔊</Text>
+            <Text style={styles.itemText}>Sound Enabled</Text>
+          </View>
+          <Switch
+            value={soundSettings.enabled}
+            onValueChange={toggleSound}
+            trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+            thumbColor={theme.colors.text}
+          />
         </View>
+
+        <View style={styles.item}>
+          <View style={styles.itemContent}>
+            <Text style={styles.itemIcon}>📳</Text>
+            <Text style={styles.itemText}>Vibration</Text>
+          </View>
+          <Switch
+            value={soundSettings.vibrate}
+            onValueChange={toggleVibrate}
+            trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+            thumbColor={theme.colors.text}
+          />
+        </View>
+
+        {soundSettings.enabled && (
+          <>
+            <View style={styles.volumeContainer}>
+              <View style={styles.volumeHeader}>
+                <Text style={styles.itemIcon}>🔈</Text>
+                <Text style={styles.itemText}>Volume</Text>
+                <Text style={styles.volumeValue}>{Math.round(soundSettings.volume * 100)}%</Text>
+              </View>
+              <Slider
+                style={styles.slider}
+                minimumValue={0}
+                maximumValue={1}
+                value={soundSettings.volume}
+                onSlidingComplete={setVolume}
+                minimumTrackTintColor={theme.colors.primary}
+                maximumTrackTintColor={theme.colors.border}
+                thumbTintColor={theme.colors.primary}
+              />
+            </View>
+
+            <View style={styles.soundTypeContainer}>
+              <Text style={styles.soundTypeLabel}>Sound Type</Text>
+              <View style={styles.soundTypeOptions}>
+                {SOUND_TYPES.map((type) => (
+                  <TouchableOpacity
+                    key={type.value}
+                    style={[
+                      styles.soundTypeOption,
+                      soundSettings.soundType === type.value && styles.soundTypeOptionSelected,
+                    ]}
+                    onPress={() => setSoundType(type.value)}
+                  >
+                    <Text style={styles.soundTypeIcon}>{type.icon}</Text>
+                    <Text
+                      style={[
+                        styles.soundTypeText,
+                        soundSettings.soundType === type.value && styles.soundTypeTextSelected,
+                      ]}
+                    >
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.perTypeSoundsContainer}>
+              <Text style={styles.perTypeSoundsLabel}>Sound by Notification Type</Text>
+
+              <View style={styles.item}>
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemIcon}>💬</Text>
+                  <Text style={styles.itemText}>Comments</Text>
+                </View>
+                <Switch
+                  value={soundSettings.comments}
+                  onValueChange={() => toggleTypeSound('comments')}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={theme.colors.text}
+                />
+              </View>
+
+              <View style={styles.item}>
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemIcon}>⬆️</Text>
+                  <Text style={styles.itemText}>Upvotes</Text>
+                </View>
+                <Switch
+                  value={soundSettings.upvotes}
+                  onValueChange={() => toggleTypeSound('upvotes')}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={theme.colors.text}
+                />
+              </View>
+
+              <View style={styles.item}>
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemIcon}>👥</Text>
+                  <Text style={styles.itemText}>Followers</Text>
+                </View>
+                <Switch
+                  value={soundSettings.followers}
+                  onValueChange={() => toggleTypeSound('followers')}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={theme.colors.text}
+                />
+              </View>
+
+              <View style={styles.item}>
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemIcon}>@</Text>
+                  <Text style={styles.itemText}>Mentions</Text>
+                </View>
+                <Switch
+                  value={soundSettings.mentions}
+                  onValueChange={() => toggleTypeSound('mentions')}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={theme.colors.text}
+                />
+              </View>
+
+              <View style={styles.item}>
+                <View style={styles.itemContent}>
+                  <Text style={styles.itemIcon}>🛡️</Text>
+                  <Text style={styles.itemText}>Moderation</Text>
+                </View>
+                <Switch
+                  value={soundSettings.moderation}
+                  onValueChange={() => toggleTypeSound('moderation')}
+                  trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+                  thumbColor={theme.colors.text}
+                />
+              </View>
+            </View>
+          </>
+        )}
+      </View>
 
         <View style={styles.snoozeOptions}>
           <Text style={styles.snoozeLabel}>Snooze for:</Text>
@@ -592,5 +759,79 @@ const styles = StyleSheet.create({
     color: theme.colors.textMuted,
     marginTop: theme.spacing.xs,
     opacity: 0.7,
+  },
+  // Sound settings styles
+  volumeContainer: {
+    backgroundColor: theme.colors.card,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  volumeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  volumeValue: {
+    marginLeft: 'auto',
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textMuted,
+  },
+  slider: {
+    marginTop: theme.spacing.sm,
+    height: 40,
+  },
+  soundTypeContainer: {
+    backgroundColor: theme.colors.card,
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  soundTypeLabel: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textMuted,
+    marginBottom: theme.spacing.md,
+  },
+  soundTypeOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  soundTypeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.background,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  soundTypeOptionSelected: {
+    backgroundColor: theme.colors.primary + '20',
+    borderColor: theme.colors.primary,
+  },
+  soundTypeIcon: {
+    fontSize: 14,
+    marginRight: theme.spacing.xs,
+  },
+  soundTypeText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+  },
+  soundTypeTextSelected: {
+    color: theme.colors.primary,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  perTypeSoundsContainer: {
+    backgroundColor: theme.colors.card,
+    paddingTop: theme.spacing.md,
+  },
+  perTypeSoundsLabel: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textMuted,
+    paddingHorizontal: theme.spacing.lg,
+    marginBottom: theme.spacing.sm,
   },
 });

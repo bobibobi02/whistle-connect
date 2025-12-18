@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,20 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { formatDistanceToNow } from 'date-fns';
 import { theme } from '@/theme';
-import { useNotifications, useMarkAsRead, useMarkAllAsRead, useDeleteNotification } from '@/hooks/useNotifications';
+import { 
+  useNotifications, 
+  useMarkAsRead, 
+  useMarkAllAsRead, 
+  useDeleteNotification,
+  Notification,
+} from '@/hooks/useNotifications';
+import { useBatchedNotifications, BatchedNotification } from '@/hooks/useNotificationBatching';
+import { BatchedNotificationItem } from '@/components/BatchedNotificationItem';
 import { RootStackParamList } from '@/navigation/types';
 
 export function NotificationsScreen() {
@@ -22,36 +30,77 @@ export function NotificationsScreen() {
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
 
-  const handleNotificationPress = (notification: typeof notifications extends (infer U)[] ? U : never) => {
+  // Batch similar notifications
+  const batchedNotifications = useBatchedNotifications(notifications);
+
+  const handleNotificationPress = useCallback((notification: BatchedNotification) => {
+    // Mark original notification(s) as read
     if (!notification.read) {
-      markAsRead.mutate(notification.id);
+      notification.originalNotifications.forEach(n => {
+        if (!n.read) {
+          markAsRead.mutate(n.id);
+        }
+      });
     }
 
-    // Navigate based on notification type
-    if (notification.related_post_id) {
-      navigation.navigate('PostDetail', { postId: notification.related_post_id });
-    } else if (notification.link) {
-      // Handle other links (e.g., profile)
-      if (notification.link.startsWith('/profile/')) {
-        const userId = notification.link.replace('/profile/', '');
-        navigation.navigate('UserProfile', { userId });
-      }
+    // Navigate based on notification content
+    if (notification.relatedPostId) {
+      navigation.navigate('PostDetail', { 
+        postId: notification.relatedPostId,
+        highlightCommentId: notification.relatedCommentId || undefined,
+      });
+    } else if (notification.actorIds.length === 1) {
+      // Single actor - navigate to their profile
+      navigation.navigate('UserProfile', { userId: notification.actorIds[0] });
     }
-  };
+  }, [navigation, markAsRead]);
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'comment':
-      case 'reply':
-        return '💬';
-      case 'upvote':
-        return '⬆️';
-      case 'follow':
-        return '👤';
-      default:
-        return '🔔';
+  const handleLongPress = useCallback((notification: BatchedNotification) => {
+    const options = [
+      { text: 'Cancel', style: 'cancel' as const },
+    ];
+
+    if (!notification.read) {
+      options.push({
+        text: 'Mark as Read',
+        style: 'default' as const,
+        onPress: () => {
+          notification.originalNotifications.forEach(n => {
+            markAsRead.mutate(n.id);
+          });
+        },
+      } as any);
     }
-  };
+
+    options.push({
+      text: 'Delete',
+      style: 'destructive' as const,
+      onPress: () => {
+        notification.originalNotifications.forEach(n => {
+          deleteNotification.mutate(n.id);
+        });
+      },
+    } as any);
+
+    Alert.alert('Notification Options', undefined, options);
+  }, [markAsRead, deleteNotification]);
+
+  const handleMarkBatchAsRead = useCallback((notificationIds: string[]) => {
+    notificationIds.forEach(id => {
+      markAsRead.mutate(id);
+    });
+  }, [markAsRead]);
+
+  const renderNotification = useCallback(({ item }: { item: BatchedNotification }) => (
+    <BatchedNotificationItem
+      notification={item}
+      onPress={handleNotificationPress}
+      onLongPress={handleLongPress}
+      onMarkAsRead={handleMarkBatchAsRead}
+    />
+  ), [handleNotificationPress, handleLongPress, handleMarkBatchAsRead]);
+
+  const keyExtractor = useCallback((item: BatchedNotification) => item.id, []);
 
   if (isLoading) {
     return (
@@ -69,34 +118,16 @@ export function NotificationsScreen() {
           onPress={() => markAllAsRead.mutate()}
           disabled={markAllAsRead.isPending}
         >
-          <Text style={styles.markAllText}>Mark all as read</Text>
+          <Text style={styles.markAllText}>
+            {markAllAsRead.isPending ? 'Marking...' : `Mark all ${unreadCount} as read`}
+          </Text>
         </TouchableOpacity>
       )}
 
       <FlatList
-        data={notifications}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.notificationItem, !item.read && styles.unread]}
-            onPress={() => handleNotificationPress(item)}
-            onLongPress={() => deleteNotification.mutate(item.id)}
-          >
-            <Text style={styles.notificationIcon}>{getNotificationIcon(item.type)}</Text>
-            <View style={styles.notificationContent}>
-              <Text style={styles.notificationTitle}>{item.title}</Text>
-              {item.message && (
-                <Text style={styles.notificationMessage} numberOfLines={2}>
-                  {item.message}
-                </Text>
-              )}
-              <Text style={styles.notificationTime}>
-                {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-              </Text>
-            </View>
-            {!item.read && <View style={styles.unreadDot} />}
-          </TouchableOpacity>
-        )}
+        data={batchedNotifications}
+        keyExtractor={keyExtractor}
+        renderItem={renderNotification}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>🔔</Text>
@@ -114,6 +145,7 @@ export function NotificationsScreen() {
           />
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerStyle={batchedNotifications.length === 0 ? styles.emptyList : undefined}
       />
     </View>
   );
@@ -134,49 +166,13 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.card,
   },
   markAllText: {
     color: theme.colors.link,
     fontSize: theme.fontSize.md,
     textAlign: 'center',
-  },
-  notificationItem: {
-    flexDirection: 'row',
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.background,
-  },
-  unread: {
-    backgroundColor: theme.colors.card,
-  },
-  notificationIcon: {
-    fontSize: 24,
-    marginRight: theme.spacing.md,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: theme.fontSize.md,
-    fontWeight: theme.fontWeight.semibold,
-    color: theme.colors.text,
-    marginBottom: 2,
-  },
-  notificationMessage: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
-  },
-  notificationTime: {
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.textMuted,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: theme.colors.primary,
-    marginLeft: theme.spacing.sm,
-    alignSelf: 'center',
+    fontWeight: theme.fontWeight.medium,
   },
   separator: {
     height: 1,
@@ -187,7 +183,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.xxl,
-    marginTop: 100,
+  },
+  emptyList: {
+    flex: 1,
   },
   emptyIcon: {
     fontSize: 48,
