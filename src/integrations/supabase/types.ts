@@ -960,6 +960,7 @@ export type Database = {
       }
       is_notifications_snoozed: { Args: { _user_id: string }; Returns: boolean }
       is_user_banned: { Args: { _user_id: string }; Returns: boolean }
+      sanitize_for_display: { Args: { text_input: string }; Returns: string }
       send_push_notification: {
         Args: {
           p_body: string
