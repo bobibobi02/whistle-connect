@@ -8,6 +8,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple in-memory rate limiter
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5; // 5 emails per minute per user
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const userLimit = rateLimitMap.get(userId);
+
+  if (!userLimit || now >= userLimit.resetTime) {
+    rateLimitMap.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.ceil((userLimit.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  userLimit.count++;
+  return { allowed: true };
+}
+
 interface EmailRequest {
   user_id: string;
   email_type: "follower" | "upvote" | "comment";
@@ -107,13 +130,30 @@ serve(async (req) => {
 
     const { user_id, email_type, data }: EmailRequest = await req.json();
 
-    console.log(`Processing ${email_type} email for user ${user_id}`);
+    console.log(`[Email] Processing ${email_type} email for user ${user_id}`);
+
+    // Check rate limit
+    const { allowed, retryAfter } = checkRateLimit(user_id);
+    if (!allowed) {
+      console.log(`[Email] Rate limit exceeded for user ${user_id}`);
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded", retryAfter }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": String(retryAfter)
+          } 
+        }
+      );
+    }
 
     // Get user email from auth
     const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user_id);
     
     if (userError || !userData?.user?.email) {
-      console.error("Could not get user email:", userError);
+      console.error("[Email] Could not get user email:", userError);
       return new Response(JSON.stringify({ error: "User not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -133,7 +173,7 @@ serve(async (req) => {
                   : "email_comment";
     
     if (prefs && !prefs[prefKey]) {
-      console.log(`User has disabled ${email_type} emails`);
+      console.log(`[Email] User has disabled ${email_type} emails`);
       return new Response(JSON.stringify({ skipped: true, reason: "disabled" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -160,18 +200,18 @@ serve(async (req) => {
     const emailResult = await emailResponse.json();
 
     if (!emailResponse.ok) {
-      console.error("Resend API error:", emailResult);
+      console.error("[Email] Resend API error:", emailResult);
       throw new Error(emailResult.message || "Failed to send email");
     }
 
-    console.log("Email sent successfully:", emailResult);
+    console.log("[Email] Email sent successfully:", emailResult);
 
     return new Response(JSON.stringify({ success: true, emailResult }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Error sending email:", error);
+    console.error("[Email] Error sending email:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
