@@ -438,34 +438,61 @@ export const useVotePost = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Get user's existing vote first
+      const { data: existingVote } = await supabase
+        .from("post_votes")
+        .select("vote_type")
+        .eq("post_id", postId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      // Get current post upvotes
+      const { data: post } = await supabase
+        .from("posts")
+        .select("upvotes")
+        .eq("id", postId)
+        .single();
+
+      if (!post) throw new Error("Post not found");
+
+      let upvoteChange = 0;
+
       if (voteType === null) {
-        await supabase
-          .from("post_votes")
-          .delete()
-          .eq("post_id", postId)
-          .eq("user_id", user.id);
+        // Removing vote
+        if (existingVote) {
+          await supabase
+            .from("post_votes")
+            .delete()
+            .eq("post_id", postId)
+            .eq("user_id", user.id);
+          upvoteChange = -existingVote.vote_type;
+        }
+      } else if (existingVote) {
+        // Changing vote
+        if (existingVote.vote_type !== voteType) {
+          await supabase
+            .from("post_votes")
+            .update({ vote_type: voteType })
+            .eq("post_id", postId)
+            .eq("user_id", user.id);
+          upvoteChange = voteType - existingVote.vote_type;
+        }
       } else {
+        // New vote
         const { error } = await supabase
           .from("post_votes")
-          .upsert(
-            { post_id: postId, user_id: user.id, vote_type: voteType },
-            { onConflict: "post_id,user_id" }
-          );
+          .insert({ post_id: postId, user_id: user.id, vote_type: voteType });
         if (error) throw error;
+        upvoteChange = voteType;
       }
 
       // Update post upvotes count
-      const { data: votes } = await supabase
-        .from("post_votes")
-        .select("vote_type")
-        .eq("post_id", postId);
-
-      const totalVotes = votes?.reduce((sum, v) => sum + v.vote_type, 0) || 0;
-
-      await supabase
-        .from("posts")
-        .update({ upvotes: totalVotes })
-        .eq("id", postId);
+      if (upvoteChange !== 0) {
+        await supabase
+          .from("posts")
+          .update({ upvotes: post.upvotes + upvoteChange })
+          .eq("id", postId);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
