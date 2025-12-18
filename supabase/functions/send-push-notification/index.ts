@@ -21,9 +21,34 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Verify JWT authorization
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      console.error("[Push] Missing authorization header");
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify the user's JWT token
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (authError || !user) {
+      console.error("[Push] Invalid or expired token:", authError?.message);
+      return new Response(
+        JSON.stringify({ error: "Invalid or expired token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`[Push] Authenticated user: ${user.id}`);
 
     const { user_id, title, body, data }: PushNotificationRequest = await req.json();
 
@@ -38,6 +63,29 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Authorization check: user can only send notifications to themselves
+    // unless they are an admin
+    if (user.id !== user_id) {
+      // Check if caller is admin using service role client
+      const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+      const { data: isAdmin } = await supabaseService.rpc('has_role', { 
+        _user_id: user.id, 
+        _role: 'admin' 
+      });
+      
+      if (!isAdmin) {
+        console.error(`[Push] User ${user.id} not authorized to send notifications to ${user_id}`);
+        return new Response(
+          JSON.stringify({ error: "Not authorized to send notifications to this user" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      console.log(`[Push] Admin user ${user.id} authorized to send to ${user_id}`);
+    }
+
+    // Use service role client for database operations
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get user's push tokens
     const { data: tokens, error: tokensError } = await supabase
