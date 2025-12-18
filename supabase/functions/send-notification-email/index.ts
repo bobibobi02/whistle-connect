@@ -18,16 +18,33 @@ interface EmailRequest {
   };
 }
 
+// HTML escape function to prevent XSS in email content
+function escapeHtml(text: string): string {
+  const map: { [key: string]: string } = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
 const getEmailContent = (type: string, data: EmailRequest["data"]) => {
+  // Escape all user-controlled data
+  const actorName = escapeHtml(data.actor_name || "Someone");
+  const postTitle = escapeHtml(data.post_title || "");
+  const commentPreview = escapeHtml(data.comment_preview || "");
+
   switch (type) {
     case "follower":
       return {
-        subject: `${data.actor_name || "Someone"} started following you!`,
+        subject: `${actorName} started following you!`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h1 style="color: #1a1a1a; font-size: 24px;">New Follower! 🎉</h1>
             <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
-              <strong>${data.actor_name || "Someone"}</strong> started following you.
+              <strong>${actorName}</strong> started following you.
             </p>
             <p style="color: #6a6a6a; font-size: 14px; margin-top: 20px;">
               Keep creating great content!
@@ -37,12 +54,12 @@ const getEmailContent = (type: string, data: EmailRequest["data"]) => {
       };
     case "upvote":
       return {
-        subject: `Your post "${data.post_title}" is getting popular!`,
+        subject: `Your post "${postTitle}" is getting popular!`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h1 style="color: #1a1a1a; font-size: 24px;">Your Post is Trending! 🔥</h1>
             <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
-              <strong>${data.actor_name || "Someone"}</strong> upvoted your post: "${data.post_title}"
+              <strong>${actorName}</strong> upvoted your post: "${postTitle}"
             </p>
             <p style="color: #6a6a6a; font-size: 14px; margin-top: 20px;">
               Your content is resonating with the community!
@@ -52,16 +69,16 @@ const getEmailContent = (type: string, data: EmailRequest["data"]) => {
       };
     case "comment":
       return {
-        subject: `New comment on "${data.post_title}"`,
+        subject: `New comment on "${postTitle}"`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <h1 style="color: #1a1a1a; font-size: 24px;">New Comment! 💬</h1>
             <p style="color: #4a4a4a; font-size: 16px; line-height: 1.6;">
-              <strong>${data.actor_name || "Someone"}</strong> commented on your post: "${data.post_title}"
+              <strong>${actorName}</strong> commented on your post: "${postTitle}"
             </p>
-            ${data.comment_preview ? `
+            ${commentPreview ? `
               <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; margin: 15px 0;">
-                <p style="color: #4a4a4a; font-size: 14px; margin: 0;">"${data.comment_preview}"</p>
+                <p style="color: #4a4a4a; font-size: 14px; margin: 0;">"${commentPreview}"</p>
               </div>
             ` : ""}
             <p style="color: #6a6a6a; font-size: 14px; margin-top: 20px;">
