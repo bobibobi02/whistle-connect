@@ -760,6 +760,39 @@ export type Database = {
         }
         Relationships: []
       }
+      push_notification_queue: {
+        Row: {
+          body: string
+          created_at: string
+          data: Json | null
+          id: string
+          processed_at: string | null
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          processed_at?: string | null
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          data?: Json | null
+          id?: string
+          processed_at?: string | null
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           comment_id: string | null
@@ -927,6 +960,15 @@ export type Database = {
       }
       is_notifications_snoozed: { Args: { _user_id: string }; Returns: boolean }
       is_user_banned: { Args: { _user_id: string }; Returns: boolean }
+      send_push_notification: {
+        Args: {
+          p_body: string
+          p_data?: Json
+          p_title: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
