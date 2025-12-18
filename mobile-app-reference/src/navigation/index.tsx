@@ -3,9 +3,11 @@ import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { theme } from '@/theme';
 import { RootStackParamList } from './types';
 import { TabNavigator } from './TabNavigator';
+import { linking } from './linking';
 
 // Screens
 import { AuthScreen } from '@/screens/Auth';
@@ -37,6 +39,9 @@ const navigationTheme = {
 
 export function RootNavigator() {
   const { user, loading } = useAuth();
+  
+  // Initialize push notifications with deep linking support
+  usePushNotifications();
 
   if (loading) {
     return (
@@ -47,7 +52,7 @@ export function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer theme={navigationTheme} linking={linking}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: theme.colors.card },

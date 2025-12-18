@@ -6,7 +6,7 @@ import type { CompositeScreenProps, NavigatorScreenParams } from '@react-navigat
 export type RootStackParamList = {
   Auth: undefined;
   Main: NavigatorScreenParams<MainTabParamList>;
-  PostDetail: { postId: string };
+  PostDetail: { postId: string; highlightCommentId?: string };
   Community: { communityName: string };
   UserProfile: { userId: string };
   Search: { query?: string };
