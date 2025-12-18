@@ -6,6 +6,29 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Simple in-memory rate limiter for the queue processor
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 5; // 5 queue processing calls per minute
+
+function checkRateLimit(key: string): { allowed: boolean; retryAfter?: number } {
+  const now = Date.now();
+  const limit = rateLimitMap.get(key);
+
+  if (!limit || now >= limit.resetTime) {
+    rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  if (limit.count >= RATE_LIMIT_MAX_REQUESTS) {
+    const retryAfter = Math.ceil((limit.resetTime - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  limit.count++;
+  return { allowed: true };
+}
+
 interface QueuedNotification {
   id: string;
   user_id: string;
@@ -23,6 +46,25 @@ serve(async (req) => {
   }
 
   try {
+    // Rate limit by IP or a global key for cron jobs
+    const clientIp = req.headers.get("x-forwarded-for") || "global";
+    const { allowed, retryAfter } = checkRateLimit(clientIp);
+    
+    if (!allowed) {
+      console.log(`[ProcessQueue] Rate limit exceeded for ${clientIp}`);
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded", retryAfter }),
+        { 
+          status: 429, 
+          headers: { 
+            ...corsHeaders, 
+            "Content-Type": "application/json",
+            "Retry-After": String(retryAfter)
+          } 
+        }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
