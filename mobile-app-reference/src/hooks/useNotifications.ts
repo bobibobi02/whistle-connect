@@ -110,3 +110,7 @@ export const useDeleteNotification = () => {
     },
   });
 };
+
+// Re-export batching utilities for mobile
+export { useBatchedNotifications, batchNotifications } from './useNotificationBatching';
+export type { BatchedNotification } from './useNotificationBatching';

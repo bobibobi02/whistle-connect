@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
 import { theme } from '@/theme';
 import { MainTabParamList } from './types';
-import { useNotifications } from '@/hooks/useNotifications';
+import { NotificationBadge } from '@/components/NotificationBadge';
 
 // Screens
 import { HomeScreen } from '@/screens/Home';
@@ -12,23 +12,17 @@ import { CreatePostScreen } from '@/screens/CreatePost';
 import { NotificationsScreen } from '@/screens/Notifications';
 import { ProfileScreen } from '@/screens/Profile';
 
-// Icons (using simple text for now - replace with actual icons)
-const TabIcon = ({ name, focused, badge }: { name: string; focused: boolean; badge?: number }) => (
+// Tab icon component
+const TabIcon = ({ name, focused, showBadge }: { name: string; focused: boolean; showBadge?: boolean }) => (
   <View style={styles.iconContainer}>
     <Text style={[styles.icon, focused && styles.iconFocused]}>{name}</Text>
-    {badge && badge > 0 && (
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
-      </View>
-    )}
+    {showBadge && <NotificationBadge size="medium" animated />}
   </View>
 );
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function TabNavigator() {
-  const { unreadCount } = useNotifications();
-
   return (
     <Tab.Navigator
       screenOptions={{
@@ -73,7 +67,7 @@ export function TabNavigator() {
         name="Notifications"
         component={NotificationsScreen}
         options={{
-          tabBarIcon: ({ focused }) => <TabIcon name="🔔" focused={focused} badge={unreadCount} />,
+          tabBarIcon: ({ focused }) => <TabIcon name="🔔" focused={focused} showBadge />,
         }}
       />
       <Tab.Screen
@@ -97,22 +91,5 @@ const styles = StyleSheet.create({
   },
   iconFocused: {
     opacity: 1,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -8,
-    backgroundColor: theme.colors.primary,
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: theme.colors.text,
-    fontSize: 10,
-    fontWeight: '600',
   },
 });
