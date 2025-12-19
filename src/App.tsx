@@ -6,7 +6,9 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AnimatePresence } from "framer-motion";
+import { useDeepLinks, useBackButton, useCapacitor } from "@/hooks/useCapacitor";
 import PageTransition from "@/components/PageTransition";
+import SafeAreaWrapper from "@/components/SafeAreaWrapper";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import Auth from "./pages/Auth";
@@ -25,6 +27,10 @@ const queryClient = new QueryClient();
 
 const AnimatedRoutes = () => {
   const location = useLocation();
+  
+  // Initialize deep links and back button handling
+  useDeepLinks();
+  useBackButton();
 
   return (
     <AnimatePresence mode="wait">
@@ -48,6 +54,16 @@ const AnimatedRoutes = () => {
   );
 };
 
+const AppContent = () => {
+  const { isNative } = useCapacitor();
+  
+  return (
+    <SafeAreaWrapper>
+      <AnimatedRoutes />
+    </SafeAreaWrapper>
+  );
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
@@ -56,7 +72,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <AnimatedRoutes />
+            <AppContent />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
