@@ -9,6 +9,7 @@ import { AnimatePresence } from "framer-motion";
 import { useDeepLinks, useBackButton, useCapacitor } from "@/hooks/useCapacitor";
 import PageTransition from "@/components/PageTransition";
 import SafeAreaWrapper from "@/components/SafeAreaWrapper";
+import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import Auth from "./pages/Auth";
@@ -60,6 +61,7 @@ const AppContent = () => {
   return (
     <SafeAreaWrapper>
       <AnimatedRoutes />
+      {!isNative && <PWAInstallBanner />}
     </SafeAreaWrapper>
   );
 };
