@@ -111,6 +111,31 @@ The app supports deep links with the `whistle://` scheme:
    </intent-filter>
    ```
 
+### Splash Screen Setup
+
+The app uses a branded splash screen with the Whistle pink (#ff5c8d) background.
+
+#### iOS Splash Screen
+
+1. Copy `public/splash.png` to `ios/App/App/Assets.xcassets/Splash.imageset/`
+2. Update the `Contents.json` in that folder to reference your image
+3. In Xcode, configure the LaunchScreen.storyboard to use the image
+
+#### Android Splash Screen
+
+1. Copy `public/splash.png` to these locations:
+   - `android/app/src/main/res/drawable/splash.png`
+   - `android/app/src/main/res/drawable-land/splash.png` (landscape)
+
+2. Create `android/app/src/main/res/values/styles.xml` if not exists:
+   ```xml
+   <resources>
+     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+       <item name="android:background">@drawable/splash</item>
+     </style>
+   </resources>
+   ```
+
 ### Environment Variables
 
 **Important**: Never commit secrets to the repository.

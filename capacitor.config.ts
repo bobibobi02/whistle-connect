@@ -11,18 +11,26 @@ const config: CapacitorConfig = {
     cleartext: true,
   },
   plugins: {
-    // Deep link configuration
     CapacitorHttp: {
       enabled: true,
     },
+    SplashScreen: {
+      launchShowDuration: 2000,
+      launchAutoHide: true,
+      launchFadeOutDuration: 500,
+      backgroundColor: '#ff5c8d',
+      androidSplashResourceName: 'splash',
+      androidScaleType: 'CENTER_CROP',
+      showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
   },
-  // iOS specific configuration
   ios: {
     scheme: 'whistle',
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
   },
-  // Android specific configuration
   android: {
     allowMixedContent: true,
   },
