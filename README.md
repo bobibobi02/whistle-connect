@@ -136,6 +136,40 @@ The app uses a branded splash screen with the Whistle pink (#ff5c8d) background.
    </resources>
    ```
 
+### Push Notifications (Firebase Cloud Messaging)
+
+The app supports native push notifications via Firebase Cloud Messaging (FCM) on iOS and Android, and Web Push for browsers.
+
+#### Firebase Setup
+
+1. **Create a Firebase project:**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Create a new project or use an existing one
+   - Add iOS and Android apps to your project
+
+2. **iOS Setup:**
+   - Download `GoogleService-Info.plist` from Firebase Console
+   - Add it to `ios/App/App/` directory
+   - Enable Push Notifications capability in Xcode
+   - Upload your APNs key or certificate to Firebase Console
+
+3. **Android Setup:**
+   - Download `google-services.json` from Firebase Console
+   - Add it to `android/app/` directory
+   - The Capacitor plugin handles the rest automatically
+
+4. **Configure Backend:**
+   - Get your FCM Server Key from Firebase Console → Project Settings → Cloud Messaging
+   - Add `FCM_SERVER_KEY` to your backend secrets (Lovable Cloud)
+
+5. **Web Push (Optional):**
+   - Generate VAPID keys in Firebase Console → Project Settings → Cloud Messaging → Web Push certificates
+   - Add `VITE_FIREBASE_VAPID_KEY` to your environment variables
+
+#### Required Capacitor Plugins
+
+After `npx cap sync`, the push notification plugins will be configured automatically.
+
 ### Environment Variables
 
 **Important**: Never commit secrets to the repository.
