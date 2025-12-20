@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Settings, Mail, Bell, Play, Volume2, BellOff, Clock } from "lucide-react";
+import { Settings, Mail, Bell, Play, Volume2, BellOff, Clock, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useEmailPreferences, useUpdateEmailPreferences, useSnoozeNotifications } from "@/hooks/useEmailPreferences";
 import { useNotificationSound, SoundType } from "@/hooks/useNotificationSound";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
@@ -36,6 +37,7 @@ const NotificationSettings = () => {
   const updatePreferences = useUpdateEmailPreferences();
   const snoozeNotifications = useSnoozeNotifications();
   const { getSoundType, setSoundType, getVolume, setVolume, previewSound, soundOptions } = useNotificationSound();
+  const { permission, requestPermission, isSupported, isNative } = usePushNotifications();
   
   const [emailFollower, setEmailFollower] = useState(true);
   const [emailUpvote, setEmailUpvote] = useState(false);
@@ -45,6 +47,25 @@ const NotificationSettings = () => {
   const [inappComment, setInappComment] = useState(true);
   const [selectedSound, setSelectedSound] = useState<SoundType>(getSoundType());
   const [volume, setVolumeState] = useState(getVolume());
+  const [pushEnabled, setPushEnabled] = useState(permission === "granted");
+
+  useEffect(() => {
+    setPushEnabled(permission === "granted");
+  }, [permission]);
+
+  const handlePushToggle = async (enabled: boolean) => {
+    if (enabled) {
+      const granted = await requestPermission();
+      setPushEnabled(granted);
+      if (granted) {
+        toast.success("Push notifications enabled!");
+      } else {
+        toast.error("Push notification permission denied");
+      }
+    } else {
+      toast.info("To disable push notifications, use your browser or device settings");
+    }
+  };
 
   const snoozeUntil = preferences?.snooze_until ? new Date(preferences.snooze_until) : null;
   const isSnoozed = snoozeUntil && snoozeUntil > new Date();
@@ -166,6 +187,72 @@ const NotificationSettings = () => {
               </div>
             )}
           </div>
+
+          {/* Push Notifications */}
+          {isSupported && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Smartphone className="h-4 w-4" />
+                Push Notifications
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="push-enabled" className="text-sm">
+                    Enable push notifications
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    {isNative ? "Receive notifications on your device" : "Receive browser notifications"}
+                  </p>
+                </div>
+                <Switch
+                  id="push-enabled"
+                  checked={pushEnabled}
+                  onCheckedChange={handlePushToggle}
+                />
+              </div>
+
+              {pushEnabled && (
+                <div className="space-y-3 pl-4 border-l-2 border-muted">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="push-follower" className="text-sm">
+                      New followers
+                    </Label>
+                    <Switch
+                      id="push-follower"
+                      checked={inappFollower}
+                      onCheckedChange={setInappFollower}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="push-upvote" className="text-sm">
+                      Post upvotes
+                    </Label>
+                    <Switch
+                      id="push-upvote"
+                      checked={inappUpvote}
+                      onCheckedChange={setInappUpvote}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="push-comment" className="text-sm">
+                      New comments
+                    </Label>
+                    <Switch
+                      id="push-comment"
+                      checked={inappComment}
+                      onCheckedChange={setInappComment}
+                      disabled={isLoading}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* In-App Notification Settings */}
           <div className="space-y-4">

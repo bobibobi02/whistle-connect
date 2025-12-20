@@ -7,6 +7,7 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AnimatePresence } from "framer-motion";
 import { useDeepLinks, useBackButton, useCapacitor } from "@/hooks/useCapacitor";
+import { useBadgeCount } from "@/hooks/useBadgeCount";
 import PageTransition from "@/components/PageTransition";
 import SafeAreaWrapper from "@/components/SafeAreaWrapper";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -57,6 +58,9 @@ const AnimatedRoutes = () => {
 
 const AppContent = () => {
   const { isNative } = useCapacitor();
+  
+  // Initialize badge count - auto-updates based on unread notifications
+  useBadgeCount();
   
   return (
     <SafeAreaWrapper>
