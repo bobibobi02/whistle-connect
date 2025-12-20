@@ -8,6 +8,7 @@ interface UseVideoUploadOptions {
   onProgress?: (progress: number) => void;
   enableModeration?: boolean;
   enableTranscoding?: boolean;
+  frameSampleCount?: number; // Number of frames to sample for moderation
 }
 
 interface VideoMetadata {
@@ -17,6 +18,7 @@ interface VideoMetadata {
   durationSeconds?: number;
   posterUrl?: string;
   hlsUrl?: string;
+  muxPlaybackId?: string;
 }
 
 interface ModerationResult {
@@ -24,11 +26,19 @@ interface ModerationResult {
   reason: string | null;
   confidence: number;
   flaggedCategories: string[];
+  frameAnalyses?: {
+    frameIndex: number;
+    allowed: boolean;
+    reason: string | null;
+  }[];
 }
 
 interface TranscodeResult {
   success: boolean;
   hlsUrl?: string;
+  muxAssetId?: string;
+  muxPlaybackId?: string;
+  status?: string;
   variants?: {
     quality: string;
     url: string;
@@ -38,12 +48,14 @@ interface TranscodeResult {
 
 const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/mov'];
 const DEFAULT_MAX_SIZE_MB = 500;
+const DEFAULT_FRAME_SAMPLE_COUNT = 5;
 
 export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
   const { 
     maxSizeMB = DEFAULT_MAX_SIZE_MB,
     enableModeration = true,
     enableTranscoding = true,
+    frameSampleCount = DEFAULT_FRAME_SAMPLE_COUNT,
   } = options;
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
@@ -82,6 +94,75 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
       video.onerror = () => {
         URL.revokeObjectURL(video.src);
         resolve(undefined);
+      };
+      
+      video.src = URL.createObjectURL(file);
+    });
+  }, []);
+
+  // Extract multiple frames from video for moderation
+  const extractFrames = useCallback(async (
+    file: File, 
+    count: number
+  ): Promise<{ blobs: Blob[]; urls: string[] }> => {
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.preload = 'auto';
+      video.muted = true;
+      video.playsInline = true;
+      
+      const blobs: Blob[] = [];
+      const frameUrls: string[] = [];
+      let currentFrameIndex = 0;
+      
+      video.onloadedmetadata = async () => {
+        const duration = video.duration;
+        // Sample frames at regular intervals (excluding first and last 5%)
+        const startTime = duration * 0.05;
+        const endTime = duration * 0.95;
+        const interval = (endTime - startTime) / (count - 1);
+        
+        const captureFrame = (time: number): Promise<Blob | null> => {
+          return new Promise((resolveFrame) => {
+            video.currentTime = time;
+            
+            video.onseeked = () => {
+              const canvas = document.createElement('canvas');
+              canvas.width = Math.min(video.videoWidth, 1280); // Cap at 720p width
+              canvas.height = Math.round(canvas.width * (video.videoHeight / video.videoWidth));
+              
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                  resolveFrame(blob);
+                }, 'image/jpeg', 0.7);
+              } else {
+                resolveFrame(null);
+              }
+            };
+          });
+        };
+        
+        for (let i = 0; i < count; i++) {
+          const time = startTime + (interval * i);
+          try {
+            const blob = await captureFrame(time);
+            if (blob) {
+              blobs.push(blob);
+            }
+          } catch (error) {
+            console.error(`Failed to capture frame ${i}:`, error);
+          }
+        }
+        
+        URL.revokeObjectURL(video.src);
+        resolve({ blobs, urls: frameUrls });
+      };
+      
+      video.onerror = () => {
+        URL.revokeObjectURL(video.src);
+        resolve({ blobs: [], urls: [] });
       };
       
       video.src = URL.createObjectURL(file);
@@ -127,11 +208,11 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
     });
   }, []);
 
-  const uploadThumbnail = useCallback(async (blob: Blob): Promise<string | null> => {
+  const uploadThumbnail = useCallback(async (blob: Blob, suffix: string = 'poster'): Promise<string | null> => {
     if (!user) return null;
     
     try {
-      const fileName = `${user.id}/${Date.now()}-poster.jpg`;
+      const fileName = `${user.id}/${Date.now()}-${suffix}.jpg`;
       
       const { error } = await supabase.storage
         .from('post-thumbnails')
@@ -158,7 +239,8 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
 
   const moderateVideo = useCallback(async (
     videoUrl: string, 
-    thumbnailUrl?: string
+    thumbnailUrl?: string,
+    frameUrls?: string[]
   ): Promise<ModerationResult> => {
     if (!user) {
       return { allowed: true, reason: null, confidence: 0, flaggedCategories: [] };
@@ -178,6 +260,7 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
           body: JSON.stringify({
             videoUrl,
             thumbnailUrl,
+            frameUrls,
             userId: user.id,
           }),
         }
@@ -197,7 +280,8 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
 
   const transcodeVideo = useCallback(async (
     videoUrl: string,
-    postId: string
+    postId: string,
+    useMux: boolean = true
   ): Promise<TranscodeResult | null> => {
     if (!user) return null;
 
@@ -216,6 +300,7 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
             videoUrl,
             postId,
             userId: user.id,
+            useMux,
           }),
         }
       );
@@ -232,7 +317,10 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
     }
   }, [user]);
 
-  const uploadVideo = useCallback(async (file: File): Promise<VideoMetadata | null> => {
+  const uploadVideo = useCallback(async (
+    file: File,
+    options?: { compress?: boolean }
+  ): Promise<VideoMetadata | null> => {
     if (!user) {
       toast.error('Please sign in to upload videos');
       return null;
@@ -262,9 +350,27 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
       let posterUrl: string | undefined;
       if (thumbnailBlob) {
         setUploadStage('Uploading thumbnail...');
-        posterUrl = await uploadThumbnail(thumbnailBlob) || undefined;
+        posterUrl = await uploadThumbnail(thumbnailBlob, 'poster') || undefined;
       }
       setProgress(15);
+
+      // Extract and upload frames for moderation
+      let frameUrls: string[] = [];
+      if (enableModeration && frameSampleCount > 1) {
+        setUploadStage('Extracting frames for review...');
+        const { blobs: frameBlobs } = await extractFrames(file, frameSampleCount);
+        setProgress(25);
+        
+        if (frameBlobs.length > 0) {
+          setUploadStage('Uploading frames...');
+          const uploadPromises = frameBlobs.map((blob, index) => 
+            uploadThumbnail(blob, `frame-${index}`)
+          );
+          const uploadedUrls = await Promise.all(uploadPromises);
+          frameUrls = uploadedUrls.filter((url): url is string => url !== null);
+        }
+      }
+      setProgress(35);
 
       // Upload video
       setUploadStage('Uploading video...');
@@ -277,7 +383,7 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
             clearInterval(progressInterval);
             return prev;
           }
-          return prev + 3;
+          return prev + 2;
         });
       }, 500);
 
@@ -303,12 +409,12 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
 
       const videoUrl = urlData.publicUrl;
 
-      // Moderate video content
+      // Moderate video content with multiple frames
       if (enableModeration) {
         setUploadStage('Checking content...');
         setProgress(80);
         
-        const modResult = await moderateVideo(videoUrl, posterUrl);
+        const modResult = await moderateVideo(videoUrl, posterUrl, frameUrls);
         setModerationResult(modResult);
         
         if (!modResult.allowed) {
@@ -317,17 +423,44 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
             .from('post-videos')
             .remove([fileName]);
           
+          // Clean up thumbnails and frames
+          const filesToDelete: string[] = [];
           if (posterUrl) {
             const posterFileName = posterUrl.split('/').pop();
-            if (posterFileName) {
-              await supabase.storage
-                .from('post-thumbnails')
-                .remove([`${user.id}/${posterFileName}`]);
-            }
+            if (posterFileName) filesToDelete.push(`${user.id}/${posterFileName}`);
+          }
+          frameUrls.forEach(url => {
+            const frameName = url.split('/').pop();
+            if (frameName) filesToDelete.push(`${user.id}/${frameName}`);
+          });
+          
+          if (filesToDelete.length > 0) {
+            await supabase.storage
+              .from('post-thumbnails')
+              .remove(filesToDelete);
           }
           
-          toast.error(`Video rejected: ${modResult.reason || 'Content violates community guidelines'}`);
+          const rejectionReason = modResult.reason || 
+            (modResult.flaggedCategories.length > 0 
+              ? `Flagged for: ${modResult.flaggedCategories.join(', ')}`
+              : 'Content violates community guidelines');
+          
+          toast.error(`Video rejected: ${rejectionReason}`);
           return null;
+        }
+      }
+
+      // Clean up frame images after moderation (we only need the poster)
+      if (frameUrls.length > 0) {
+        const frameFiles = frameUrls.map(url => {
+          const frameName = url.split('/').pop();
+          return frameName ? `${user.id}/${frameName}` : null;
+        }).filter((f): f is string => f !== null);
+        
+        if (frameFiles.length > 0) {
+          await supabase.storage
+            .from('post-thumbnails')
+            .remove(frameFiles);
         }
       }
 
@@ -360,33 +493,66 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
     validateVideo, 
     getVideoDuration, 
     generateThumbnail, 
-    uploadThumbnail, 
-    enableModeration, 
+    uploadThumbnail,
+    extractFrames,
+    enableModeration,
+    frameSampleCount,
     moderateVideo
   ]);
 
-  // Separate function to trigger transcoding after post creation
+  // Trigger transcoding with Mux after post creation
   const triggerTranscode = useCallback(async (
     videoUrl: string,
-    postId: string
-  ): Promise<string | null> => {
+    postId: string,
+    useMux: boolean = true
+  ): Promise<TranscodeResult | null> => {
     if (!enableTranscoding || !user) return null;
 
     try {
-      const result = await transcodeVideo(videoUrl, postId);
-      if (result?.success && result.hlsUrl) {
-        return result.hlsUrl;
-      }
-      return null;
+      const result = await transcodeVideo(videoUrl, postId, useMux);
+      return result;
     } catch (error) {
       console.error('Transcoding error:', error);
       return null;
     }
   }, [enableTranscoding, user, transcodeVideo]);
 
+  // Check Mux asset status
+  const checkTranscodeStatus = useCallback(async (
+    muxAssetId: string
+  ): Promise<TranscodeResult | null> => {
+    if (!user) return null;
+
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transcode-video`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.session?.access_token}`,
+          },
+          body: JSON.stringify({ muxAssetId }),
+        }
+      );
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Status check error:', error);
+      return null;
+    }
+  }, [user]);
+
   return {
     uploadVideo,
     triggerTranscode,
+    checkTranscodeStatus,
     isUploading,
     progress,
     uploadStage,
