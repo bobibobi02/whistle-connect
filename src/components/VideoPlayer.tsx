@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize, Minimize, Settings, RotateCcw } from 'lucide-react';
+import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
 
 interface VideoPlayerProps {
   src: string;
+  hlsSrc?: string; // Optional HLS manifest URL for adaptive streaming
   poster?: string;
   className?: string;
   autoPlay?: boolean;
@@ -28,6 +30,7 @@ const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export const VideoPlayer = ({
   src,
+  hlsSrc,
   poster,
   className,
   autoPlay = false,
@@ -40,6 +43,7 @@ export const VideoPlayer = ({
   onEnded,
 }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(initialMuted);
@@ -51,7 +55,84 @@ export const VideoPlayer = ({
   const [showControls, setShowControls] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [qualityLevels, setQualityLevels] = useState<{ height: number; index: number }[]>([]);
+  const [currentQuality, setCurrentQuality] = useState(-1); // -1 = auto
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Initialize HLS or native video source
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    // Determine source to use (prefer HLS if available)
+    const videoSource = hlsSrc || src;
+    const isHls = videoSource.includes('.m3u8');
+
+    if (isHls && Hls.isSupported()) {
+      // Use HLS.js for browsers that don't support native HLS
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+        backBufferLength: 90,
+      });
+
+      hls.loadSource(videoSource);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+        setIsLoading(false);
+        // Extract quality levels
+        const levels = data.levels.map((level, index) => ({
+          height: level.height,
+          index,
+        }));
+        setQualityLevels(levels);
+        
+        if (autoPlay) {
+          video.play().catch(console.error);
+        }
+      });
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          console.error('HLS error:', data);
+          setHasError(true);
+          setIsLoading(false);
+        }
+      });
+
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_, data) => {
+        setCurrentQuality(data.level);
+      });
+
+      hlsRef.current = hls;
+
+      return () => {
+        hls.destroy();
+        hlsRef.current = null;
+      };
+    } else if (video.canPlayType('application/vnd.apple.mpegurl') && isHls) {
+      // Native HLS support (Safari)
+      video.src = videoSource;
+      if (autoPlay) {
+        video.play().catch(console.error);
+      }
+    } else {
+      // Regular video source
+      video.src = src;
+      if (autoPlay) {
+        video.play().catch(console.error);
+      }
+    }
+  }, [src, hlsSrc, autoPlay]);
+
+  // Handle quality change
+  const handleQualityChange = useCallback((levelIndex: number) => {
+    if (hlsRef.current) {
+      hlsRef.current.currentLevel = levelIndex;
+      setCurrentQuality(levelIndex);
+    }
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -302,7 +383,6 @@ export const VideoPlayer = ({
     >
       <video
         ref={videoRef}
-        src={src}
         poster={poster}
         autoPlay={autoPlay}
         muted={isMuted}
@@ -398,6 +478,39 @@ export const VideoPlayer = ({
             </div>
 
             <div className="flex items-center gap-1">
+              {/* Quality Selector (HLS only) */}
+              {qualityLevels.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-white hover:bg-white/20 text-xs"
+                    >
+                      <Settings className="h-3 w-3 mr-1" />
+                      {currentQuality === -1 ? 'Auto' : `${qualityLevels[currentQuality]?.height}p`}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => handleQualityChange(-1)}
+                      className={cn(currentQuality === -1 && 'bg-accent')}
+                    >
+                      Auto
+                    </DropdownMenuItem>
+                    {qualityLevels.map((level) => (
+                      <DropdownMenuItem
+                        key={level.index}
+                        onClick={() => handleQualityChange(level.index)}
+                        className={cn(currentQuality === level.index && 'bg-accent')}
+                      >
+                        {level.height}p
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               {/* Playback Speed */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
