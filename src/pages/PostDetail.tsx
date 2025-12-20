@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,18 +10,36 @@ import MobileNav from "@/components/MobileNav";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import Comment from "@/components/Comment";
 import VideoPlayer from "@/components/VideoPlayer";
+import BoostModal from "@/components/BoostModal";
+import BoostBadge from "@/components/BoostBadge";
+import LiveBadge from "@/components/LiveBadge";
+import LiveEmbed from "@/components/LiveEmbed";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
 import { useComments, useCreateComment } from "@/hooks/useComments";
 import { formatDistanceToNow } from "date-fns";
+import { toast } from "sonner";
 
 const PostDetail = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
+
+  // Handle boost success/cancel feedback
+  useEffect(() => {
+    const boostStatus = searchParams.get("boost");
+    if (boostStatus === "success") {
+      toast.success("Thank you for your boost!");
+      setSearchParams({});
+    } else if (boostStatus === "cancelled") {
+      toast.info("Boost cancelled");
+      setSearchParams({});
+    }
+  }, [searchParams, setSearchParams]);
 
   const { data: post, isLoading: postLoading } = usePost(postId || "");
   const { data: comments, isLoading: commentsLoading } = useComments(postId || "");
@@ -96,6 +114,13 @@ const PostDetail = () => {
                 {/* Post */}
                 <article className="bg-card rounded-xl shadow-card overflow-hidden animate-fade-in">
                   <div className="p-4 sm:p-6">
+                    {/* Status badges */}
+                    {post.live_url && (
+                      <div className="mb-4">
+                        <LiveBadge />
+                      </div>
+                    )}
+
                     {/* Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
@@ -118,9 +143,13 @@ const PostDetail = () => {
                           </span>
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-5 w-5" />
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <BoostBadge postId={post.id} />
+                        <BoostModal postId={post.id} postTitle={post.title} />
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-5 w-5" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Title & Content */}
@@ -136,7 +165,14 @@ const PostDetail = () => {
                       </div>
                     )}
 
-                    {post.image_url && !post.video_url && (
+                    {/* Live Embed */}
+                    {post.live_url && (
+                      <div className="mb-6">
+                        <LiveEmbed url={post.live_url} className="rounded-lg" />
+                      </div>
+                    )}
+
+                    {post.image_url && !post.video_url && !post.live_url && (
                       <div className="mb-6">
                         <img
                           src={post.image_url}
@@ -146,7 +182,7 @@ const PostDetail = () => {
                       </div>
                     )}
 
-                    {post.video_url && (
+                    {post.video_url && !post.live_url && (
                       <div className="mb-6">
                         <VideoPlayer
                           src={post.video_url}

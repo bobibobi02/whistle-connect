@@ -7,11 +7,12 @@ import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
 import VirtualizedPostList from "@/components/VirtualizedPostList";
 import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOption } from "@/hooks/usePosts";
+import { useLivePosts } from "@/hooks/useLivePosts";
 import { useAuth } from "@/hooks/useAuth";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import FloatingActionButton from "@/components/FloatingActionButton";
 import { Button } from "@/components/ui/button";
-import { Users, Flame, TrendingUp, Clock, UserPlus, RefreshCw } from "lucide-react";
+import { Users, Flame, TrendingUp, Clock, UserPlus, RefreshCw, Radio } from "lucide-react";
 
 const sortOptions = [
   { value: "best" as SortOption, label: "Best", icon: Flame },
@@ -21,7 +22,7 @@ const sortOptions = [
 
 const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [feedType, setFeedType] = useState<"all" | "joined" | "following">("all");
+  const [feedType, setFeedType] = useState<"all" | "joined" | "following" | "live">("all");
   const [sortBy, setSortBy] = useState<SortOption>("best");
   
   const { user } = useAuth();
@@ -41,9 +42,20 @@ const Index = () => {
   const allQuery = useInfinitePosts(sortBy);
   const joinedQuery = useJoinedCommunityPosts();
   const followingQuery = useFollowingPosts();
+  const liveQuery = useLivePosts();
 
   // Get the current feed data
   const getCurrentFeed = () => {
+    if (feedType === "live") {
+      return {
+        posts: liveQuery.data?.pages.flatMap((page) => page.posts) ?? [],
+        isLoading: liveQuery.isLoading,
+        error: liveQuery.error,
+        fetchNextPage: liveQuery.fetchNextPage,
+        hasNextPage: liveQuery.hasNextPage,
+        isFetchingNextPage: liveQuery.isFetchingNextPage,
+      };
+    }
     if (feedType === "joined") {
       return {
         posts: joinedQuery.data?.pages.flatMap((page) => page.posts) ?? [],
@@ -125,36 +137,47 @@ const Index = () => {
               </div>
 
               {/* Feed Type Toggle */}
-              {user && (
-                <div className="flex gap-1 p-1 bg-card rounded-lg shadow-card">
-                  <Button
-                    variant={feedType === "all" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setFeedType("all")}
-                    className={feedType === "all" ? "bg-gradient-warm hover:opacity-90" : ""}
-                  >
-                    All
-                  </Button>
-                  <Button
-                    variant={feedType === "joined" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setFeedType("joined")}
-                    className={feedType === "joined" ? "bg-gradient-warm hover:opacity-90" : ""}
-                  >
-                    <Users className="h-4 w-4 mr-1.5" />
-                    Joined
-                  </Button>
-                  <Button
-                    variant={feedType === "following" ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => setFeedType("following")}
-                    className={feedType === "following" ? "bg-gradient-warm hover:opacity-90" : ""}
-                  >
-                    <UserPlus className="h-4 w-4 mr-1.5" />
-                    Following
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-1 p-1 bg-card rounded-lg shadow-card">
+                <Button
+                  variant={feedType === "all" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setFeedType("all")}
+                  className={feedType === "all" ? "bg-gradient-warm hover:opacity-90" : ""}
+                >
+                  All
+                </Button>
+                <Button
+                  variant={feedType === "live" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setFeedType("live")}
+                  className={feedType === "live" ? "bg-red-500 hover:bg-red-600 text-white" : ""}
+                >
+                  <Radio className="h-4 w-4 mr-1.5" />
+                  Live
+                </Button>
+                {user && (
+                  <>
+                    <Button
+                      variant={feedType === "joined" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setFeedType("joined")}
+                      className={feedType === "joined" ? "bg-gradient-warm hover:opacity-90" : ""}
+                    >
+                      <Users className="h-4 w-4 mr-1.5" />
+                      Joined
+                    </Button>
+                    <Button
+                      variant={feedType === "following" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setFeedType("following")}
+                      className={feedType === "following" ? "bg-gradient-warm hover:opacity-90" : ""}
+                    >
+                      <UserPlus className="h-4 w-4 mr-1.5" />
+                      Following
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
             
             {error ? (

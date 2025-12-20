@@ -13,6 +13,10 @@ import { SwipeToDelete } from "@/components/SwipeToDelete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import PostModActions from "@/components/community/PostModActions";
 import VideoPlayer from "@/components/VideoPlayer";
+import BoostModal from "@/components/BoostModal";
+import BoostBadge from "@/components/BoostBadge";
+import LiveBadge from "@/components/LiveBadge";
+import LiveEmbed from "@/components/LiveEmbed";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,8 +98,9 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
     >
       <div className="p-4">
         {/* Status indicators */}
-        {(post.is_pinned || post.is_locked || post.is_removed) && (
+        {(post.is_pinned || post.is_locked || post.is_removed || post.live_url) && (
           <div className="flex items-center gap-2 mb-2">
+            {post.live_url && <LiveBadge />}
             {post.is_pinned && (
               <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10">
                 <Pin className="h-3 w-3 mr-1" />
@@ -201,7 +206,15 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
           </p>
         )}
 
-        {post.image_url && !post.video_url && (
+        {/* Live Embed */}
+        {post.live_url && (
+          <div className="relative -mx-4 mb-3 overflow-hidden">
+            <LiveEmbed url={post.live_url} className="max-h-96" />
+          </div>
+        )}
+
+        {/* Image (only if no video and no live) */}
+        {post.image_url && !post.video_url && !post.live_url && (
           <div className="relative -mx-4 mb-3 overflow-hidden">
             <img
               src={post.image_url}
@@ -211,7 +224,8 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
           </div>
         )}
 
-        {post.video_url && (
+        {/* Video (only if no live) */}
+        {post.video_url && !post.live_url && (
           <div className="relative -mx-4 mb-3 overflow-hidden">
             <VideoPlayer
               src={post.video_url}
@@ -289,6 +303,12 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Boost Button */}
+          <BoostModal postId={post.id} postTitle={post.title} />
+          
+          {/* Boost Badge */}
+          <BoostBadge postId={post.id} className="hidden sm:inline-flex" />
 
           <Button
             variant="ghost"
