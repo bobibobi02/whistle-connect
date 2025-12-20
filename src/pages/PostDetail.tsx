@@ -14,6 +14,7 @@ import BoostModal from "@/components/BoostModal";
 import BoostBadge from "@/components/BoostBadge";
 import LiveBadge from "@/components/LiveBadge";
 import LiveEmbed from "@/components/LiveEmbed";
+import { BoostMessagesList } from "@/components/BoostMessagesList";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
@@ -240,6 +241,9 @@ const PostDetail = () => {
                     </div>
                   </div>
                 </article>
+
+                {/* Supporter Messages */}
+                <BoostMessagesList postId={post.id} />
 
                 {/* Comment input */}
                 <div className="bg-card rounded-xl shadow-card p-4 mt-4 animate-fade-in" style={{ animationDelay: "50ms" }}>
