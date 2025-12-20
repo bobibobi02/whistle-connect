@@ -5,6 +5,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNotificationSound } from "@/hooks/useNotificationSound";
 
+// Re-export batching utilities
+export { useBatchedNotifications, batchNotifications, type BatchedNotification } from './useNotificationBatching';
+
 export interface Notification {
   id: string;
   user_id: string;
@@ -163,6 +166,24 @@ export const useMarkAsRead = () => {
         .from("notifications")
         .update({ read: true })
         .eq("id", notificationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+};
+
+export const useMarkMultipleAsRead = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (notificationIds: string[]) => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .in("id", notificationIds);
 
       if (error) throw error;
     },

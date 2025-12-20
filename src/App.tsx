@@ -8,6 +8,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { AnimatePresence } from "framer-motion";
 import { useDeepLinks, useBackButton, useCapacitor } from "@/hooks/useCapacitor";
 import { useBadgeCount } from "@/hooks/useBadgeCount";
+import { useBackgroundSync } from "@/hooks/useBackgroundSync";
 import PageTransition from "@/components/PageTransition";
 import SafeAreaWrapper from "@/components/SafeAreaWrapper";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
@@ -61,6 +62,9 @@ const AppContent = () => {
   
   // Initialize badge count - auto-updates based on unread notifications
   useBadgeCount();
+  
+  // Initialize background sync for offline actions
+  useBackgroundSync();
   
   return (
     <SafeAreaWrapper>
