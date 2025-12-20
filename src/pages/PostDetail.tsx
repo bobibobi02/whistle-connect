@@ -9,6 +9,7 @@ import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import Comment from "@/components/Comment";
+import VideoPlayer from "@/components/VideoPlayer";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
@@ -135,12 +136,23 @@ const PostDetail = () => {
                       </div>
                     )}
 
-                    {post.image_url && (
+                    {post.image_url && !post.video_url && (
                       <div className="mb-6">
                         <img
                           src={post.image_url}
                           alt={post.title}
                           className="w-full h-auto max-h-[600px] object-contain rounded-lg"
+                        />
+                      </div>
+                    )}
+
+                    {post.video_url && (
+                      <div className="mb-6">
+                        <VideoPlayer
+                          src={post.video_url}
+                          poster={post.poster_image_url || undefined}
+                          className="w-full max-h-[600px] rounded-lg"
+                          controls
                         />
                       </div>
                     )}

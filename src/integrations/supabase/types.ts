@@ -669,6 +669,7 @@ export type Database = {
           is_pinned: boolean | null
           is_removed: boolean | null
           pin_position: number | null
+          poster_image_url: string | null
           removal_reason: string | null
           removed_at: string | null
           removed_by: string | null
@@ -676,6 +677,10 @@ export type Database = {
           updated_at: string
           upvotes: number
           user_id: string
+          video_duration_seconds: number | null
+          video_mime_type: string | null
+          video_size_bytes: number | null
+          video_url: string | null
         }
         Insert: {
           community?: string
@@ -689,6 +694,7 @@ export type Database = {
           is_pinned?: boolean | null
           is_removed?: boolean | null
           pin_position?: number | null
+          poster_image_url?: string | null
           removal_reason?: string | null
           removed_at?: string | null
           removed_by?: string | null
@@ -696,6 +702,10 @@ export type Database = {
           updated_at?: string
           upvotes?: number
           user_id: string
+          video_duration_seconds?: number | null
+          video_mime_type?: string | null
+          video_size_bytes?: number | null
+          video_url?: string | null
         }
         Update: {
           community?: string
@@ -709,6 +719,7 @@ export type Database = {
           is_pinned?: boolean | null
           is_removed?: boolean | null
           pin_position?: number | null
+          poster_image_url?: string | null
           removal_reason?: string | null
           removed_at?: string | null
           removed_by?: string | null
@@ -716,6 +727,10 @@ export type Database = {
           updated_at?: string
           upvotes?: number
           user_id?: string
+          video_duration_seconds?: number | null
+          video_mime_type?: string | null
+          video_size_bytes?: number | null
+          video_url?: string | null
         }
         Relationships: [
           {

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal, Copy, Twitter, Facebook, Linkedin, Flag, Lock, Pin } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal, Copy, Twitter, Facebook, Linkedin, Flag, Lock, Pin, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import ReportDialog from "@/components/ReportDialog";
 import { SwipeToDelete } from "@/components/SwipeToDelete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import PostModActions from "@/components/community/PostModActions";
+import VideoPlayer from "@/components/VideoPlayer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -200,12 +201,23 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
           </p>
         )}
 
-        {post.image_url && (
+        {post.image_url && !post.video_url && (
           <div className="relative -mx-4 mb-3 overflow-hidden">
             <img
               src={post.image_url}
               alt={post.title}
               className="w-full h-auto max-h-96 object-cover"
+            />
+          </div>
+        )}
+
+        {post.video_url && (
+          <div className="relative -mx-4 mb-3 overflow-hidden">
+            <VideoPlayer
+              src={post.video_url}
+              poster={post.poster_image_url || undefined}
+              compact
+              className="w-full max-h-96"
             />
           </div>
         )}

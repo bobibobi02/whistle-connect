@@ -16,6 +16,11 @@ export interface Post {
   title: string;
   content: string | null;
   image_url: string | null;
+  video_url: string | null;
+  video_mime_type: string | null;
+  video_size_bytes: number | null;
+  video_duration_seconds: number | null;
+  poster_image_url: string | null;
   community: string;
   community_icon: string | null;
   upvotes: number;
@@ -123,6 +128,11 @@ const enrichPosts = async (
     is_removed: post.is_removed ?? false,
     flair_id: post.flair_id || null,
     flair: post.flair_id ? flairMap[post.flair_id] || null : null,
+    video_url: post.video_url || null,
+    video_mime_type: post.video_mime_type || null,
+    video_size_bytes: post.video_size_bytes || null,
+    video_duration_seconds: post.video_duration_seconds || null,
+    poster_image_url: post.poster_image_url || null,
   }));
 };
 
@@ -363,6 +373,11 @@ export const usePost = (postId: string) => {
         is_removed: post.is_removed ?? false,
         flair_id: post.flair_id || null,
         flair,
+        video_url: post.video_url || null,
+        video_mime_type: post.video_mime_type || null,
+        video_size_bytes: post.video_size_bytes || null,
+        video_duration_seconds: post.video_duration_seconds || null,
+        poster_image_url: post.poster_image_url || null,
       };
     },
     enabled: !!postId,
@@ -378,12 +393,22 @@ export const useCreatePost = () => {
       title,
       content,
       image_url,
+      video_url,
+      video_mime_type,
+      video_size_bytes,
+      video_duration_seconds,
+      poster_image_url,
       community,
       community_icon,
     }: {
       title: string;
       content?: string;
       image_url?: string;
+      video_url?: string;
+      video_mime_type?: string;
+      video_size_bytes?: number;
+      video_duration_seconds?: number;
+      poster_image_url?: string;
       community?: string;
       community_icon?: string;
     }) => {
@@ -407,6 +432,11 @@ export const useCreatePost = () => {
           title,
           content: content || null,
           image_url: image_url || null,
+          video_url: video_url || null,
+          video_mime_type: video_mime_type || null,
+          video_size_bytes: video_size_bytes || null,
+          video_duration_seconds: video_duration_seconds || null,
+          poster_image_url: poster_image_url || null,
           community: community || "general",
           community_icon: community_icon || "💬",
         })
