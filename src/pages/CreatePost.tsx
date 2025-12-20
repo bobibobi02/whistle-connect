@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Image, Video, X, Upload, Loader2, Play } from "lucide-react";
+import { ArrowLeft, Image, Video, X, Upload, Loader2, Play, Settings2 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,12 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreatePost } from "@/hooks/usePosts";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useVideoUpload } from "@/hooks/useVideoUpload";
+import { useVideoCompression, COMPRESSION_PRESETS, CompressionPreset } from "@/hooks/useVideoCompression";
 import { cn } from "@/lib/utils";
 
 const communities = [
@@ -53,6 +60,10 @@ const CreatePost = () => {
   const [videoPoster, setVideoPoster] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [mediaTab, setMediaTab] = useState<"image" | "video">("image");
+  const [enableCompression, setEnableCompression] = useState(false);
+  const [compressionPreset, setCompressionPreset] = useState<CompressionPreset>('medium');
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   
@@ -65,10 +76,17 @@ const CreatePost = () => {
     uploadStage,
     acceptedTypes, 
     maxSizeMB 
-  } = useVideoUpload({ maxSizeMB: 500, enableModeration: true });
+  } = useVideoUpload({ maxSizeMB: 500, enableModeration: true, frameSampleCount: 5 });
+  const {
+    compressWithPreset,
+    isCompressing,
+    progress: compressionProgress,
+    presets,
+  } = useVideoCompression();
 
-  const isUploading = isUploadingImage || isUploadingVideo;
-  const uploadProgress = isUploadingImage ? imageProgress : videoProgress;
+  const isUploading = isUploadingImage || isUploadingVideo || isCompressing;
+  const uploadProgress = isCompressing ? compressionProgress : (isUploadingImage ? imageProgress : videoProgress);
+  const currentStage = isCompressing ? 'Compressing video...' : uploadStage;
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -104,7 +122,19 @@ const CreatePost = () => {
   };
 
   const handleVideoSelect = async (file: File) => {
-    const metadata = await uploadVideo(file);
+    let fileToUpload = file;
+    
+    // Compress if enabled
+    if (enableCompression) {
+      const result = await compressWithPreset(file, compressionPreset);
+      if (result) {
+        fileToUpload = new File([result.blob], file.name.replace(/\.[^.]+$/, '.webm'), {
+          type: result.blob.type,
+        });
+      }
+    }
+    
+    const metadata = await uploadVideo(fileToUpload);
     if (metadata) {
       form.setValue("video_url", metadata.url);
       form.setValue("video_mime_type", metadata.mimeType);
@@ -113,7 +143,6 @@ const CreatePost = () => {
       form.setValue("poster_image_url", metadata.posterUrl);
       setVideoPreview(metadata.url);
       setVideoPoster(metadata.posterUrl || null);
-      // Clear image if video is selected
       form.setValue("image_url", "");
       setImagePreview(null);
     }
@@ -371,7 +400,7 @@ const CreatePost = () => {
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
                     <div className="flex flex-col">
                       <span className="text-sm font-medium">
-                        {isUploadingImage ? "Uploading image" : uploadStage || "Uploading video"}
+                        {isUploadingImage ? "Uploading image" : currentStage || "Processing video"}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {Math.round(uploadProgress)}% complete

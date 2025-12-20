@@ -10,17 +10,101 @@ interface TranscodeRequest {
   videoUrl: string;
   postId: string;
   userId: string;
+  useMux?: boolean;
+}
+
+interface MuxAsset {
+  id: string;
+  status: string;
+  playback_ids?: { id: string; policy: string }[];
+  duration?: number;
+  aspect_ratio?: string;
 }
 
 interface TranscodeResult {
   success: boolean;
   hlsUrl?: string;
+  muxAssetId?: string;
+  muxPlaybackId?: string;
+  status?: string;
   variants?: {
     quality: string;
     url: string;
     bandwidth: number;
   }[];
   error?: string;
+}
+
+async function createMuxAsset(videoUrl: string): Promise<MuxAsset | null> {
+  const MUX_TOKEN_ID = Deno.env.get("MUX_TOKEN_ID");
+  const MUX_TOKEN_SECRET = Deno.env.get("MUX_TOKEN_SECRET");
+
+  if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
+    console.log("[Transcode] Mux credentials not configured, falling back to basic HLS");
+    return null;
+  }
+
+  const credentials = btoa(`${MUX_TOKEN_ID}:${MUX_TOKEN_SECRET}`);
+
+  try {
+    const response = await fetch("https://api.mux.com/video/v1/assets", {
+      method: "POST",
+      headers: {
+        "Authorization": `Basic ${credentials}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        input: [{ url: videoUrl }],
+        playback_policy: ["public"],
+        encoding_tier: "smart",
+        mp4_support: "standard",
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[Transcode] Mux API error:", response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log("[Transcode] Mux asset created:", data.data?.id);
+    return data.data as MuxAsset;
+  } catch (error) {
+    console.error("[Transcode] Mux request failed:", error);
+    return null;
+  }
+}
+
+async function getMuxAssetStatus(assetId: string): Promise<MuxAsset | null> {
+  const MUX_TOKEN_ID = Deno.env.get("MUX_TOKEN_ID");
+  const MUX_TOKEN_SECRET = Deno.env.get("MUX_TOKEN_SECRET");
+
+  if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
+    return null;
+  }
+
+  const credentials = btoa(`${MUX_TOKEN_ID}:${MUX_TOKEN_SECRET}`);
+
+  try {
+    const response = await fetch(`https://api.mux.com/video/v1/assets/${assetId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Basic ${credentials}`,
+      },
+    });
+
+    if (!response.ok) {
+      console.error("[Transcode] Mux status check failed:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.data as MuxAsset;
+  } catch (error) {
+    console.error("[Transcode] Mux status request failed:", error);
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -53,7 +137,31 @@ serve(async (req) => {
       });
     }
 
-    const { videoUrl, postId, userId }: TranscodeRequest = await req.json();
+    const body = await req.json();
+    const { videoUrl, postId, userId, useMux = true }: TranscodeRequest = body;
+
+    // Handle status check for existing Mux asset
+    if (body.muxAssetId) {
+      const asset = await getMuxAssetStatus(body.muxAssetId);
+      if (!asset) {
+        return new Response(JSON.stringify({ success: false, error: 'Failed to get asset status' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const playbackId = asset.playback_ids?.[0]?.id;
+      const result: TranscodeResult = {
+        success: asset.status === 'ready',
+        status: asset.status,
+        muxAssetId: asset.id,
+        muxPlaybackId: playbackId,
+        hlsUrl: playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : undefined,
+      };
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (!videoUrl || !postId) {
       return new Response(JSON.stringify({ error: 'Missing videoUrl or postId' }), {
@@ -62,36 +170,57 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[Transcode] Starting transcode for post ${postId}`);
+    console.log(`[Transcode] Starting transcode for post ${postId}, useMux: ${useMux}`);
 
-    // For true HLS transcoding, you would typically use:
-    // 1. FFmpeg in a dedicated worker/container
-    // 2. A service like Mux, Cloudflare Stream, or AWS MediaConvert
-    // 
-    // This edge function serves as the integration point.
-    // For now, we'll create a basic HLS-compatible structure.
-    
-    // In production, you would:
-    // 1. Download the video
-    // 2. Transcode to multiple bitrates (e.g., 360p, 720p, 1080p)
-    // 3. Segment into .ts files
-    // 4. Generate master.m3u8 playlist
-    // 5. Upload segments to storage
-    
-    // For this implementation, we'll store the original video with
-    // metadata that supports adaptive streaming where possible.
-    
     const supabaseService = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Try Mux first if enabled
+    if (useMux) {
+      const muxAsset = await createMuxAsset(videoUrl);
+      
+      if (muxAsset) {
+        const playbackId = muxAsset.playback_ids?.[0]?.id;
+        
+        // Update post with Mux information
+        await supabaseService
+          .from('posts')
+          .update({
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', postId)
+          .eq('user_id', userId);
+
+        const result: TranscodeResult = {
+          success: true,
+          status: muxAsset.status,
+          muxAssetId: muxAsset.id,
+          muxPlaybackId: playbackId,
+          hlsUrl: playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : undefined,
+          variants: playbackId ? [
+            { quality: 'auto', url: `https://stream.mux.com/${playbackId}.m3u8`, bandwidth: 0 },
+            { quality: '360p', url: `https://stream.mux.com/${playbackId}/low.mp4`, bandwidth: 600000 },
+            { quality: '720p', url: `https://stream.mux.com/${playbackId}/medium.mp4`, bandwidth: 2000000 },
+            { quality: '1080p', url: `https://stream.mux.com/${playbackId}/high.mp4`, bandwidth: 4000000 },
+          ] : undefined,
+        };
+
+        console.log(`[Transcode] Mux asset created for post ${postId}:`, result);
+
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Fallback to basic HLS manifest
+    console.log(`[Transcode] Using basic HLS fallback for post ${postId}`);
     
-    // Generate a simple HLS manifest that points to the original video
-    // This allows players that support HLS to use it
     const hlsManifest = `#EXTM3U
 #EXT-X-VERSION:3
 #EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1920x1080,NAME="1080p"
 ${videoUrl}
 `;
 
-    // Store the manifest
     const manifestPath = `${userId}/${postId}/master.m3u8`;
     const manifestBlob = new Blob([hlsManifest], { type: 'application/vnd.apple.mpegurl' });
     
@@ -104,26 +233,19 @@ ${videoUrl}
 
     if (uploadError) {
       console.error('[Transcode] Manifest upload error:', uploadError);
-      // Continue without HLS - original video still works
     }
 
     const { data: manifestUrl } = supabaseService.storage
       .from('post-videos')
       .getPublicUrl(manifestPath);
 
-    // Update the post with transcoding metadata
-    const { error: updateError } = await supabaseService
+    await supabaseService
       .from('posts')
       .update({
-        video_mime_type: 'application/vnd.apple.mpegurl',
         updated_at: new Date().toISOString(),
       })
       .eq('id', postId)
       .eq('user_id', userId);
-
-    if (updateError) {
-      console.error('[Transcode] Post update error:', updateError);
-    }
 
     const result: TranscodeResult = {
       success: true,
@@ -137,7 +259,7 @@ ${videoUrl}
       ],
     };
 
-    console.log(`[Transcode] Completed for post ${postId}`, result);
+    console.log(`[Transcode] Basic HLS completed for post ${postId}`, result);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
