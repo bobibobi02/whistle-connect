@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Image, Video, X, Upload, Loader2, Play, Settings2 } from "lucide-react";
+import { ArrowLeft, Image, Video, X, Upload, Loader2, Play, Settings2, Radio } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,6 +37,9 @@ const communities = [
   { value: "art", label: "Art", icon: "🎨" },
 ];
 
+// YouTube and Twitch URL validation regex
+const liveUrlPattern = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=[\w-]+|youtube\.com\/live\/[\w-]+|youtu\.be\/[\w-]+|twitch\.tv\/\w+|twitch\.tv\/videos\/\d+)/i;
+
 const postSchema = z.object({
   title: z.string().min(1, "Title is required").max(300, "Title must be less than 300 characters"),
   content: z.string().max(10000, "Content must be less than 10000 characters").optional(),
@@ -46,6 +49,10 @@ const postSchema = z.object({
   video_size_bytes: z.number().optional(),
   video_duration_seconds: z.number().optional(),
   poster_image_url: z.string().optional(),
+  live_url: z.string().optional().refine(
+    (val) => !val || liveUrlPattern.test(val),
+    { message: "Please enter a valid YouTube or Twitch URL" }
+  ),
   community: z.string().min(1, "Please select a community"),
 });
 
@@ -59,7 +66,7 @@ const CreatePost = () => {
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
   const [videoPoster, setVideoPoster] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [mediaTab, setMediaTab] = useState<"image" | "video">("image");
+  const [mediaTab, setMediaTab] = useState<"image" | "video" | "live">("image");
   const [enableCompression, setEnableCompression] = useState(false);
   const [compressionPreset, setCompressionPreset] = useState<CompressionPreset>('medium');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -95,6 +102,7 @@ const CreatePost = () => {
       content: "",
       image_url: "",
       video_url: "",
+      live_url: "",
       community: "general",
     },
   });
@@ -190,6 +198,7 @@ const CreatePost = () => {
     form.setValue("video_size_bytes", undefined);
     form.setValue("video_duration_seconds", undefined);
     form.setValue("poster_image_url", undefined);
+    form.setValue("live_url", "");
     setImagePreview(null);
     setVideoPreview(null);
     setVideoPoster(null);
@@ -209,6 +218,7 @@ const CreatePost = () => {
         video_size_bytes: data.video_size_bytes,
         video_duration_seconds: data.video_duration_seconds,
         poster_image_url: data.poster_image_url,
+        live_url: data.live_url || undefined,
         community: data.community,
         community_icon: community?.icon,
       },
@@ -318,8 +328,8 @@ const CreatePost = () => {
               <Label>Media (optional)</Label>
               
               {!hasMedia && !isUploading ? (
-                <Tabs value={mediaTab} onValueChange={(v) => setMediaTab(v as "image" | "video")}>
-                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                <Tabs value={mediaTab} onValueChange={(v) => setMediaTab(v as "image" | "video" | "live")}>
+                  <TabsList className="grid w-full grid-cols-3 mb-4">
                     <TabsTrigger value="image" className="gap-2">
                       <Image className="h-4 w-4" />
                       Image
@@ -327,6 +337,10 @@ const CreatePost = () => {
                     <TabsTrigger value="video" className="gap-2">
                       <Video className="h-4 w-4" />
                       Video
+                    </TabsTrigger>
+                    <TabsTrigger value="live" className="gap-2">
+                      <Radio className="h-4 w-4" />
+                      Live Stream
                     </TabsTrigger>
                   </TabsList>
 
@@ -389,6 +403,35 @@ const CreatePost = () => {
                         <div>
                           <p className="font-medium">Drop a video here or click to upload</p>
                           <p className="text-sm text-muted-foreground">MP4, WebM, MOV up to {maxSizeMB}MB</p>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="live">
+                    <div className="space-y-4">
+                      <div className="border-2 border-dashed border-border/50 rounded-lg p-6 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="p-3 rounded-full bg-destructive/10">
+                            <Radio className="h-6 w-6 text-destructive" />
+                          </div>
+                          <div className="space-y-2 w-full max-w-md">
+                            <p className="font-medium">Add a Live Stream</p>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              Paste a YouTube or Twitch URL to embed a live stream
+                            </p>
+                            <Input
+                              placeholder="https://youtube.com/watch?v=... or https://twitch.tv/..."
+                              {...form.register("live_url")}
+                              className="bg-secondary/50 border-border/50"
+                            />
+                            {form.formState.errors.live_url && (
+                              <p className="text-sm text-destructive">{form.formState.errors.live_url.message}</p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Supported: YouTube (live, videos, shorts) and Twitch (channels, VODs)
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>

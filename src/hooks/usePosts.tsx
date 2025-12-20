@@ -380,6 +380,7 @@ export const usePost = (postId: string) => {
         video_size_bytes: post.video_size_bytes || null,
         video_duration_seconds: post.video_duration_seconds || null,
         poster_image_url: post.poster_image_url || null,
+        live_url: post.live_url || null,
       };
     },
     enabled: !!postId,
@@ -400,6 +401,7 @@ export const useCreatePost = () => {
       video_size_bytes,
       video_duration_seconds,
       poster_image_url,
+      live_url,
       community,
       community_icon,
     }: {
@@ -411,6 +413,7 @@ export const useCreatePost = () => {
       video_size_bytes?: number;
       video_duration_seconds?: number;
       poster_image_url?: string;
+      live_url?: string;
       community?: string;
       community_icon?: string;
     }) => {
@@ -439,6 +442,7 @@ export const useCreatePost = () => {
           video_size_bytes: video_size_bytes || null,
           video_duration_seconds: video_duration_seconds || null,
           poster_image_url: poster_image_url || null,
+          live_url: live_url || null,
           community: community || "general",
           community_icon: community_icon || "💬",
         })
