@@ -624,6 +624,53 @@ export type Database = {
           },
         ]
       }
+      post_boosts: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          from_user_id: string | null
+          id: string
+          is_public: boolean
+          message: string | null
+          post_id: string
+          status: string
+          stripe_checkout_session_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          currency?: string
+          from_user_id?: string | null
+          id?: string
+          is_public?: boolean
+          message?: string | null
+          post_id: string
+          status?: string
+          stripe_checkout_session_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          from_user_id?: string | null
+          id?: string
+          is_public?: boolean
+          message?: string | null
+          post_id?: string
+          status?: string
+          stripe_checkout_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_boosts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_votes: {
         Row: {
           created_at: string
@@ -668,6 +715,7 @@ export type Database = {
           is_locked: boolean | null
           is_pinned: boolean | null
           is_removed: boolean | null
+          live_url: string | null
           pin_position: number | null
           poster_image_url: string | null
           removal_reason: string | null
@@ -693,6 +741,7 @@ export type Database = {
           is_locked?: boolean | null
           is_pinned?: boolean | null
           is_removed?: boolean | null
+          live_url?: string | null
           pin_position?: number | null
           poster_image_url?: string | null
           removal_reason?: string | null
@@ -718,6 +767,7 @@ export type Database = {
           is_locked?: boolean | null
           is_pinned?: boolean | null
           is_removed?: boolean | null
+          live_url?: string | null
           pin_position?: number | null
           poster_image_url?: string | null
           removal_reason?: string | null
@@ -951,7 +1001,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      post_boost_totals: {
+        Row: {
+          boost_count: number | null
+          currency: string | null
+          post_id: string | null
+          total_amount_cents: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_boosts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       has_community_role: {
