@@ -21,6 +21,7 @@ export interface Post {
   video_size_bytes: number | null;
   video_duration_seconds: number | null;
   poster_image_url: string | null;
+  live_url: string | null;
   community: string;
   community_icon: string | null;
   upvotes: number;
@@ -133,6 +134,7 @@ const enrichPosts = async (
     video_size_bytes: post.video_size_bytes || null,
     video_duration_seconds: post.video_duration_seconds || null,
     poster_image_url: post.poster_image_url || null,
+    live_url: post.live_url || null,
   }));
 };
 
