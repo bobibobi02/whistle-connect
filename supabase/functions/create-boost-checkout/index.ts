@@ -109,7 +109,9 @@ serve(async (req) => {
       .update({ stripe_checkout_session_id: session.id })
       .eq("id", boost.id);
 
-    return new Response(JSON.stringify({ url: session.url }), {
+    console.log("Boost created:", { boost_id: boost.id, message: boost.message, is_public: boost.is_public });
+
+    return new Response(JSON.stringify({ url: session.url, boost_id: boost.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
