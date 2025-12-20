@@ -11,10 +11,14 @@ import {
   useInfiniteNotifications, 
   useMarkAsRead, 
   useMarkAllAsRead, 
+  useMarkMultipleAsRead,
   useDeleteNotification,
   useDeleteAllNotifications,
-  Notification 
+  Notification,
+  useBatchedNotifications,
+  BatchedNotification,
 } from "@/hooks/useNotifications";
+import { BatchedNotificationItem } from "@/components/BatchedNotificationItem";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
@@ -77,6 +81,7 @@ const NotificationCenter = () => {
     isFetchingNextPage 
   } = useInfiniteNotifications();
   const markAsRead = useMarkAsRead();
+  const markMultipleAsRead = useMarkMultipleAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
   const deleteAllNotifications = useDeleteAllNotifications();
@@ -117,6 +122,17 @@ const NotificationCenter = () => {
 
   // Flatten paginated data early for keyboard handler
   const notifications = data?.pages.flatMap((page) => page.data) || [];
+  
+  // Batch similar notifications together
+  const batchedNotifications = useBatchedNotifications(notifications);
+  
+  const filteredBatchedNotifications = batchedNotifications.filter((n) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "unread") return !n.read;
+    return n.type === activeFilter;
+  });
+  
+  // Keep raw filtered for counts
   const filteredNotifications = notifications.filter((n) => {
     if (activeFilter === "all") return true;
     if (activeFilter === "unread") return !n.read;
@@ -230,7 +246,33 @@ const NotificationCenter = () => {
     return groups.filter((g) => g.notifications.length > 0);
   };
 
+  // Group batched notifications by date
+  const groupBatchedNotificationsByDate = (notifs: BatchedNotification[]) => {
+    const groups: { label: string; notifications: BatchedNotification[] }[] = [
+      { label: "Today", notifications: [] },
+      { label: "Yesterday", notifications: [] },
+      { label: "This Week", notifications: [] },
+      { label: "Older", notifications: [] },
+    ];
+
+    notifs.forEach((notification) => {
+      const date = new Date(notification.latestDate);
+      if (isToday(date)) {
+        groups[0].notifications.push(notification);
+      } else if (isYesterday(date)) {
+        groups[1].notifications.push(notification);
+      } else if (isThisWeek(date)) {
+        groups[2].notifications.push(notification);
+      } else {
+        groups[3].notifications.push(notification);
+      }
+    });
+
+    return groups.filter((g) => g.notifications.length > 0);
+  };
+
   const groupedNotifications = groupNotificationsByDate(filteredNotifications);
+  const groupedBatchedNotifications = groupBatchedNotificationsByDate(filteredBatchedNotifications);
 
   const unreadCount = counts.unread;
   const totalCount = counts.all;
@@ -390,6 +432,20 @@ const NotificationCenter = () => {
     return filteredNotifications.findIndex(n => n.id === notification.id);
   };
 
+  // Helper to get flat index for a batched notification
+  const getBatchedFlatIndex = (notification: BatchedNotification) => {
+    return filteredBatchedNotifications.findIndex(n => n.id === notification.id);
+  };
+
+  // Handle marking multiple notifications as read (for batched)
+  const handleMarkMultipleAsRead = (ids: string[]) => {
+    if (ids.length === 1) {
+      markAsRead.mutate(ids[0]);
+    } else {
+      markMultipleAsRead.mutate(ids);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header onMenuClick={() => setMobileNavOpen(true)} />
@@ -496,18 +552,18 @@ const NotificationCenter = () => {
               <Card className="p-8 text-center text-muted-foreground">
                 Loading notifications...
               </Card>
-            ) : groupedNotifications.length > 0 ? (
-              groupedNotifications.map((group) => (
+            ) : groupedBatchedNotifications.length > 0 ? (
+              groupedBatchedNotifications.map((group) => (
                 <div key={group.label} className="space-y-2">
                   <h3 className="text-sm font-medium text-muted-foreground px-1">{group.label}</h3>
                   <Card className="divide-y divide-border">
                     {group.notifications.map((notification) => {
-                      const flatIdx = getFlatIndex(notification);
+                      const flatIdx = getBatchedFlatIndex(notification);
                       return (
-                        <NotificationItem 
+                        <BatchedNotificationItem 
                           key={notification.id} 
-                          notification={notification} 
-                          index={flatIdx}
+                          notification={notification}
+                          onMarkAsRead={handleMarkMultipleAsRead}
                           isFocused={flatIdx === focusedIndex}
                         />
                       );
@@ -529,18 +585,18 @@ const NotificationCenter = () => {
                 <Card className="p-8 text-center text-muted-foreground">
                   Loading notifications...
                 </Card>
-              ) : groupedNotifications.length > 0 ? (
-                groupedNotifications.map((group) => (
+              ) : groupedBatchedNotifications.length > 0 ? (
+                groupedBatchedNotifications.map((group) => (
                   <div key={group.label} className="space-y-2">
                     <h3 className="text-sm font-medium text-muted-foreground px-1">{group.label}</h3>
                     <Card className="divide-y divide-border">
                       {group.notifications.map((notification) => {
-                        const flatIdx = getFlatIndex(notification);
+                        const flatIdx = getBatchedFlatIndex(notification);
                         return (
-                          <NotificationItem 
+                          <BatchedNotificationItem 
                             key={notification.id} 
                             notification={notification}
-                            index={flatIdx}
+                            onMarkAsRead={handleMarkMultipleAsRead}
                             isFocused={flatIdx === focusedIndex}
                           />
                         );

@@ -1,11 +1,11 @@
 // Firebase Cloud Messaging Service Worker
-// This handles background push notifications for the web app
+// This handles background push notifications for the web app and background sync
 
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
 // Cache names for offline support
-const CACHE_NAME = 'whistle-v1';
+const CACHE_NAME = 'whistle-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Install event - cache offline page
@@ -36,6 +36,27 @@ self.addEventListener('activate', (event) => {
   );
   self.clients.claim();
 });
+
+// Background Sync event - process queued actions when back online
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'background-sync') {
+    event.waitUntil(notifyClientsToSync());
+  }
+});
+
+// Notify all clients to process their offline queues
+async function notifyClientsToSync() {
+  try {
+    const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    allClients.forEach(client => {
+      client.postMessage({
+        type: 'SYNC_OFFLINE_QUEUE',
+      });
+    });
+  } catch (error) {
+    console.error('Background sync notification failed:', error);
+  }
+}
 
 // Fetch event - serve from cache when offline
 self.addEventListener('fetch', (event) => {
