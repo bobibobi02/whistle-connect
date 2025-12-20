@@ -9,12 +9,21 @@ interface BoostMessagesListProps {
 export const BoostMessagesList = ({ postId }: BoostMessagesListProps) => {
   const { data: boosts, isLoading } = usePostBoosts(postId);
 
+  console.log("[BoostMessagesList] Rendering for post:", postId, "boosts:", boosts, "loading:", isLoading);
+
   // Filter to only show boosts with public messages
   const publicBoostsWithMessages = boosts?.filter(
     (boost) => boost.is_public && boost.message
   );
 
-  if (isLoading || !publicBoostsWithMessages?.length) {
+  console.log("[BoostMessagesList] Filtered public boosts with messages:", publicBoostsWithMessages);
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (!publicBoostsWithMessages?.length) {
+    console.log("[BoostMessagesList] No public boosts with messages to display");
     return null;
   }
 

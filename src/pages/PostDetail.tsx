@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
 import { useComments, useCreateComment } from "@/hooks/useComments";
+import { useVerifyBoostPayment } from "@/hooks/usePostBoosts";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
@@ -29,14 +30,26 @@ const PostDetail = () => {
   const { user } = useAuth();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const verifyBoost = useVerifyBoostPayment();
 
-  // Handle boost success/cancel feedback
+  // Handle boost success/cancel feedback - verify payment on success
   useEffect(() => {
     const boostStatus = searchParams.get("boost");
     if (boostStatus === "success") {
-      toast.success("Thank you for your boost!");
+      // Check for pending boost ID in session storage
+      const pendingBoostId = sessionStorage.getItem("pending_boost_id");
+      console.log("[Boost] Success redirect, pending boost ID:", pendingBoostId);
+      
+      if (pendingBoostId) {
+        // Verify the payment and update status
+        verifyBoost.mutate(pendingBoostId);
+        sessionStorage.removeItem("pending_boost_id");
+      } else {
+        toast.success("Thank you for your boost!");
+      }
       setSearchParams({});
     } else if (boostStatus === "cancelled") {
+      sessionStorage.removeItem("pending_boost_id");
       toast.info("Boost cancelled");
       setSearchParams({});
     }
