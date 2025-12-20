@@ -290,6 +290,38 @@ You can use tools like:
 - [PWA Asset Generator](https://github.com/nicubarbaros/pwa-asset-generator)
 - [RealFaviconGenerator](https://realfavicongenerator.net/)
 
+## 🎬 Video Support
+
+### Video Upload
+- Supports MP4, WebM, MOV up to 500MB
+- Automatic thumbnail generation
+- AI content moderation before publishing
+- Progress tracking with upload stages
+
+### Video Playback
+- HLS adaptive streaming support via hls.js
+- Quality selector for multi-bitrate streams
+- Playback speed controls
+- Fullscreen support
+- Mobile-optimized with `playsinline`
+
+### Advanced Video Features (Optional)
+
+For production deployments with high video traffic, consider integrating:
+
+1. **External Transcoding Service** (recommended for HLS):
+   - [Mux](https://mux.com) - Easy video API
+   - [Cloudflare Stream](https://www.cloudflare.com/products/cloudflare-stream/)
+   - [AWS MediaConvert](https://aws.amazon.com/mediaconvert/)
+
+2. **Configure the transcode-video function** to call your preferred service
+
+The current implementation creates a basic HLS manifest pointing to the original video.
+For true adaptive bitrate streaming with multiple quality levels, you'll need an external
+transcoding service to generate the .ts segments.
+
+---
+
 ## 🛠 Troubleshooting
 
 ### iOS Build Issues

@@ -58,7 +58,14 @@ const CreatePost = () => {
   
   const createPost = useCreatePost();
   const { uploadImage, isUploading: isUploadingImage, progress: imageProgress } = useImageUpload({ bucket: "post-images", maxSizeMB: 5 });
-  const { uploadVideo, isUploading: isUploadingVideo, progress: videoProgress, acceptedTypes, maxSizeMB } = useVideoUpload({ maxSizeMB: 500 });
+  const { 
+    uploadVideo, 
+    isUploading: isUploadingVideo, 
+    progress: videoProgress, 
+    uploadStage,
+    acceptedTypes, 
+    maxSizeMB 
+  } = useVideoUpload({ maxSizeMB: 500, enableModeration: true });
 
   const isUploading = isUploadingImage || isUploadingVideo;
   const uploadProgress = isUploadingImage ? imageProgress : videoProgress;
@@ -362,9 +369,14 @@ const CreatePost = () => {
                 <div className="border rounded-lg p-6 bg-secondary/30">
                   <div className="flex items-center gap-3 mb-3">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-sm">
-                      Uploading {isUploadingImage ? "image" : "video"}... {Math.round(uploadProgress)}%
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium">
+                        {isUploadingImage ? "Uploading image" : uploadStage || "Uploading video"}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(uploadProgress)}% complete
+                      </span>
+                    </div>
                   </div>
                   <Progress value={uploadProgress} className="h-2" />
                 </div>
