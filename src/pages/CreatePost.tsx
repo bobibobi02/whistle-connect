@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Image, X, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Image, Video, X, Upload, Loader2, Play } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,11 +10,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreatePost } from "@/hooks/usePosts";
 import { useImageUpload } from "@/hooks/useImageUpload";
+import { useVideoUpload } from "@/hooks/useVideoUpload";
 import { cn } from "@/lib/utils";
 
 const communities = [
@@ -32,6 +34,11 @@ const postSchema = z.object({
   title: z.string().min(1, "Title is required").max(300, "Title must be less than 300 characters"),
   content: z.string().max(10000, "Content must be less than 10000 characters").optional(),
   image_url: z.string().optional(),
+  video_url: z.string().optional(),
+  video_mime_type: z.string().optional(),
+  video_size_bytes: z.number().optional(),
+  video_duration_seconds: z.number().optional(),
+  poster_image_url: z.string().optional(),
   community: z.string().min(1, "Please select a community"),
 });
 
@@ -42,11 +49,19 @@ const CreatePost = () => {
   const { user, loading } = useAuth();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const [videoPoster, setVideoPoster] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mediaTab, setMediaTab] = useState<"image" | "video">("image");
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   
   const createPost = useCreatePost();
-  const { uploadImage, isUploading, progress } = useImageUpload({ bucket: "post-images", maxSizeMB: 5 });
+  const { uploadImage, isUploading: isUploadingImage, progress: imageProgress } = useImageUpload({ bucket: "post-images", maxSizeMB: 5 });
+  const { uploadVideo, isUploading: isUploadingVideo, progress: videoProgress, acceptedTypes, maxSizeMB } = useVideoUpload({ maxSizeMB: 500 });
+
+  const isUploading = isUploadingImage || isUploadingVideo;
+  const uploadProgress = isUploadingImage ? imageProgress : videoProgress;
 
   const form = useForm<PostFormData>({
     resolver: zodResolver(postSchema),
@@ -54,6 +69,7 @@ const CreatePost = () => {
       title: "",
       content: "",
       image_url: "",
+      video_url: "",
       community: "general",
     },
   });
@@ -64,18 +80,46 @@ const CreatePost = () => {
     }
   }, [user, loading, navigate]);
 
-  const handleFileSelect = async (file: File) => {
+  const handleImageSelect = async (file: File) => {
     const url = await uploadImage(file);
     if (url) {
       form.setValue("image_url", url);
       setImagePreview(url);
+      // Clear video if image is selected
+      form.setValue("video_url", "");
+      form.setValue("video_mime_type", undefined);
+      form.setValue("video_size_bytes", undefined);
+      form.setValue("video_duration_seconds", undefined);
+      form.setValue("poster_image_url", undefined);
+      setVideoPreview(null);
+      setVideoPoster(null);
     }
   };
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleVideoSelect = async (file: File) => {
+    const metadata = await uploadVideo(file);
+    if (metadata) {
+      form.setValue("video_url", metadata.url);
+      form.setValue("video_mime_type", metadata.mimeType);
+      form.setValue("video_size_bytes", metadata.sizeBytes);
+      form.setValue("video_duration_seconds", metadata.durationSeconds);
+      form.setValue("poster_image_url", metadata.posterUrl);
+      setVideoPreview(metadata.url);
+      setVideoPoster(metadata.posterUrl || null);
+      // Clear image if video is selected
+      form.setValue("image_url", "");
+      setImagePreview(null);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>, type: "image" | "video") => {
     const file = e.target.files?.[0];
     if (file) {
-      handleFileSelect(file);
+      if (type === "image") {
+        handleImageSelect(file);
+      } else {
+        handleVideoSelect(file);
+      }
     }
   };
 
@@ -83,8 +127,14 @@ const CreatePost = () => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith("image/")) {
-      handleFileSelect(file);
+    if (file) {
+      if (file.type.startsWith("image/")) {
+        setMediaTab("image");
+        handleImageSelect(file);
+      } else if (file.type.startsWith("video/")) {
+        setMediaTab("video");
+        handleVideoSelect(file);
+      }
     }
   };
 
@@ -97,12 +147,18 @@ const CreatePost = () => {
     setIsDragging(false);
   };
 
-  const removeImage = () => {
+  const removeMedia = () => {
     form.setValue("image_url", "");
+    form.setValue("video_url", "");
+    form.setValue("video_mime_type", undefined);
+    form.setValue("video_size_bytes", undefined);
+    form.setValue("video_duration_seconds", undefined);
+    form.setValue("poster_image_url", undefined);
     setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    setVideoPreview(null);
+    setVideoPoster(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
+    if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
   const handleSubmit = (data: PostFormData) => {
@@ -112,6 +168,11 @@ const CreatePost = () => {
         title: data.title,
         content: data.content || undefined,
         image_url: data.image_url || undefined,
+        video_url: data.video_url || undefined,
+        video_mime_type: data.video_mime_type,
+        video_size_bytes: data.video_size_bytes,
+        video_duration_seconds: data.video_duration_seconds,
+        poster_image_url: data.poster_image_url,
         community: data.community,
         community_icon: community?.icon,
       },
@@ -119,6 +180,19 @@ const CreatePost = () => {
         onSuccess: () => navigate("/"),
       }
     );
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (loading) {
@@ -129,13 +203,16 @@ const CreatePost = () => {
     );
   }
 
+  const hasImage = !!imagePreview;
+  const hasVideo = !!videoPreview;
+  const hasMedia = hasImage || hasVideo;
+
   return (
     <div className="min-h-screen bg-background">
       <Header onMenuClick={() => setIsMobileNavOpen(true)} />
       <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
 
       <main className="container max-w-2xl mx-auto px-4 py-6">
-        {/* Back button */}
         <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           <span className="text-sm">Back to feed</span>
@@ -200,49 +277,98 @@ const CreatePost = () => {
               )}
             </div>
 
-            {/* Image Upload */}
+            {/* Media Upload */}
             <div className="space-y-2">
-              <Label>Image (optional)</Label>
+              <Label>Media (optional)</Label>
               
-              {!imagePreview && !isUploading ? (
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all",
-                    isDragging
-                      ? "border-primary bg-primary/5"
-                      : "border-border/50 hover:border-primary/50 hover:bg-secondary/30"
-                  )}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileInput}
-                    className="hidden"
-                  />
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 rounded-full bg-secondary">
-                      <Upload className="h-6 w-6 text-muted-foreground" />
+              {!hasMedia && !isUploading ? (
+                <Tabs value={mediaTab} onValueChange={(v) => setMediaTab(v as "image" | "video")}>
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="image" className="gap-2">
+                      <Image className="h-4 w-4" />
+                      Image
+                    </TabsTrigger>
+                    <TabsTrigger value="video" className="gap-2">
+                      <Video className="h-4 w-4" />
+                      Video
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="image">
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onClick={() => imageInputRef.current?.click()}
+                      className={cn(
+                        "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all",
+                        isDragging
+                          ? "border-primary bg-primary/5"
+                          : "border-border/50 hover:border-primary/50 hover:bg-secondary/30"
+                      )}
+                    >
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleFileInput(e, "image")}
+                        className="hidden"
+                      />
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="p-3 rounded-full bg-secondary">
+                          <Image className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Drop an image here or click to upload</p>
+                          <p className="text-sm text-muted-foreground">JPG, PNG, GIF, WebP up to 5MB</p>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">Drop an image here or click to upload</p>
-                      <p className="text-sm text-muted-foreground">JPG, PNG, GIF, WebP up to 5MB</p>
+                  </TabsContent>
+
+                  <TabsContent value="video">
+                    <div
+                      onDrop={handleDrop}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onClick={() => videoInputRef.current?.click()}
+                      className={cn(
+                        "border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all",
+                        isDragging
+                          ? "border-primary bg-primary/5"
+                          : "border-border/50 hover:border-primary/50 hover:bg-secondary/30"
+                      )}
+                    >
+                      <input
+                        ref={videoInputRef}
+                        type="file"
+                        accept={acceptedTypes}
+                        onChange={(e) => handleFileInput(e, "video")}
+                        className="hidden"
+                      />
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="p-3 rounded-full bg-secondary">
+                          <Video className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Drop a video here or click to upload</p>
+                          <p className="text-sm text-muted-foreground">MP4, WebM, MOV up to {maxSizeMB}MB</p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  </TabsContent>
+                </Tabs>
               ) : isUploading ? (
                 <div className="border rounded-lg p-6 bg-secondary/30">
                   <div className="flex items-center gap-3 mb-3">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                    <span className="text-sm">Uploading image...</span>
+                    <span className="text-sm">
+                      Uploading {isUploadingImage ? "image" : "video"}... {Math.round(uploadProgress)}%
+                    </span>
                   </div>
-                  <Progress value={progress} className="h-2" />
+                  <Progress value={uploadProgress} className="h-2" />
                 </div>
-              ) : (
+              ) : hasImage ? (
                 <div className="relative">
                   <div className="rounded-lg overflow-hidden border border-border">
                     <img
@@ -256,12 +382,56 @@ const CreatePost = () => {
                     variant="destructive"
                     size="icon"
                     className="absolute top-2 right-2 h-8 w-8"
-                    onClick={removeImage}
+                    onClick={removeMedia}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-              )}
+              ) : hasVideo ? (
+                <div className="relative">
+                  <div className="rounded-lg overflow-hidden border border-border bg-black">
+                    {videoPoster ? (
+                      <div className="relative">
+                        <img
+                          src={videoPoster}
+                          alt="Video thumbnail"
+                          className="w-full h-auto max-h-80 object-contain"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                            <Play className="h-6 w-6 text-primary fill-current ml-0.5" />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <video
+                        src={videoPreview!}
+                        className="w-full h-auto max-h-80 object-contain"
+                        controls={false}
+                      />
+                    )}
+                    {form.watch("video_duration_seconds") && (
+                      <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                        {formatDuration(form.watch("video_duration_seconds")!)}
+                      </div>
+                    )}
+                    {form.watch("video_size_bytes") && (
+                      <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                        {formatFileSize(form.watch("video_size_bytes")!)}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-8 w-8"
+                    onClick={removeMedia}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : null}
             </div>
 
             {/* Submit */}
