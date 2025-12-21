@@ -73,7 +73,7 @@ const BoostMessageCard = ({ boost, formatAmount }: BoostMessageCardProps) => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium">Anonymous Supporter</span>
+            <span className="text-sm font-medium">{boost.from_user_id ? "Supporter" : "Anonymous Supporter"}</span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
               <Heart className="h-3 w-3 fill-current" />
               {formatAmount(boost.amount_cents, boost.currency)}
