@@ -11,6 +11,7 @@ export interface Comment {
   content: string;
   upvotes: number;
   created_at: string;
+  boost_id: string | null;
   author: {
     username: string | null;
     display_name: string | null;

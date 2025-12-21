@@ -29,15 +29,62 @@ serve(async (req) => {
         const boostId = session.metadata?.boost_id;
 
         if (boostId) {
-          const { error } = await supabase
+          // First update status to succeeded
+          const { error: updateError } = await supabase
             .from("post_boosts")
             .update({ status: "succeeded" })
             .eq("id", boostId);
 
-          if (error) {
-            console.error("Failed to update boost status:", error);
+          if (updateError) {
+            console.error("Failed to update boost status:", updateError);
           } else {
             console.log(`Boost ${boostId} marked as succeeded`);
+
+            // Fetch the boost to check if we should create a public comment
+            const { data: boost, error: fetchError } = await supabase
+              .from("post_boosts")
+              .select("id, post_id, from_user_id, message, is_public, amount_cents, currency")
+              .eq("id", boostId)
+              .single();
+
+            if (fetchError) {
+              console.error("Failed to fetch boost:", fetchError);
+            } else if (boost && boost.is_public && boost.message && boost.message.trim()) {
+              // Check if a comment already exists for this boost (idempotency)
+              const { data: existingComment } = await supabase
+                .from("comments")
+                .select("id")
+                .eq("boost_id", boostId)
+                .maybeSingle();
+
+              if (!existingComment) {
+                // Create a public boost comment
+                const amountDisplay = (boost.amount_cents / 100).toFixed(2);
+                const currencyUpper = (boost.currency || 'EUR').toUpperCase();
+                
+                // Use the booster's user_id or a system user
+                const commentUserId = boost.from_user_id;
+                
+                if (commentUserId) {
+                  const { error: commentError } = await supabase
+                    .from("comments")
+                    .insert({
+                      post_id: boost.post_id,
+                      user_id: commentUserId,
+                      content: boost.message,
+                      boost_id: boost.id,
+                    });
+
+                  if (commentError) {
+                    console.error("Failed to create boost comment:", commentError);
+                  } else {
+                    console.log(`Boost comment created for boost ${boostId}`);
+                  }
+                }
+              } else {
+                console.log(`Boost comment already exists for boost ${boostId}`);
+              }
+            }
           }
         }
         break;
