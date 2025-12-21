@@ -107,6 +107,7 @@ export type Database = {
       }
       comments: {
         Row: {
+          boost_id: string | null
           content: string
           created_at: string
           id: string
@@ -122,6 +123,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          boost_id?: string | null
           content: string
           created_at?: string
           id?: string
@@ -137,6 +139,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          boost_id?: string | null
           content?: string
           created_at?: string
           id?: string
@@ -152,6 +155,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "comments_boost_id_fkey"
+            columns: ["boost_id"]
+            isOneToOne: false
+            referencedRelation: "post_boosts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "comments_parent_id_fkey"
             columns: ["parent_id"]

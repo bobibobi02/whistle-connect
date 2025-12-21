@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp, Flag } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp, Flag, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { Comment as CommentType, useCreateComment, useVoteComment, useDeleteComment } from "@/hooks/useComments";
@@ -36,6 +37,7 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
 
   const authorName = comment.author.display_name || comment.author.username || "Anonymous";
   const timeAgo = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true });
+  const isBoostComment = !!comment.boost_id;
 
   const handleReplyClick = () => {
     if (!user) {
@@ -76,18 +78,22 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
   };
 
   const commentContent = (
-    <div className={cn("relative", depth > 0 && "ml-4 sm:ml-6")}>
+    <div className={cn(
+      "relative",
+      depth > 0 && "ml-4 sm:ml-6",
+      isBoostComment && "bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/20 p-2 -ml-2"
+    )}>
       {/* Thread line */}
-      {depth > 0 && (
+      {depth > 0 && !isBoostComment && (
         <div 
           className="absolute left-0 top-0 bottom-0 w-0.5 bg-border hover:bg-primary/50 cursor-pointer transition-colors"
           onClick={() => setIsCollapsed(!isCollapsed)}
         />
       )}
 
-      <div className={cn("pl-3", depth > 0 && "pl-4")}>
+      <div className={cn("pl-3", depth > 0 && !isBoostComment && "pl-4")}>
         {/* Comment header */}
-        <div className="flex items-center gap-2 py-1">
+        <div className="flex items-center gap-2 py-1 flex-wrap">
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="text-muted-foreground hover:text-foreground transition-colors"
@@ -98,15 +104,27 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
               <ChevronUp className="h-4 w-4" />
             )}
           </button>
-          <div className="h-6 w-6 rounded-full bg-gradient-warm flex items-center justify-center text-xs font-semibold text-primary-foreground">
-            {authorName[0].toUpperCase()}
-          </div>
+          {isBoostComment ? (
+            <div className="h-6 w-6 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+              <Rocket className="h-3.5 w-3.5 text-white" />
+            </div>
+          ) : (
+            <div className="h-6 w-6 rounded-full bg-gradient-warm flex items-center justify-center text-xs font-semibold text-primary-foreground">
+              {authorName[0].toUpperCase()}
+            </div>
+          )}
           <Link 
             to={`/u/${comment.author.username || "anonymous"}`}
             className="text-sm font-medium hover:text-primary cursor-pointer transition-colors"
           >
             u/{authorName}
           </Link>
+          {isBoostComment && (
+            <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-xs px-1.5 py-0">
+              <Rocket className="h-3 w-3 mr-1" />
+              Boost
+            </Badge>
+          )}
           <span className="text-xs text-muted-foreground">· {timeAgo}</span>
           {isCollapsed && comment.replies && comment.replies.length > 0 && (
             <span className="text-xs text-muted-foreground">
