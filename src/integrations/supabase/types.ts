@@ -1040,6 +1040,10 @@ export type Database = {
         Returns: boolean
       }
       is_notifications_snoozed: { Args: { _user_id: string }; Returns: boolean }
+      is_post_owner: {
+        Args: { _post_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_user_banned: { Args: { _user_id: string }; Returns: boolean }
       sanitize_for_display: { Args: { text_input: string }; Returns: string }
       send_push_notification: {
