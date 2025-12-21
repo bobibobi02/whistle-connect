@@ -122,7 +122,9 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
           {isBoostComment && (
             <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-xs px-1.5 py-0">
               <Rocket className="h-3 w-3 mr-1" />
-              Boost
+              Boost {comment.boost_amount_cents && comment.boost_currency ? (
+                `€${(comment.boost_amount_cents / 100).toFixed(2)}`
+              ) : ''}
             </Badge>
           )}
           <span className="text-xs text-muted-foreground">· {timeAgo}</span>

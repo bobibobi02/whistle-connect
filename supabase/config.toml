@@ -17,3 +17,12 @@ verify_jwt = false
 
 [functions.moderate-video]
 verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.create-boost-checkout]
+verify_jwt = false
+
+[functions.verify-boost-payment]
+verify_jwt = false
