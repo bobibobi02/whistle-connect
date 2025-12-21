@@ -12,6 +12,8 @@ export interface Comment {
   upvotes: number;
   created_at: string;
   boost_id: string | null;
+  boost_amount_cents?: number | null;
+  boost_currency?: string | null;
   author: {
     username: string | null;
     display_name: string | null;
@@ -36,8 +38,9 @@ export const useComments = (postId: string) => {
       if (error) throw error;
       if (!comments || comments.length === 0) return [];
 
-      // Get unique user IDs
+      // Get unique user IDs and boost IDs
       const userIds = [...new Set(comments.map(c => c.user_id))];
+      const boostIds = comments.filter(c => c.boost_id).map(c => c.boost_id!);
       
       // Fetch profiles
       const { data: profiles } = await supabase
@@ -49,6 +52,19 @@ export const useComments = (postId: string) => {
       profiles?.forEach(p => {
         profileMap[p.user_id] = { username: p.username, display_name: p.display_name, avatar_url: p.avatar_url };
       });
+
+      // Fetch boost amounts if there are any boost comments
+      let boostMap: Record<string, { amount_cents: number; currency: string }> = {};
+      if (boostIds.length > 0) {
+        const { data: boosts } = await supabase
+          .from("post_boosts")
+          .select("id, amount_cents, currency")
+          .in("id", boostIds);
+        
+        boosts?.forEach(b => {
+          boostMap[b.id] = { amount_cents: b.amount_cents, currency: b.currency };
+        });
+      }
 
       // Fetch user votes if logged in
       let voteMap: Record<string, number> = {};
@@ -64,11 +80,16 @@ export const useComments = (postId: string) => {
         });
       }
 
-      const commentsWithData = comments.map(comment => ({
-        ...comment,
-        author: profileMap[comment.user_id] || { username: null, display_name: null, avatar_url: null },
-        user_vote: voteMap[comment.id] || null,
-      }));
+      const commentsWithData = comments.map(comment => {
+        const boostData = comment.boost_id ? boostMap[comment.boost_id] : null;
+        return {
+          ...comment,
+          author: profileMap[comment.user_id] || { username: null, display_name: null, avatar_url: null },
+          user_vote: voteMap[comment.id] || null,
+          boost_amount_cents: boostData?.amount_cents || null,
+          boost_currency: boostData?.currency || null,
+        };
+      });
 
       // Build nested structure
       const commentMap = new Map<string, Comment>();
