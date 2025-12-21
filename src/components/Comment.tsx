@@ -123,7 +123,12 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
             <Badge variant="outline" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 text-xs px-1.5 py-0">
               <Rocket className="h-3 w-3 mr-1" />
               Boost {comment.boost_amount_cents && comment.boost_currency ? (
-                `€${(comment.boost_amount_cents / 100).toFixed(2)}`
+                new Intl.NumberFormat("en-US", {
+                  style: "currency",
+                  currency: comment.boost_currency.toUpperCase(),
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 2,
+                }).format(comment.boost_amount_cents / 100)
               ) : ''}
             </Badge>
           )}
