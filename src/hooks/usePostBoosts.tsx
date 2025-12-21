@@ -88,8 +88,10 @@ export const useVerifyBoostPayment = () => {
     onSuccess: (data, boostId) => {
       if (data.status === "succeeded") {
         console.log("[Boost] Payment verified, invalidating queries");
+        // Invalidate all boost-related queries and comments (boost comments are created on webhook)
         queryClient.invalidateQueries({ queryKey: ["post-boosts"] });
         queryClient.invalidateQueries({ queryKey: ["post-boost-totals"] });
+        queryClient.invalidateQueries({ queryKey: ["comments"] });
         toast.success("Boost confirmed! Thank you for your support.");
       }
     },
