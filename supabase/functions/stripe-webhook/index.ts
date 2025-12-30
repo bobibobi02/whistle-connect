@@ -3,10 +3,10 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
 /**
- * Change this every deploy. Then you can instantly confirm
- * the new version is live by opening the webhook URL in a browser (GET).
+ * Change this every deploy so you can confirm the new version is live
+ * by opening the function URL in a browser (GET).
  */
-const BUILD = "stripe-webhook-async-health-2025-12-30-03";
+const BUILD = "stripe-webhook-async-2025-12-30-03";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -14,7 +14,7 @@ const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Methods": "POST, OPTIONS, GET, HEAD",
 };
 
-const log = (step: string, details?: any) => {
+const log = (step: string, details?: unknown) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[STRIPE-WEBHOOK][${BUILD}] ${step}${detailsStr}`);
 };
@@ -39,7 +39,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // ✅ Health check (NO Stripe signature needed)
+  // ✅ Health check: NO Stripe signature needed
   // Open the webhook URL in a browser and you should see this JSON.
   if (req.method === "GET" || req.method === "HEAD") {
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -48,6 +48,10 @@ serve(async (req) => {
       message: "stripe-webhook alive",
       supabase_host: hostnameFromUrl(supabaseUrl),
     });
+  }
+
+  if (req.method !== "POST") {
+    return json(405, { error: "Method not allowed" });
   }
 
   log("Webhook received", { method: req.method, url: req.url });
@@ -66,12 +70,12 @@ serve(async (req) => {
 
   if (!webhookSecret) {
     log("ERROR: STRIPE_WEBHOOK_SECRET not configured");
-    return json(500, { error: "Webhook secret not configured" });
+    return json(500, { error: "STRIPE_WEBHOOK_SECRET not configured" });
   }
 
   if (!stripeSecretKey) {
     log("ERROR: STRIPE_SECRET_KEY not configured");
-    return json(500, { error: "Stripe secret key not configured" });
+    return json(500, { error: "STRIPE_SECRET_KEY not configured" });
   }
 
   if (!supabaseUrl || !supabaseServiceRole) {
@@ -84,10 +88,10 @@ serve(async (req) => {
 
   try {
     const stripe = new Stripe(stripeSecretKey, {
-      // Keep your chosen version; not related to the WebCrypto bug.
       apiVersion: "2025-08-27.basil",
     });
 
+    // Read raw body for signature verification
     const body = await req.text();
     log("Body received", { length: body.length });
 
@@ -99,9 +103,7 @@ serve(async (req) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown signature error";
       log("ERROR: Signature verification failed", { error: message });
-      return json(400, {
-        error: `Webhook signature verification failed: ${message}`,
-      });
+      return json(400, { error: `Webhook signature verification failed: ${message}` });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRole);
@@ -126,28 +128,21 @@ serve(async (req) => {
           meta,
         });
 
+        // Only act when paid
         if (session.payment_status && session.payment_status !== "paid") {
           log("Payment not paid yet, skipping", {
             sessionId: session.id,
             paymentStatus: session.payment_status,
           });
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            skipped: "not_paid",
-          });
+          return json(200, { received: true, eventType: event.type, skipped: "not_paid" });
         }
 
-        // If metadata is missing, returning 200 prevents retry storms.
         if (!boostId) {
           log("Missing boost_id in metadata, skipping (no retry)");
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            skipped: "missing_boost_id",
-          });
+          return json(200, { received: true, eventType: event.type, skipped: "missing_boost_id" });
         }
 
+        // Idempotency + existence check
         const { data: existingBoost, error: fetchExistingError } = await supabase
           .from("post_boosts")
           .select("id, status")
@@ -155,31 +150,22 @@ serve(async (req) => {
           .maybeSingle();
 
         if (fetchExistingError) {
-          log("ERROR: Failed to fetch existing boost (retry)", {
-            error: fetchExistingError.message,
-          });
+          log("ERROR: Failed to fetch existing boost (retry)", { error: fetchExistingError.message });
           return json(500, { error: "Failed to fetch boost (will retry)" });
         }
 
-        // If your DB row isn't there, don't retry forever.
         if (!existingBoost) {
+          // This is the #1 sign you're updating the WRONG Supabase project.
           log("Boost not found for boostId, skipping (no retry)", { boostId });
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            skipped: "boost_not_found",
-          });
+          return json(200, { received: true, eventType: event.type, skipped: "boost_not_found" });
         }
 
         if (existingBoost.status === "succeeded") {
           log("Boost already succeeded, idempotent", { boostId });
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            idempotent: true,
-          });
+          return json(200, { received: true, eventType: event.type, idempotent: true });
         }
 
+        // Update boost -> succeeded
         const updatePayload: Record<string, any> = {
           status: "succeeded",
           stripe_checkout_session_id: session.id,
@@ -191,31 +177,22 @@ serve(async (req) => {
         const { error: updateError } = await supabase.from("post_boosts").update(updatePayload).eq("id", boostId);
 
         if (updateError) {
-          log("ERROR: Failed to update boost (retry)", {
-            error: updateError.message,
-            boostId,
-          });
+          log("ERROR: Failed to update boost (retry)", { error: updateError.message, boostId });
           return json(500, { error: "Failed to update boost (will retry)" });
         }
 
         log("Boost updated to succeeded", { boostId });
 
-        // Optional public comment creation
+        // Create public comment (idempotent)
         const { data: boost, error: fetchError } = await supabase
           .from("post_boosts")
-          .select("id, post_id, from_user_id, message, is_public, amount_cents, currency")
+          .select("id, post_id, from_user_id, message, is_public")
           .eq("id", boostId)
           .maybeSingle();
 
         if (fetchError) {
-          log("ERROR: Failed to fetch boost for comment creation (no retry)", {
-            error: fetchError.message,
-          });
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            warning: "comment_fetch_failed",
-          });
+          log("ERROR: Failed to fetch boost for comment creation (no retry)", { error: fetchError.message });
+          return json(200, { received: true, eventType: event.type, warning: "comment_fetch_failed" });
         }
 
         if (boost && boost.is_public && boost.message && boost.message.trim()) {
@@ -226,15 +203,8 @@ serve(async (req) => {
             .maybeSingle();
 
           if (existingComment) {
-            log("Boost comment already exists, idempotent", {
-              boostId,
-              commentId: existingComment.id,
-            });
-            return json(200, {
-              received: true,
-              eventType: event.type,
-              idempotentComment: true,
-            });
+            log("Boost comment already exists, idempotent", { boostId, commentId: existingComment.id });
+            return json(200, { received: true, eventType: event.type, idempotentComment: true });
           }
 
           if (boost.from_user_id) {
@@ -246,9 +216,7 @@ serve(async (req) => {
             });
 
             if (commentError) {
-              log("ERROR: Failed to create boost comment (no retry)", {
-                error: commentError.message,
-              });
+              log("ERROR: Failed to create boost comment (no retry)", { error: commentError.message });
             } else {
               log("Boost comment created", { boostId });
             }
@@ -267,11 +235,7 @@ serve(async (req) => {
         log("checkout.session.expired", { sessionId: session.id, boostId });
 
         if (!boostId) {
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            skipped: "missing_boost_id",
-          });
+          return json(200, { received: true, eventType: event.type, skipped: "missing_boost_id" });
         }
 
         const { data: existingBoost, error: fetchErr } = await supabase
@@ -281,40 +245,28 @@ serve(async (req) => {
           .maybeSingle();
 
         if (fetchErr) {
-          log("ERROR: Failed to fetch boost on expired (retry)", {
-            error: fetchErr.message,
-          });
+          log("ERROR: Failed to fetch boost on expired (retry)", { error: fetchErr.message });
           return json(500, { error: "Failed to fetch boost (will retry)" });
         }
 
         if (!existingBoost) {
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            skipped: "boost_not_found",
-          });
+          return json(200, { received: true, eventType: event.type, skipped: "boost_not_found" });
         }
 
         if (existingBoost.status === "succeeded") {
-          return json(200, {
-            received: true,
-            eventType: event.type,
-            idempotent: true,
-          });
+          return json(200, { received: true, eventType: event.type, idempotent: true });
         }
 
         const { error } = await supabase.from("post_boosts").update({ status: "failed" }).eq("id", boostId);
-
         if (error) {
-          log("ERROR: Failed to update boost to failed (retry)", {
-            error: error.message,
-          });
+          log("ERROR: Failed to update boost to failed (retry)", { error: error.message });
           return json(500, { error: "Failed to update boost (will retry)" });
         }
 
         return json(200, { received: true, eventType: event.type });
       }
 
+      // Optional: keep Stripe from retrying forever for unhandled types
       default:
         log("Unhandled event type, returning 200", { eventType: event.type });
         return json(200, { received: true, eventType: event.type });
