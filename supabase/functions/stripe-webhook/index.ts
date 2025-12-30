@@ -9,7 +9,7 @@ const corsHeaders = {
 
 // Helper for consistent logging
 const log = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
@@ -27,25 +27,25 @@ serve(async (req) => {
 
   if (!signature) {
     log("ERROR: Missing stripe-signature header");
-    return new Response(JSON.stringify({ error: "Missing stripe-signature header" }), { 
-      status: 400, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    return new Response(JSON.stringify({ error: "Missing stripe-signature header" }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (!webhookSecret) {
     log("ERROR: STRIPE_WEBHOOK_SECRET not configured");
-    return new Response(JSON.stringify({ error: "Webhook secret not configured" }), { 
-      status: 500, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    return new Response(JSON.stringify({ error: "Webhook secret not configured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   if (!stripeSecretKey) {
     log("ERROR: STRIPE_SECRET_KEY not configured");
-    return new Response(JSON.stringify({ error: "Stripe secret key not configured" }), { 
-      status: 500, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    return new Response(JSON.stringify({ error: "Stripe secret key not configured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
@@ -60,28 +60,30 @@ serve(async (req) => {
 
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      // ✅ Deno/WebCrypto requires the async constructor
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
       log("Signature verified", { eventType: event.type, eventId: event.id });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown signature error";
       log("ERROR: Signature verification failed", { error: message });
-      return new Response(JSON.stringify({ error: `Webhook signature verification failed: ${message}` }), { 
-        status: 400, 
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      return new Response(JSON.stringify({ error: `Webhook signature verification failed: ${message}` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabase = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const boostId = session.metadata?.boost_id;
 
-        log("checkout.session.completed", { sessionId: session.id, boostId, paymentStatus: session.payment_status });
+        log("checkout.session.completed", {
+          sessionId: session.id,
+          boostId,
+          paymentStatus: session.payment_status,
+        });
 
         if (!boostId) {
           log("No boost_id in metadata, skipping");
@@ -136,11 +138,14 @@ serve(async (req) => {
               .maybeSingle();
 
             if (existingComment) {
-              log("Boost comment already exists, skipping (idempotent)", { boostId, commentId: existingComment.id });
+              log("Boost comment already exists, skipping (idempotent)", {
+                boostId,
+                commentId: existingComment.id,
+              });
             } else {
               // Create the public boost comment
               const commentUserId = boost.from_user_id;
-              
+
               if (commentUserId) {
                 const { data: newComment, error: commentError } = await supabase
                   .from("comments")
@@ -163,9 +168,9 @@ serve(async (req) => {
               }
             }
           } else {
-            log("Not creating comment: boost is private or has no message", { 
-              isPublic: boost?.is_public, 
-              hasMessage: !!(boost?.message?.trim()) 
+            log("Not creating comment: boost is private or has no message", {
+              isPublic: boost?.is_public,
+              hasMessage: !!boost?.message?.trim(),
             });
           }
         }
@@ -179,11 +184,8 @@ serve(async (req) => {
         log("checkout.session.expired", { sessionId: session.id, boostId });
 
         if (boostId) {
-          const { error } = await supabase
-            .from("post_boosts")
-            .update({ status: "failed" })
-            .eq("id", boostId);
-          
+          const { error } = await supabase.from("post_boosts").update({ status: "failed" }).eq("id", boostId);
+
           if (error) {
             log("ERROR: Failed to update boost to failed", { error: error.message });
           } else {
@@ -199,7 +201,7 @@ serve(async (req) => {
 
         log("charge.refunded", { chargeId: charge.id, paymentIntentId });
 
-        if (paymentIntentId && typeof paymentIntentId === 'string') {
+        if (paymentIntentId && typeof paymentIntentId === "string") {
           // Find boost by looking up checkout sessions with this payment intent
           // Note: We store checkout session ID, not payment intent, so we need to query differently
           const { data: boosts, error } = await supabase
@@ -229,9 +231,9 @@ serve(async (req) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     log("ERROR: Unexpected error", { error: message });
-    return new Response(JSON.stringify({ error: message }), { 
-      status: 500, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
