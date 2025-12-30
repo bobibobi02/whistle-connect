@@ -6,7 +6,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
  * Change this every deploy. Then you can instantly confirm
  * the new version is live by opening the webhook URL in a browser (GET).
  */
-const BUILD = "stripe-webhook-async-health-2025-12-30-02";
+const BUILD = "stripe-webhook-async-health-2025-12-30-03";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -84,6 +84,7 @@ serve(async (req) => {
 
   try {
     const stripe = new Stripe(stripeSecretKey, {
+      // Keep your chosen version; not related to the WebCrypto bug.
       apiVersion: "2025-08-27.basil",
     });
 
@@ -98,7 +99,9 @@ serve(async (req) => {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown signature error";
       log("ERROR: Signature verification failed", { error: message });
-      return json(400, { error: `Webhook signature verification failed: ${message}` });
+      return json(400, {
+        error: `Webhook signature verification failed: ${message}`,
+      });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceRole);
@@ -128,12 +131,21 @@ serve(async (req) => {
             sessionId: session.id,
             paymentStatus: session.payment_status,
           });
-          return json(200, { received: true, eventType: event.type, skipped: "not_paid" });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            skipped: "not_paid",
+          });
         }
 
+        // If metadata is missing, returning 200 prevents retry storms.
         if (!boostId) {
           log("Missing boost_id in metadata, skipping (no retry)");
-          return json(200, { received: true, eventType: event.type, skipped: "missing_boost_id" });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            skipped: "missing_boost_id",
+          });
         }
 
         const { data: existingBoost, error: fetchExistingError } = await supabase
@@ -143,18 +155,29 @@ serve(async (req) => {
           .maybeSingle();
 
         if (fetchExistingError) {
-          log("ERROR: Failed to fetch existing boost (retry)", { error: fetchExistingError.message });
+          log("ERROR: Failed to fetch existing boost (retry)", {
+            error: fetchExistingError.message,
+          });
           return json(500, { error: "Failed to fetch boost (will retry)" });
         }
 
+        // If your DB row isn't there, don't retry forever.
         if (!existingBoost) {
           log("Boost not found for boostId, skipping (no retry)", { boostId });
-          return json(200, { received: true, eventType: event.type, skipped: "boost_not_found" });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            skipped: "boost_not_found",
+          });
         }
 
         if (existingBoost.status === "succeeded") {
           log("Boost already succeeded, idempotent", { boostId });
-          return json(200, { received: true, eventType: event.type, idempotent: true });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            idempotent: true,
+          });
         }
 
         const updatePayload: Record<string, any> = {
@@ -168,12 +191,16 @@ serve(async (req) => {
         const { error: updateError } = await supabase.from("post_boosts").update(updatePayload).eq("id", boostId);
 
         if (updateError) {
-          log("ERROR: Failed to update boost (retry)", { error: updateError.message, boostId });
+          log("ERROR: Failed to update boost (retry)", {
+            error: updateError.message,
+            boostId,
+          });
           return json(500, { error: "Failed to update boost (will retry)" });
         }
 
         log("Boost updated to succeeded", { boostId });
 
+        // Optional public comment creation
         const { data: boost, error: fetchError } = await supabase
           .from("post_boosts")
           .select("id, post_id, from_user_id, message, is_public, amount_cents, currency")
@@ -181,8 +208,14 @@ serve(async (req) => {
           .maybeSingle();
 
         if (fetchError) {
-          log("ERROR: Failed to fetch boost for comment creation (no retry)", { error: fetchError.message });
-          return json(200, { received: true, eventType: event.type, warning: "comment_fetch_failed" });
+          log("ERROR: Failed to fetch boost for comment creation (no retry)", {
+            error: fetchError.message,
+          });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            warning: "comment_fetch_failed",
+          });
         }
 
         if (boost && boost.is_public && boost.message && boost.message.trim()) {
@@ -193,8 +226,15 @@ serve(async (req) => {
             .maybeSingle();
 
           if (existingComment) {
-            log("Boost comment already exists, idempotent", { boostId, commentId: existingComment.id });
-            return json(200, { received: true, eventType: event.type, idempotentComment: true });
+            log("Boost comment already exists, idempotent", {
+              boostId,
+              commentId: existingComment.id,
+            });
+            return json(200, {
+              received: true,
+              eventType: event.type,
+              idempotentComment: true,
+            });
           }
 
           if (boost.from_user_id) {
@@ -206,7 +246,9 @@ serve(async (req) => {
             });
 
             if (commentError) {
-              log("ERROR: Failed to create boost comment (no retry)", { error: commentError.message });
+              log("ERROR: Failed to create boost comment (no retry)", {
+                error: commentError.message,
+              });
             } else {
               log("Boost comment created", { boostId });
             }
@@ -225,7 +267,11 @@ serve(async (req) => {
         log("checkout.session.expired", { sessionId: session.id, boostId });
 
         if (!boostId) {
-          return json(200, { received: true, eventType: event.type, skipped: "missing_boost_id" });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            skipped: "missing_boost_id",
+          });
         }
 
         const { data: existingBoost, error: fetchErr } = await supabase
@@ -235,21 +281,34 @@ serve(async (req) => {
           .maybeSingle();
 
         if (fetchErr) {
-          log("ERROR: Failed to fetch boost on expired (retry)", { error: fetchErr.message });
+          log("ERROR: Failed to fetch boost on expired (retry)", {
+            error: fetchErr.message,
+          });
           return json(500, { error: "Failed to fetch boost (will retry)" });
         }
 
         if (!existingBoost) {
-          return json(200, { received: true, eventType: event.type, skipped: "boost_not_found" });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            skipped: "boost_not_found",
+          });
         }
 
         if (existingBoost.status === "succeeded") {
-          return json(200, { received: true, eventType: event.type, idempotent: true });
+          return json(200, {
+            received: true,
+            eventType: event.type,
+            idempotent: true,
+          });
         }
 
         const { error } = await supabase.from("post_boosts").update({ status: "failed" }).eq("id", boostId);
+
         if (error) {
-          log("ERROR: Failed to update boost to failed (retry)", { error: error.message });
+          log("ERROR: Failed to update boost to failed (retry)", {
+            error: error.message,
+          });
           return json(500, { error: "Failed to update boost (will retry)" });
         }
 
