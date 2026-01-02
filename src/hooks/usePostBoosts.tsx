@@ -4,11 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 // Debug: Log Supabase URL once on module load
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "unknown";
-console.log("[WhistleConnect] SUPABASE_URL =", supabaseUrl);
-if (!supabaseUrl.includes("sdtuywnesmsanuazqgqx")) {
-  console.warn("[WhistleConnect] WARNING: Expected project ref 'sdtuywnesmsanuazqgqx' but got:", supabaseUrl);
-}
+console.log("[WhistleConnect] SUPABASE_URL =", import.meta.env.VITE_SUPABASE_URL);
 
 // Interface for old post_boosts table (used by BoostModal, etc.)
 export interface PostBoost {
@@ -30,14 +26,14 @@ export interface BoostTotals {
   currency: string;
 }
 
-// Interface for new boosts table (with amount_total in cents)
+// Interface for paid boosts from post_boosts table
 export interface PaidBoost {
   id: string;
   post_id: string;
-  user_id: string | null;
-  amount_total: number; // in cents
+  from_user_id: string | null;
+  amount_cents: number;
   currency: string;
-  is_public?: boolean;
+  is_public: boolean;
   created_at: string;
 }
 
@@ -46,6 +42,7 @@ export interface PaidBoostWithProfile extends PaidBoost {
     display_name: string | null;
     username: string | null;
   } | null;
+  amount_total?: number; // Alias for backward compat with BoostsSection
 }
 
 // Legacy interface for backward compatibility
@@ -78,17 +75,17 @@ export const usePostBoostTotals = (postId: string) => {
   });
 };
 
-// Fetch all paid boosts from the NEW "boosts" table (status = 'paid', amount_total in cents)
+// Fetch all paid boosts from post_boosts table (status = 'paid')
 export const usePaidBoosts = (postId: string) => {
   return useQuery({
     queryKey: ["paid-boosts", postId],
     queryFn: async () => {
-      console.log("[Boost] Fetching paid boosts from 'boosts' table for post:", postId);
+      console.log("[Boost] Fetching paid boosts from 'post_boosts' table for post:", postId);
       
-      // Query the new "boosts" table with correct column names
+      // Query the post_boosts table with correct column names
       const { data, error } = await supabase
-        .from("boosts" as any)
-        .select("id, post_id, user_id, amount_total, currency, is_public, created_at")
+        .from("post_boosts")
+        .select("id, post_id, from_user_id, amount_cents, currency, is_public, created_at")
         .eq("post_id", postId)
         .eq("status", "paid")
         .order("created_at", { ascending: false });
@@ -107,8 +104,8 @@ export const usePaidBoosts = (postId: string) => {
 
       // Fetch profiles for boosts with user IDs (optional - don't break if fails)
       const userIds = data
-        .map((b: any) => b.user_id)
-        .filter((id: any): id is string => id !== null && id !== undefined);
+        .map((b) => b.from_user_id)
+        .filter((id): id is string => id !== null && id !== undefined);
 
       let profilesMap: Record<string, { display_name: string | null; username: string | null }> = {};
       
@@ -130,15 +127,16 @@ export const usePaidBoosts = (postId: string) => {
         }
       }
 
-      const boostsWithProfiles: PaidBoostWithProfile[] = data.map((boost: any) => ({
+      const boostsWithProfiles: PaidBoostWithProfile[] = data.map((boost) => ({
         id: boost.id,
         post_id: boost.post_id,
-        user_id: boost.user_id,
-        amount_total: boost.amount_total,
+        from_user_id: boost.from_user_id,
+        amount_cents: boost.amount_cents,
+        amount_total: boost.amount_cents, // Alias for BoostsSection compatibility
         currency: boost.currency || "eur",
         is_public: boost.is_public ?? true,
         created_at: boost.created_at,
-        profile: boost.user_id ? profilesMap[boost.user_id] || null : null,
+        profile: boost.from_user_id ? profilesMap[boost.from_user_id] || null : null,
       }));
 
       console.log("[Boost] Paid boosts with profiles:", boostsWithProfiles);
