@@ -64,8 +64,13 @@ export const hybridStorage = {
 export const syncStorageFromPreferences = async (): Promise<void> => {
   if (!Capacitor.isNativePlatform()) return;
 
+  // Extract project ref from VITE_SUPABASE_URL dynamically
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+  const projectRefMatch = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/);
+  const projectRef = projectRefMatch?.[1] || 'unknown';
+
   const supabaseKeys = [
-    'sb-fzgtckfxntalxrwanhdn-auth-token',
+    `sb-${projectRef}-auth-token`,
     'supabase.auth.token',
   ];
 
