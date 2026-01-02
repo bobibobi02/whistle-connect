@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
 import { useComments, useCreateComment } from "@/hooks/useComments";
-import { useVerifyBoostPayment, usePostBoostTotals, useSucceededBoosts } from "@/hooks/usePostBoosts";
+import { useVerifyBoostPayment, usePostBoostTotals } from "@/hooks/usePostBoosts";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -51,8 +51,9 @@ const PostDetail = () => {
         toast.success("Thank you for your boost!");
       }
       
-      // Refetch boosts immediately
+      // Refetch boosts immediately (both old and new tables)
       if (postId) {
+        queryClient.invalidateQueries({ queryKey: ["paid-boosts", postId] });
         queryClient.invalidateQueries({ queryKey: ["succeeded-boosts", postId] });
         queryClient.invalidateQueries({ queryKey: ["post-boost-totals", postId] });
         queryClient.invalidateQueries({ queryKey: ["post-boosts", postId] });
