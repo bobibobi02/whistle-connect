@@ -22,6 +22,13 @@ export interface BoostTotals {
   currency: string;
 }
 
+export interface BoostWithProfile extends PostBoost {
+  profile?: {
+    display_name: string | null;
+    username: string | null;
+  } | null;
+}
+
 export const usePostBoostTotals = (postId: string) => {
   return useQuery({
     queryKey: ["post-boost-totals", postId],
@@ -39,6 +46,66 @@ export const usePostBoostTotals = (postId: string) => {
       }
       console.log("[Boost] Totals result:", data);
       return data as BoostTotals | null;
+    },
+    enabled: !!postId,
+  });
+};
+
+// Fetch all succeeded boosts for a post (for displaying above comments)
+export const useSucceededBoosts = (postId: string) => {
+  return useQuery({
+    queryKey: ["succeeded-boosts", postId],
+    queryFn: async () => {
+      console.log("[Boost] Fetching succeeded boosts for post:", postId);
+      const { data, error } = await supabase
+        .from("post_boosts")
+        .select(`
+          id,
+          post_id,
+          from_user_id,
+          amount_cents,
+          currency,
+          is_public,
+          created_at,
+          status
+        `)
+        .eq("post_id", postId)
+        .eq("status", "succeeded")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[Boost] Error fetching succeeded boosts:", error);
+        throw error;
+      }
+
+      // Fetch profiles for boosts with user IDs
+      const userIds = data
+        .map((b) => b.from_user_id)
+        .filter((id): id is string => id !== null);
+
+      let profilesMap: Record<string, { display_name: string | null; username: string | null }> = {};
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("user_id, display_name, username")
+          .in("user_id", userIds);
+
+        if (profiles) {
+          profilesMap = profiles.reduce((acc, p) => {
+            acc[p.user_id] = { display_name: p.display_name, username: p.username };
+            return acc;
+          }, {} as typeof profilesMap);
+        }
+      }
+
+      const boostsWithProfiles: BoostWithProfile[] = data.map((boost) => ({
+        ...boost,
+        message: null, // Not selected
+        profile: boost.from_user_id ? profilesMap[boost.from_user_id] || null : null,
+      }));
+
+      console.log("[Boost] Succeeded boosts result:", boostsWithProfiles);
+      return boostsWithProfiles;
     },
     enabled: !!postId,
   });
