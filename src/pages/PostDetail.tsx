@@ -15,24 +15,27 @@ import BoostBadge from "@/components/BoostBadge";
 import LiveBadge from "@/components/LiveBadge";
 import LiveEmbed from "@/components/LiveEmbed";
 import { BoostMessagesList } from "@/components/BoostMessagesList";
+import { BoostsSection } from "@/components/BoostsSection";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
 import { useComments, useCreateComment } from "@/hooks/useComments";
-import { useVerifyBoostPayment } from "@/hooks/usePostBoosts";
+import { useVerifyBoostPayment, usePostBoostTotals, useSucceededBoosts } from "@/hooks/usePostBoosts";
+import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 
 const PostDetail = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
   const verifyBoost = useVerifyBoostPayment();
 
-  // Handle boost success/cancel feedback - verify payment on success
+  // Handle boost success/cancel feedback - verify payment and refetch boosts
   useEffect(() => {
     const boostStatus = searchParams.get("boost");
     if (boostStatus === "success") {
@@ -47,13 +50,22 @@ const PostDetail = () => {
       } else {
         toast.success("Thank you for your boost!");
       }
-      setSearchParams({});
+      
+      // Refetch boosts immediately
+      if (postId) {
+        queryClient.invalidateQueries({ queryKey: ["succeeded-boosts", postId] });
+        queryClient.invalidateQueries({ queryKey: ["post-boost-totals", postId] });
+        queryClient.invalidateQueries({ queryKey: ["post-boosts", postId] });
+      }
+      
+      // Remove the query param via replaceState
+      window.history.replaceState({}, "", window.location.pathname);
     } else if (boostStatus === "cancelled") {
       sessionStorage.removeItem("pending_boost_id");
       toast.info("Boost cancelled");
-      setSearchParams({});
+      window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, postId, queryClient]);
 
   const { data: post, isLoading: postLoading } = usePost(postId || "");
   const { data: comments, isLoading: commentsLoading } = useComments(postId || "");
@@ -283,6 +295,9 @@ const PostDetail = () => {
                     </Link>
                   )}
                 </div>
+
+                {/* Boosts Section - Above Comments */}
+                <BoostsSection postId={post.id} />
 
                 {/* Comments section */}
                 <div className="bg-card rounded-xl shadow-card p-4 mt-4 animate-fade-in" style={{ animationDelay: "100ms" }}>
