@@ -3,6 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
+// Debug: Log Supabase URL once on module load
+const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL || "unknown";
+console.log("[Boost] Supabase URL host:", supabaseUrl);
+
+// Interface for old post_boosts table (used by BoostModal, etc.)
 export interface PostBoost {
   id: string;
   post_id: string;
@@ -22,6 +27,25 @@ export interface BoostTotals {
   currency: string;
 }
 
+// Interface for new boosts table (with amount_total in cents)
+export interface PaidBoost {
+  id: string;
+  post_id: string;
+  user_id: string | null;
+  amount_total: number; // in cents
+  currency: string;
+  is_public?: boolean;
+  created_at: string;
+}
+
+export interface PaidBoostWithProfile extends PaidBoost {
+  profile?: {
+    display_name: string | null;
+    username: string | null;
+  } | null;
+}
+
+// Legacy interface for backward compatibility
 export interface BoostWithProfile extends PostBoost {
   profile?: {
     display_name: string | null;
@@ -51,12 +75,82 @@ export const usePostBoostTotals = (postId: string) => {
   });
 };
 
-// Fetch all succeeded boosts for a post (for displaying above comments)
+// Fetch all paid boosts from the NEW "boosts" table (status = 'paid', amount_total in cents)
+export const usePaidBoosts = (postId: string) => {
+  return useQuery({
+    queryKey: ["paid-boosts", postId],
+    queryFn: async () => {
+      console.log("[Boost] Fetching paid boosts from 'boosts' table for post:", postId);
+      
+      // Query the new "boosts" table with correct column names
+      const { data, error } = await supabase
+        .from("boosts" as any)
+        .select("id, post_id, user_id, amount_total, currency, is_public, created_at")
+        .eq("post_id", postId)
+        .eq("status", "paid")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[Boost] Error fetching paid boosts:", error);
+        // Don't throw - return empty array so UI doesn't break
+        return [] as PaidBoostWithProfile[];
+      }
+
+      console.log("[Boost] Raw paid boosts data:", data);
+
+      if (!data || data.length === 0) {
+        return [] as PaidBoostWithProfile[];
+      }
+
+      // Fetch profiles for boosts with user IDs (optional - don't break if fails)
+      const userIds = data
+        .map((b: any) => b.user_id)
+        .filter((id: any): id is string => id !== null && id !== undefined);
+
+      let profilesMap: Record<string, { display_name: string | null; username: string | null }> = {};
+      
+      if (userIds.length > 0) {
+        try {
+          const { data: profiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("user_id, display_name, username")
+            .in("user_id", userIds);
+
+          if (!profilesError && profiles) {
+            profilesMap = profiles.reduce((acc, p) => {
+              acc[p.user_id] = { display_name: p.display_name, username: p.username };
+              return acc;
+            }, {} as typeof profilesMap);
+          }
+        } catch (e) {
+          console.warn("[Boost] Could not fetch profiles (RLS/guest), showing as Anonymous");
+        }
+      }
+
+      const boostsWithProfiles: PaidBoostWithProfile[] = data.map((boost: any) => ({
+        id: boost.id,
+        post_id: boost.post_id,
+        user_id: boost.user_id,
+        amount_total: boost.amount_total,
+        currency: boost.currency || "eur",
+        is_public: boost.is_public ?? true,
+        created_at: boost.created_at,
+        profile: boost.user_id ? profilesMap[boost.user_id] || null : null,
+      }));
+
+      console.log("[Boost] Paid boosts with profiles:", boostsWithProfiles);
+      return boostsWithProfiles;
+    },
+    enabled: !!postId,
+  });
+};
+
+// Legacy: Fetch succeeded boosts from old post_boosts table (kept for backward compatibility)
 export const useSucceededBoosts = (postId: string) => {
   return useQuery({
     queryKey: ["succeeded-boosts", postId],
     queryFn: async () => {
-      console.log("[Boost] Fetching succeeded boosts for post:", postId);
+      console.log("[Boost] Fetching succeeded boosts from 'post_boosts' table for post:", postId);
       const { data, error } = await supabase
         .from("post_boosts")
         .select(`
@@ -75,7 +169,7 @@ export const useSucceededBoosts = (postId: string) => {
 
       if (error) {
         console.error("[Boost] Error fetching succeeded boosts:", error);
-        throw error;
+        return [] as BoostWithProfile[];
       }
 
       // Fetch profiles for boosts with user IDs

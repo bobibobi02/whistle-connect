@@ -1,4 +1,4 @@
-import { useSucceededBoosts, BoostWithProfile } from "@/hooks/usePostBoosts";
+import { usePaidBoosts, PaidBoostWithProfile } from "@/hooks/usePostBoosts";
 import { Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -7,9 +7,10 @@ interface BoostsSectionProps {
 }
 
 export const BoostsSection = ({ postId }: BoostsSectionProps) => {
-  const { data: boosts, isLoading } = useSucceededBoosts(postId);
+  const { data: boosts, isLoading, error } = usePaidBoosts(postId);
 
-  if (isLoading || !boosts?.length) {
+  // Don't render if loading, error, or no boosts
+  if (isLoading || error || !boosts?.length) {
     return null;
   }
 
@@ -29,16 +30,22 @@ export const BoostsSection = ({ postId }: BoostsSectionProps) => {
 };
 
 interface BoostRowProps {
-  boost: BoostWithProfile;
+  boost: PaidBoostWithProfile;
 }
 
 const BoostRow = ({ boost }: BoostRowProps) => {
-  const amount = (boost.amount_cents / 100).toFixed(2);
-  const currencySymbol = boost.currency.toUpperCase() === "EUR" ? "€" : "$";
+  // amount_total is in cents, convert to display format
+  const amount = (boost.amount_total / 100).toFixed(2);
+  
+  // Determine currency symbol
+  const currencyUpper = (boost.currency || "eur").toUpperCase();
+  const currencySymbol = currencyUpper === "EUR" ? "€" : currencyUpper === "USD" ? "$" : currencyUpper;
+  
   const timeAgo = formatDistanceToNow(new Date(boost.created_at), { addSuffix: true });
   
   // Show name only if boost is public and has profile
-  const boosterName = boost.is_public && boost.profile
+  const isPublic = boost.is_public !== false; // default to true if undefined
+  const boosterName = isPublic && boost.profile
     ? boost.profile.display_name || boost.profile.username || "Anonymous"
     : "Anonymous";
 
