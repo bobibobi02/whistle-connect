@@ -4,8 +4,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
 // Debug: Log Supabase URL once on module load
-const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL || "unknown";
-console.log("[Boost] Supabase URL host:", supabaseUrl);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "unknown";
+console.log("[WhistleConnect] SUPABASE_URL =", supabaseUrl);
+if (!supabaseUrl.includes("sdtuywnesmsanuazqgqx")) {
+  console.warn("[WhistleConnect] WARNING: Expected project ref 'sdtuywnesmsanuazqgqx' but got:", supabaseUrl);
+}
 
 // Interface for old post_boosts table (used by BoostModal, etc.)
 export interface PostBoost {
