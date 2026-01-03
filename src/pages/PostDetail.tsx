@@ -73,6 +73,34 @@ const PostDetail = () => {
   const votePost = useVotePost();
   const createComment = useCreateComment();
 
+  // Helper to count total comments including nested replies
+  const countTotalComments = (commentList: typeof comments): number => {
+    if (!commentList) return 0;
+    let count = 0;
+    const countRecursive = (items: typeof comments) => {
+      if (!items) return;
+      for (const item of items) {
+        count++;
+        if (item.replies && item.replies.length > 0) {
+          countRecursive(item.replies);
+        }
+      }
+    };
+    countRecursive(commentList);
+    return count;
+  };
+
+  // Use actual comments array length as source of truth for count
+  const totalCommentCount = countTotalComments(comments);
+
+  // Debug: Log count comparison
+  console.log("[PostDetail] Comment count debug:", {
+    postId,
+    dbCount: post?.comment_count,
+    actualCount: totalCommentCount,
+    rootCommentsLength: comments?.length,
+  });
+
   const handleVote = (type: 1 | -1) => {
     if (!user) {
       navigate("/auth");
@@ -253,7 +281,7 @@ const PostDetail = () => {
 
                       <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
                         <MessageCircle className="h-4 w-4" />
-                        <span className="text-sm">{post.comment_count}</span>
+                        <span className="text-sm">{commentsLoading ? post.comment_count : totalCommentCount}</span>
                       </Button>
 
                       <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
@@ -302,7 +330,7 @@ const PostDetail = () => {
 
                 {/* Comments section */}
                 <div className="bg-card rounded-xl shadow-card p-4 mt-4 animate-fade-in" style={{ animationDelay: "100ms" }}>
-                  <h2 className="font-semibold mb-4">Comments ({post.comment_count.toLocaleString()})</h2>
+                  <h2 className="font-semibold mb-4">Comments ({commentsLoading ? post.comment_count.toLocaleString() : totalCommentCount.toLocaleString()})</h2>
                   {commentsLoading ? (
                     <CommentSkeleton count={4} />
                   ) : comments && comments.length > 0 ? (
