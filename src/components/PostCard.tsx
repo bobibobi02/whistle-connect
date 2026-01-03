@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useVotePost, useDeletePost, Post } from "@/hooks/usePosts";
 import { useBookmarks, useToggleBookmark } from "@/hooks/useBookmarks";
 import { useCommentCount } from "@/hooks/useComments";
+import { useNsfwSettings } from "@/hooks/useNsfwSettings";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import ReportDialog from "@/components/ReportDialog";
@@ -18,6 +19,7 @@ import BoostModal from "@/components/BoostModal";
 import BoostBadge from "@/components/BoostBadge";
 import LiveBadge from "@/components/LiveBadge";
 import LiveEmbed from "@/components/LiveEmbed";
+import { NsfwBadge } from "@/components/NsfwBadge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -201,9 +203,12 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
 
         {/* Content */}
         <Link to={`/post/${post.id}`}>
-          <h2 className="text-lg font-semibold mb-2 hover:text-primary cursor-pointer transition-colors leading-snug">
-            {post.title}
-          </h2>
+          <div className="flex items-start gap-2 mb-2">
+            <h2 className="text-lg font-semibold hover:text-primary cursor-pointer transition-colors leading-snug flex-1">
+              {post.title}
+            </h2>
+            {(post as any).is_nsfw && <NsfwBadge />}
+          </div>
         </Link>
         
         {post.content && (

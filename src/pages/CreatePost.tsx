@@ -71,6 +71,7 @@ const CreatePost = () => {
   const [compressionPreset, setCompressionPreset] = useState<CompressionPreset>('medium');
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
+  const [isNsfw, setIsNsfw] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   
@@ -221,6 +222,7 @@ const CreatePost = () => {
         live_url: data.live_url || undefined,
         community: data.community,
         community_icon: community?.icon,
+        is_nsfw: isNsfw,
       },
       {
         onSuccess: () => navigate("/"),
@@ -321,6 +323,26 @@ const CreatePost = () => {
               {form.formState.errors.content && (
                 <p className="text-sm text-destructive">{form.formState.errors.content.message}</p>
               )}
+            </div>
+
+            {/* NSFW Toggle */}
+            <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-secondary/30">
+              <div className="flex items-center gap-3">
+                <div className="text-lg">🔞</div>
+                <div>
+                  <Label htmlFor="nsfw-toggle" className="text-base font-medium cursor-pointer">
+                    Mark as NSFW
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Content for users 18+ only
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="nsfw-toggle"
+                checked={isNsfw}
+                onCheckedChange={setIsNsfw}
+              />
             </div>
 
             {/* Media Upload */}
