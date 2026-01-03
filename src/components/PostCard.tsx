@@ -42,10 +42,11 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
   const isMobile = useIsMobile();
   
   // Fetch actual comments for accurate count
-  const { data: comments } = useComments(post.id);
+  const { data: comments, isLoading: commentsLoading } = useComments(post.id);
   const actualCommentCount = countTotalComments(comments);
   // Use actual count if comments loaded, otherwise fall back to post.comment_count
   const displayCommentCount = comments !== undefined ? actualCommentCount : post.comment_count;
+  const isCommentCountLoading = commentsLoading && comments === undefined;
 
   const isBookmarked = bookmarks?.includes(post.id) ?? false;
   const isOwner = user?.id === post.user_id;
@@ -279,7 +280,13 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
           <Link to={`/post/${post.id}`}>
             <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground hover:text-foreground rounded-full">
               <MessageCircle className="h-4 w-4" />
-              <span className="text-sm">{displayCommentCount}</span>
+              <span className="text-sm min-w-[1rem]">
+                {isCommentCountLoading ? (
+                  <span className="inline-block w-3 h-3 rounded-full bg-muted-foreground/30 animate-pulse" />
+                ) : (
+                  displayCommentCount
+                )}
+              </span>
               {post.is_locked && <Lock className="h-3 w-3 ml-1 text-orange-500" />}
             </Button>
           </Link>
