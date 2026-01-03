@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Shield, Eye, Volume2 } from "lucide-react";
+import { ArrowLeft, Bell, Shield, Eye, Volume2, Palette } from "lucide-react";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { NsfwToggle } from "@/components/NsfwToggle";
 import { VideoAutoplayToggle } from "@/components/VideoAutoplayToggle";
+import { ThemeSelector } from "@/components/ThemeSelector";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 
 const Settings = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -35,7 +36,7 @@ const Settings = () => {
       <Header onMenuClick={() => setIsMobileNavOpen(true)} />
       <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
 
-      <main className="container max-w-2xl mx-auto px-4 py-6">
+      <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
         <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
           <span className="text-sm">Back</span>
@@ -44,6 +45,38 @@ const Settings = () => {
         <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
         <div className="space-y-6">
+          {/* Appearance */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5" />
+                Appearance
+              </CardTitle>
+              <CardDescription>
+                Choose your preferred theme
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ThemeSelector />
+            </CardContent>
+          </Card>
+
+          {/* Notifications */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notifications
+              </CardTitle>
+              <CardDescription>
+                Manage how you receive notifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <NotificationPreferences />
+            </CardContent>
+          </Card>
+
           {/* Content Preferences */}
           <Card>
             <CardHeader>
@@ -76,7 +109,7 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Privacy & Safety Placeholder */}
+          {/* Privacy & Safety */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
