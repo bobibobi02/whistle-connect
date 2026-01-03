@@ -76,13 +76,6 @@ const PostDetail = () => {
   // Use actual comments array length as source of truth for count
   const totalCommentCount = countTotalComments(comments);
 
-  // Debug: Log count comparison
-  console.log("[PostDetail] Comment count debug:", {
-    postId,
-    dbCount: post?.comment_count,
-    actualCount: totalCommentCount,
-    rootCommentsLength: comments?.length,
-  });
 
   const handleVote = (type: 1 | -1) => {
     if (!user) {
