@@ -24,6 +24,7 @@ import NotificationCenter from "./pages/NotificationCenter";
 import Moderation from "./pages/Moderation";
 import ModQueue from "./pages/ModQueue";
 import AdminSettings from "./pages/AdminSettings";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +49,7 @@ const AnimatedRoutes = () => {
         <Route path="/moderation" element={<PageTransition><Moderation /></PageTransition>} />
         <Route path="/mod-queue" element={<PageTransition><ModQueue /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><AdminSettings /></PageTransition>} />
+        <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
         <Route path="/c/:communityName" element={<PageTransition><Community /></PageTransition>} />
         <Route path="/post/:postId" element={<PageTransition><PostDetail /></PageTransition>} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
