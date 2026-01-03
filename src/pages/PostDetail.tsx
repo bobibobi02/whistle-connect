@@ -19,7 +19,7 @@ import { BoostsSection } from "@/components/BoostsSection";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
-import { useComments, useCreateComment } from "@/hooks/useComments";
+import { useComments, useCreateComment, countTotalComments } from "@/hooks/useComments";
 import { useVerifyBoostPayment, usePostBoostTotals } from "@/hooks/usePostBoosts";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -72,23 +72,6 @@ const PostDetail = () => {
   const { data: comments, isLoading: commentsLoading } = useComments(postId || "");
   const votePost = useVotePost();
   const createComment = useCreateComment();
-
-  // Helper to count total comments including nested replies
-  const countTotalComments = (commentList: typeof comments): number => {
-    if (!commentList) return 0;
-    let count = 0;
-    const countRecursive = (items: typeof comments) => {
-      if (!items) return;
-      for (const item of items) {
-        count++;
-        if (item.replies && item.replies.length > 0) {
-          countRecursive(item.replies);
-        }
-      }
-    };
-    countRecursive(commentList);
-    return count;
-  };
 
   // Use actual comments array length as source of truth for count
   const totalCommentCount = countTotalComments(comments);

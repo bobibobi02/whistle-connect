@@ -3,6 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper to count total comments including nested replies
+export const countTotalComments = (commentList: Comment[] | undefined): number => {
+  if (!commentList) return 0;
+  let count = 0;
+  const countRecursive = (items: Comment[]) => {
+    for (const item of items) {
+      count++;
+      if (item.replies && item.replies.length > 0) {
+        countRecursive(item.replies);
+      }
+    }
+  };
+  countRecursive(commentList);
+  return count;
+};
+
 export interface Comment {
   id: string;
   post_id: string;
@@ -123,6 +139,7 @@ export const useComments = (postId: string) => {
 export const useCreateComment = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async ({
@@ -134,12 +151,12 @@ export const useCreateComment = () => {
       content: string;
       parentId?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) throw new Error("Not authenticated");
 
       // Moderate content before posting
       const { data: moderationResult } = await supabase.functions.invoke('moderate-content', {
-        body: { content, type: 'comment', userId: user.id }
+        body: { content, type: 'comment', userId: authUser.id }
       });
 
       if (moderationResult?.allowed === false) {
@@ -150,7 +167,7 @@ export const useCreateComment = () => {
         .from("comments")
         .insert({
           post_id: postId,
-          user_id: user.id,
+          user_id: authUser.id,
           content,
           parent_id: parentId || null,
         })
@@ -158,20 +175,77 @@ export const useCreateComment = () => {
         .single();
 
       if (error) throw error;
-      return data;
+      return { ...data, postId };
     },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["comments", variables.postId] });
-      queryClient.invalidateQueries({ queryKey: ["posts"] });
-      queryClient.invalidateQueries({ queryKey: ["post"] });
-      toast({ title: "Comment posted!" });
+    // Optimistic update: immediately add the comment to the cache
+    onMutate: async (variables) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["comments", variables.postId] });
+      
+      // Snapshot the previous value
+      const previousComments = queryClient.getQueryData<Comment[]>(["comments", variables.postId, user?.id]);
+      
+      // Optimistically update the cache with a temporary comment
+      if (previousComments && user) {
+        const optimisticComment: Comment = {
+          id: `temp-${Date.now()}`,
+          post_id: variables.postId,
+          user_id: user.id,
+          parent_id: variables.parentId || null,
+          content: variables.content,
+          upvotes: 0,
+          created_at: new Date().toISOString(),
+          boost_id: null,
+          author: { username: null, display_name: "You", avatar_url: null },
+          user_vote: null,
+          replies: [],
+        };
+
+        if (variables.parentId) {
+          // Add as a reply to parent
+          const addReplyToParent = (comments: Comment[]): Comment[] => {
+            return comments.map(c => {
+              if (c.id === variables.parentId) {
+                return { ...c, replies: [...(c.replies || []), optimisticComment] };
+              }
+              if (c.replies && c.replies.length > 0) {
+                return { ...c, replies: addReplyToParent(c.replies) };
+              }
+              return c;
+            });
+          };
+          queryClient.setQueryData<Comment[]>(
+            ["comments", variables.postId, user?.id],
+            addReplyToParent(previousComments)
+          );
+        } else {
+          // Add as root comment
+          queryClient.setQueryData<Comment[]>(
+            ["comments", variables.postId, user?.id],
+            [...previousComments, optimisticComment]
+          );
+        }
+      }
+
+      return { previousComments };
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context?.previousComments) {
+        queryClient.setQueryData(["comments", variables.postId, user?.id], context.previousComments);
+      }
       toast({
         title: "Error posting comment",
         description: error.message,
         variant: "destructive",
       });
+    },
+    onSuccess: (data) => {
+      // Refetch to get the real data with proper IDs
+      queryClient.invalidateQueries({ queryKey: ["comments", data.postId] });
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["post", data.postId] });
+      toast({ title: "Comment posted!" });
     },
   });
 };
