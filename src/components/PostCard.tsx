@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { useVotePost, useDeletePost, Post } from "@/hooks/usePosts";
 import { useBookmarks, useToggleBookmark } from "@/hooks/useBookmarks";
-import { useComments, countTotalComments } from "@/hooks/useComments";
+import { useCommentCount } from "@/hooks/useComments";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import ReportDialog from "@/components/ReportDialog";
@@ -41,12 +41,10 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
   const toggleBookmark = useToggleBookmark();
   const isMobile = useIsMobile();
   
-  // Fetch actual comments for accurate count
-  const { data: comments, isLoading: commentsLoading } = useComments(post.id);
-  const actualCommentCount = countTotalComments(comments);
-  // Use actual count if comments loaded, otherwise fall back to post.comment_count
-  const displayCommentCount = comments !== undefined ? actualCommentCount : post.comment_count;
-  const isCommentCountLoading = commentsLoading && comments === undefined;
+  // Use lightweight comment count hook with real-time updates
+  const { data: commentCount, isLoading: isCommentCountLoading } = useCommentCount(post.id);
+  // Use real-time count if available, otherwise fall back to post.comment_count
+  const displayCommentCount = commentCount ?? post.comment_count;
 
   const isBookmarked = bookmarks?.includes(post.id) ?? false;
   const isOwner = user?.id === post.user_id;
