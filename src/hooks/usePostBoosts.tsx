@@ -72,22 +72,20 @@ export const usePostBoostTotals = (postId: string) => {
 };
 
 // Fetch all successful boosts from post_boosts table
-// NOTE: In this project, successful Stripe payments are stored as status = 'succeeded' (not 'paid').
-// We include both for compatibility.
+// NOTE: In this app DB, successful Stripe payments are stored as status='succeeded' (older code used 'paid').
+// We include both to be safe.
 export const usePaidBoosts = (postId: string) => {
   return useQuery({
     queryKey: ["paid-boosts", postId],
     queryFn: async () => {
       console.log("[Boost] Fetching successful boosts from 'post_boosts' table for post:", postId);
 
-      const SUCCESS_STATUSES = ["succeeded", "paid"] as const;
-
       // Query the post_boosts table with correct column names
       const { data, error } = await supabase
         .from("post_boosts")
         .select("id, post_id, from_user_id, amount_cents, currency, is_public, created_at")
         .eq("post_id", postId)
-        .in("status", [...SUCCESS_STATUSES])
+        .in("status", ["succeeded", "paid"])
         .order("created_at", { ascending: false });
 
       if (error) {
