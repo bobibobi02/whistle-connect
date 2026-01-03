@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp, Flag, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,10 @@ import {
 interface CommentProps {
   comment: CommentType;
   depth?: number;
+  isNew?: boolean; // For real-time highlight animation
 }
 
-const Comment = ({ comment, depth = 0 }: CommentProps) => {
+const Comment = ({ comment, depth = 0, isNew = false }: CommentProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const createComment = useCreateComment();
@@ -34,6 +35,16 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [replyText, setReplyText] = useState("");
+  const [showHighlight, setShowHighlight] = useState(isNew);
+
+  // Auto-fade the highlight after 3 seconds
+  useEffect(() => {
+    if (isNew) {
+      setShowHighlight(true);
+      const timer = setTimeout(() => setShowHighlight(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isNew]);
 
   const authorName = comment.author.display_name || comment.author.username || "Anonymous";
   const timeAgo = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true });
@@ -79,9 +90,10 @@ const Comment = ({ comment, depth = 0 }: CommentProps) => {
 
   const commentContent = (
     <div className={cn(
-      "relative",
+      "relative transition-all duration-500",
       depth > 0 && "ml-4 sm:ml-6",
-      isBoostComment && "bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/20 p-2 -ml-2"
+      isBoostComment && "bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/20 p-2 -ml-2",
+      showHighlight && !isBoostComment && "bg-primary/10 rounded-lg ring-2 ring-primary/30 animate-pulse"
     )}>
       {/* Thread line */}
       {depth > 0 && !isBoostComment && (
