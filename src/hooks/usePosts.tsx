@@ -460,6 +460,7 @@ export const useCreatePost = () => {
       live_url,
       community,
       community_icon,
+      is_nsfw,
     }: {
       title: string;
       content?: string;
@@ -472,6 +473,7 @@ export const useCreatePost = () => {
       live_url?: string;
       community?: string;
       community_icon?: string;
+      is_nsfw?: boolean;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -501,6 +503,7 @@ export const useCreatePost = () => {
           live_url: live_url || null,
           community: community || "general",
           community_icon: community_icon || "💬",
+          is_nsfw: is_nsfw || false,
         })
         .select()
         .single();

@@ -47,8 +47,9 @@ interface TranscodeResult {
 }
 
 const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/mov'];
-const DEFAULT_MAX_SIZE_MB = 500;
+const DEFAULT_MAX_SIZE_MB = 2000; // 2GB for long videos
 const DEFAULT_FRAME_SAMPLE_COUNT = 5;
+const MAX_DURATION_SECONDS = 3600; // 1 hour max
 
 export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
   const { 
@@ -80,6 +81,14 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
 
     return null;
   }, [maxSizeMB]);
+
+  const validateDuration = useCallback((durationSeconds: number): string | null => {
+    if (durationSeconds > MAX_DURATION_SECONDS) {
+      const maxMinutes = Math.floor(MAX_DURATION_SECONDS / 60);
+      return `Video is too long. Maximum duration is ${maxMinutes} minutes.`;
+    }
+    return null;
+  }, []);
 
   const getVideoDuration = useCallback((file: File): Promise<number | undefined> => {
     return new Promise((resolve) => {
@@ -337,10 +346,20 @@ export const useVideoUpload = (options: UseVideoUploadOptions = {}) => {
     setModerationResult(null);
 
     try {
-      // Get video duration
+      // Get video duration and validate
       setUploadStage('Analyzing video...');
       const duration = await getVideoDuration(file);
       setProgress(5);
+
+      // Validate duration
+      if (duration) {
+        const durationError = validateDuration(duration);
+        if (durationError) {
+          toast.error(durationError);
+          setIsUploading(false);
+          return null;
+        }
+      }
 
       // Generate thumbnail
       setUploadStage('Generating thumbnail...');

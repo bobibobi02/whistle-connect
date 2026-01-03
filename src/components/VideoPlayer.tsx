@@ -24,6 +24,9 @@ interface VideoPlayerProps {
   onPlay?: () => void;
   onPause?: () => void;
   onEnded?: () => void;
+  onTimeUpdate?: (currentTime: number, duration: number) => void;
+  onProgress?: (progress: number) => void; // 0-1 progress for preload detection
+  postId?: string; // For event tracking
 }
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -41,6 +44,9 @@ export const VideoPlayer = ({
   onPlay,
   onPause,
   onEnded,
+  onTimeUpdate,
+  onProgress,
+  postId,
 }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -155,6 +161,12 @@ export const VideoPlayer = ({
 
     const handleTimeUpdate = () => {
       setCurrentTime(video.currentTime);
+      if (video.duration > 0) {
+        onTimeUpdate?.(video.currentTime, video.duration);
+        // Track progress for autoplay preload trigger
+        const progress = video.currentTime / video.duration;
+        onProgress?.(progress);
+      }
     };
 
     const handleDurationChange = () => {

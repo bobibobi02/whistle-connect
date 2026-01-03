@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,16 @@ import LiveBadge from "@/components/LiveBadge";
 import LiveEmbed from "@/components/LiveEmbed";
 import { BoostMessagesList } from "@/components/BoostMessagesList";
 import { BoostsSection } from "@/components/BoostsSection";
+import { VideoAutoplayToggle } from "@/components/VideoAutoplayToggle";
+import { VideoNavigationControls } from "@/components/VideoNavigationControls";
+import { NsfwBadge } from "@/components/NsfwBadge";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { usePost, useVotePost } from "@/hooks/usePosts";
 import { useComments, useCreateComment, countTotalComments } from "@/hooks/useComments";
 import { useVerifyBoostPayment, usePostBoostTotals } from "@/hooks/usePostBoosts";
+import { useVideoQueue } from "@/hooks/useVideoQueue";
+import { useFeedEvents } from "@/hooks/useFeedEvents";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
@@ -33,7 +38,11 @@ const PostDetail = () => {
   const { user } = useAuth();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [manuallyPaused, setManuallyPaused] = useState(false);
+  const videoStartTimeRef = useRef<number | null>(null);
   const verifyBoost = useVerifyBoostPayment();
+  const { autoplayEnabled, goToNextVideo, getNextVideoId } = useVideoQueue();
+  const { trackEvent, trackImmediately } = useFeedEvents();
 
   // Handle boost success/cancel feedback - verify payment and refetch boosts
   useEffect(() => {
@@ -122,6 +131,57 @@ const PostDetail = () => {
 
   // Helper to check if a comment is new
   const isNewComment = (commentId: string): boolean => newCommentIds.has(commentId);
+
+  // Video event handlers
+  const handleVideoPlay = useCallback(() => {
+    setManuallyPaused(false);
+    videoStartTimeRef.current = Date.now();
+    if (postId) {
+      trackEvent({ postId, eventType: "view_start" });
+    }
+  }, [postId, trackEvent]);
+
+  const handleVideoPause = useCallback(() => {
+    setManuallyPaused(true);
+    // Track watch time on pause
+    if (postId && videoStartTimeRef.current) {
+      const watchTimeMs = Date.now() - videoStartTimeRef.current;
+      trackEvent({
+        postId,
+        eventType: "watch_time",
+        watchTimeMs,
+        videoDurationMs: post?.video_duration_seconds ? post.video_duration_seconds * 1000 : undefined,
+      });
+      videoStartTimeRef.current = null;
+    }
+  }, [postId, post?.video_duration_seconds, trackEvent]);
+
+  const handleVideoEnded = useCallback(() => {
+    // Track completion
+    if (postId) {
+      trackImmediately({ postId, eventType: "view_complete" });
+    }
+
+    // Auto-advance to next video if enabled and not manually paused
+    if (autoplayEnabled && !manuallyPaused) {
+      const nextId = goToNextVideo();
+      if (!nextId) {
+        toast.info("No more videos in queue");
+      }
+    }
+  }, [postId, autoplayEnabled, manuallyPaused, goToNextVideo, trackImmediately]);
+
+  const handleVideoProgress = useCallback((progress: number) => {
+    // Preload next video when we're 80% through
+    if (progress > 0.8 && autoplayEnabled) {
+      const nextId = getNextVideoId();
+      if (nextId) {
+        // Prefetch next post data
+        queryClient.prefetchQuery({ queryKey: ["post", nextId] });
+      }
+    }
+  }, [autoplayEnabled, getNextVideoId, queryClient]);
+
   const handleVote = (type: 1 | -1) => {
     if (!user) {
       navigate("/auth");
@@ -130,6 +190,10 @@ const PostDetail = () => {
     if (!post) return;
     const newVote = post.user_vote === type ? null : type;
     votePost.mutate({ postId: post.id, voteType: newVote });
+    // Track like event
+    if (type === 1 && post.user_vote !== 1) {
+      trackEvent({ postId: post.id, eventType: "like" });
+    }
   };
 
   const handleSubmitComment = () => {
@@ -141,7 +205,10 @@ const PostDetail = () => {
     createComment.mutate(
       { postId, content: commentText },
       {
-        onSuccess: () => setCommentText(""),
+        onSuccess: () => {
+          setCommentText("");
+          trackEvent({ postId, eventType: "comment" });
+        },
       }
     );
   };
@@ -229,9 +296,12 @@ const PostDetail = () => {
                     </div>
 
                     {/* Title & Content */}
-                    <h1 className="text-xl sm:text-2xl font-bold mb-4 leading-tight">
-                      {post.title}
-                    </h1>
+                    <div className="flex items-start gap-2 mb-4">
+                      <h1 className="text-xl sm:text-2xl font-bold leading-tight flex-1">
+                        {post.title}
+                      </h1>
+                      {(post as any).is_nsfw && <NsfwBadge size="md" />}
+                    </div>
                     
                     {post.content && (
                       <div className="prose prose-sm max-w-none text-foreground/90 mb-6">
@@ -259,13 +329,24 @@ const PostDetail = () => {
                     )}
 
                     {post.video_url && !post.live_url && (
-                      <div className="mb-6">
+                      <div className="mb-6 relative">
                         <VideoPlayer
                           src={post.video_url}
                           poster={post.poster_image_url || undefined}
                           className="w-full max-h-[600px] rounded-lg"
                           controls
+                          postId={post.id}
+                          onPlay={handleVideoPlay}
+                          onPause={handleVideoPause}
+                          onEnded={handleVideoEnded}
+                          onProgress={handleVideoProgress}
                         />
+                        {/* Video controls overlay */}
+                        <div className="absolute top-2 right-2 flex items-center gap-2">
+                          <VideoAutoplayToggle compact />
+                        </div>
+                        {/* Navigation controls on right side */}
+                        <VideoNavigationControls className="absolute right-2 top-1/2 -translate-y-1/2" />
                       </div>
                     )}
 

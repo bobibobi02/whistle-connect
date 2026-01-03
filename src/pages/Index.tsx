@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { useState, useCallback, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/Header";
 import CommunitySidebar from "@/components/CommunitySidebar";
@@ -8,11 +8,13 @@ import MobileNav from "@/components/MobileNav";
 import VirtualizedPostList from "@/components/VirtualizedPostList";
 import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOption } from "@/hooks/usePosts";
 import { useLivePosts } from "@/hooks/useLivePosts";
+import { useForYouFeed, useUpdateFeedProfile } from "@/hooks/useForYouFeed";
+import { useVideoQueue } from "@/hooks/useVideoQueue";
 import { useAuth } from "@/hooks/useAuth";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import FloatingActionButton from "@/components/FloatingActionButton";
 import { Button } from "@/components/ui/button";
-import { Users, Flame, TrendingUp, Clock, UserPlus, RefreshCw, Radio } from "lucide-react";
+import { Users, Flame, TrendingUp, Clock, UserPlus, RefreshCw, Radio, Sparkles } from "lucide-react";
 
 const sortOptions = [
   { value: "best" as SortOption, label: "Best", icon: Flame },
@@ -22,11 +24,21 @@ const sortOptions = [
 
 const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [feedType, setFeedType] = useState<"all" | "joined" | "following" | "live">("all");
+  const [feedType, setFeedType] = useState<"all" | "foryou" | "joined" | "following" | "live">("foryou");
   const [sortBy, setSortBy] = useState<SortOption>("best");
+  const navigate = useNavigate();
   
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { initializeQueue } = useVideoQueue();
+  const { updateProfile } = useUpdateFeedProfile();
+
+  // Update feed profile periodically
+  useEffect(() => {
+    if (user) {
+      updateProfile();
+    }
+  }, [user]);
   
   // Pull to refresh
   const handleRefresh = useCallback(async () => {
@@ -43,9 +55,20 @@ const Index = () => {
   const joinedQuery = useJoinedCommunityPosts();
   const followingQuery = useFollowingPosts();
   const liveQuery = useLivePosts();
+  const forYouQuery = useForYouFeed();
 
   // Get the current feed data
   const getCurrentFeed = () => {
+    if (feedType === "foryou") {
+      return {
+        posts: forYouQuery.data?.pages.flatMap((page) => page.posts) ?? [],
+        isLoading: forYouQuery.isLoading,
+        error: forYouQuery.error,
+        fetchNextPage: forYouQuery.fetchNextPage,
+        hasNextPage: forYouQuery.hasNextPage,
+        isFetchingNextPage: forYouQuery.isFetchingNextPage,
+      };
+    }
     if (feedType === "live") {
       return {
         posts: liveQuery.data?.pages.flatMap((page) => page.posts) ?? [],
@@ -87,6 +110,25 @@ const Index = () => {
   };
 
   const { posts, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = getCurrentFeed();
+
+  // Initialize video queue when posts load
+  useEffect(() => {
+    if (posts.length > 0) {
+      const firstVideoPost = posts.find((p) => p.video_url && !p.live_url);
+      if (firstVideoPost) {
+        initializeQueue(posts, firstVideoPost.id, feedType);
+      }
+    }
+  }, [posts, feedType, initializeQueue]);
+
+  // Handle post click - initialize video queue
+  const handlePostClick = useCallback(
+    (postId: string) => {
+      initializeQueue(posts, postId, feedType);
+      navigate(`/post/${postId}`);
+    },
+    [posts, feedType, initializeQueue, navigate]
+  );
 
   return (
     <div className="min-h-screen bg-background" ref={containerRef}>
@@ -137,7 +179,16 @@ const Index = () => {
               </div>
 
               {/* Feed Type Toggle */}
-              <div className="flex gap-1 p-1 bg-card rounded-lg shadow-card">
+              <div className="flex gap-1 p-1 bg-card rounded-lg shadow-card overflow-x-auto">
+                <Button
+                  variant={feedType === "foryou" ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setFeedType("foryou")}
+                  className={feedType === "foryou" ? "bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white" : ""}
+                >
+                  <Sparkles className="h-4 w-4 mr-1.5" />
+                  For You
+                </Button>
                 <Button
                   variant={feedType === "all" ? "default" : "ghost"}
                   size="sm"

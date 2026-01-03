@@ -526,6 +526,47 @@ export type Database = {
         }
         Relationships: []
       }
+      feed_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          post_id: string
+          user_id: string
+          video_duration_ms: number | null
+          watch_time_ms: number | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          post_id: string
+          user_id: string
+          video_duration_ms?: number | null
+          watch_time_ms?: number | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          post_id?: string
+          user_id?: string
+          video_duration_ms?: number | null
+          watch_time_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_events_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       follows: {
         Row: {
           created_at: string
@@ -723,6 +764,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_locked: boolean | null
+          is_nsfw: boolean | null
           is_pinned: boolean | null
           is_removed: boolean | null
           live_url: string | null
@@ -737,6 +779,7 @@ export type Database = {
           user_id: string
           video_duration_seconds: number | null
           video_mime_type: string | null
+          video_processing_status: string | null
           video_size_bytes: number | null
           video_url: string | null
         }
@@ -749,6 +792,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_locked?: boolean | null
+          is_nsfw?: boolean | null
           is_pinned?: boolean | null
           is_removed?: boolean | null
           live_url?: string | null
@@ -763,6 +807,7 @@ export type Database = {
           user_id: string
           video_duration_seconds?: number | null
           video_mime_type?: string | null
+          video_processing_status?: string | null
           video_size_bytes?: number | null
           video_url?: string | null
         }
@@ -775,6 +820,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_locked?: boolean | null
+          is_nsfw?: boolean | null
           is_pinned?: boolean | null
           is_removed?: boolean | null
           live_url?: string | null
@@ -789,6 +835,7 @@ export type Database = {
           user_id?: string
           video_duration_seconds?: number | null
           video_mime_type?: string | null
+          video_processing_status?: string | null
           video_size_bytes?: number | null
           video_url?: string | null
         }
@@ -804,31 +851,37 @@ export type Database = {
       }
       profiles: {
         Row: {
+          allow_nsfw: boolean | null
           avatar_url: string | null
           bio: string | null
           created_at: string
           display_name: string | null
           id: string
+          nsfw_confirmed_at: string | null
           updated_at: string
           user_id: string
           username: string | null
         }
         Insert: {
+          allow_nsfw?: boolean | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          nsfw_confirmed_at?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
         }
         Update: {
+          allow_nsfw?: boolean | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          nsfw_confirmed_at?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -957,6 +1010,51 @@ export type Database = {
           reason?: string
           revoked_at?: string | null
           revoked_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_feed_profiles: {
+        Row: {
+          avg_watch_time_ms: number | null
+          completion_rate: number | null
+          created_at: string
+          id: string
+          last_computed_at: string | null
+          long_video_preference: number | null
+          mid_video_preference: number | null
+          short_video_preference: number | null
+          top_communities: Json | null
+          top_creators: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_watch_time_ms?: number | null
+          completion_rate?: number | null
+          created_at?: string
+          id?: string
+          last_computed_at?: string | null
+          long_video_preference?: number | null
+          mid_video_preference?: number | null
+          short_video_preference?: number | null
+          top_communities?: Json | null
+          top_creators?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_watch_time_ms?: number | null
+          completion_rate?: number | null
+          created_at?: string
+          id?: string
+          last_computed_at?: string | null
+          long_video_preference?: number | null
+          mid_video_preference?: number | null
+          short_video_preference?: number | null
+          top_communities?: Json | null
+          top_creators?: Json | null
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
