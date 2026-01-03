@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.verify-boost-payment]
 verify_jwt = false
+
+[functions.compute-feed-profiles]
+verify_jwt = false

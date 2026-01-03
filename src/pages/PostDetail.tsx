@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,11 @@ import { useComments, useCreateComment, countTotalComments } from "@/hooks/useCo
 import { useVerifyBoostPayment, usePostBoostTotals } from "@/hooks/usePostBoosts";
 import { useVideoQueue } from "@/hooks/useVideoQueue";
 import { useFeedEvents } from "@/hooks/useFeedEvents";
+import { useSwipeGesture } from "@/hooks/useSwipeGesture";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const PostDetail = () => {
   const { postId } = useParams();
@@ -40,9 +42,23 @@ const PostDetail = () => {
   const [commentText, setCommentText] = useState("");
   const [manuallyPaused, setManuallyPaused] = useState(false);
   const videoStartTimeRef = useRef<number | null>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const verifyBoost = useVerifyBoostPayment();
-  const { autoplayEnabled, goToNextVideo, getNextVideoId } = useVideoQueue();
+  const { autoplayEnabled, goToNextVideo, goToPreviousVideo, getNextVideoId, getCurrentPosition } = useVideoQueue();
   const { trackEvent, trackImmediately } = useFeedEvents();
+  const isMobile = useIsMobile();
+
+  // Swipe gesture handlers for mobile video navigation
+  const swipeHandlers = useMemo(() => ({
+    onSwipeUp: () => {
+      const result = goToNextVideo();
+      if (!result) toast.info("No more videos");
+    },
+    onSwipeDown: () => {
+      const result = goToPreviousVideo();
+      if (!result) toast.info("No previous video");
+    },
+  }), [goToNextVideo, goToPreviousVideo]);
 
   // Handle boost success/cancel feedback - verify payment and refetch boosts
   useEffect(() => {
@@ -81,6 +97,10 @@ const PostDetail = () => {
   const { data: comments, isLoading: commentsLoading } = useComments(postId || "");
   const votePost = useVotePost();
   const createComment = useCreateComment();
+
+  // Enable swipe only on video posts and mobile
+  const hasVideo = !!post?.video_url && !post?.live_url;
+  useSwipeGesture(videoContainerRef, swipeHandlers, { enabled: isMobile && hasVideo });
 
   // Use actual comments array length as source of truth for count
   const totalCommentCount = countTotalComments(comments);
@@ -329,7 +349,7 @@ const PostDetail = () => {
                     )}
 
                     {post.video_url && !post.live_url && (
-                      <div className="mb-6 relative">
+                      <div ref={videoContainerRef} className="mb-6 relative touch-pan-x">
                         <VideoPlayer
                           src={post.video_url}
                           poster={post.poster_image_url || undefined}
