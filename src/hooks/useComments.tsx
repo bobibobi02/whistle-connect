@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,54 @@ export const countTotalComments = (commentList: Comment[] | undefined): number =
   };
   countRecursive(commentList);
   return count;
+};
+
+// Lightweight hook to fetch only comment count (not full comments)
+export const useCommentCount = (postId: string) => {
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["comment-count", postId],
+    queryFn: async (): Promise<number> => {
+      const { count, error } = await supabase
+        .from("comments")
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId);
+
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!postId,
+    staleTime: 30000, // Consider fresh for 30s to reduce refetches
+  });
+
+  // Real-time subscription for comment count updates
+  useEffect(() => {
+    if (!postId) return;
+
+    const channel = supabase
+      .channel(`comment-count-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen to INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "comments",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => {
+          // Invalidate count when any comment changes for this post
+          queryClient.invalidateQueries({ queryKey: ["comment-count", postId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId, queryClient]);
+
+  return query;
 };
 
 export interface Comment {
@@ -41,8 +90,9 @@ export interface Comment {
 
 export const useComments = (postId: string) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["comments", postId, user?.id],
     queryFn: async (): Promise<Comment[]> => {
       const { data: comments, error } = await supabase
@@ -134,6 +184,36 @@ export const useComments = (postId: string) => {
     },
     enabled: !!postId,
   });
+
+  // Real-time subscription for comments updates
+  useEffect(() => {
+    if (!postId) return;
+
+    const channel = supabase
+      .channel(`comments-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Listen to INSERT, UPDATE, DELETE
+          schema: "public",
+          table: "comments",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => {
+          // Invalidate comments when any change occurs
+          queryClient.invalidateQueries({ queryKey: ["comments", postId] });
+          // Also update the comment count
+          queryClient.invalidateQueries({ queryKey: ["comment-count", postId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId, queryClient]);
+
+  return query;
 };
 
 export const useCreateComment = () => {
