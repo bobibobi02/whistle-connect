@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowBigUp, ArrowBigDown, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +76,52 @@ const PostDetail = () => {
   // Use actual comments array length as source of truth for count
   const totalCommentCount = countTotalComments(comments);
 
+  // Track which comment IDs we've seen to highlight new ones from real-time updates
+  const seenCommentIds = useRef<Set<string>>(new Set());
+  const [newCommentIds, setNewCommentIds] = useState<Set<string>>(new Set());
 
+  // Update seen comments when comments change
+  useEffect(() => {
+    if (!comments) return;
+    
+    const allCommentIds = new Set<string>();
+    const collectIds = (commentList: typeof comments) => {
+      if (!commentList) return;
+      for (const c of commentList) {
+        allCommentIds.add(c.id);
+        if (c.replies) collectIds(c.replies);
+      }
+    };
+    collectIds(comments);
+
+    // Find new comments (ones we haven't seen before)
+    const newIds = new Set<string>();
+    allCommentIds.forEach(id => {
+      // Only mark as new if we've already loaded comments once (not initial load)
+      // and it's not a temp optimistic comment
+      if (seenCommentIds.current.size > 0 && !seenCommentIds.current.has(id) && !id.startsWith("temp-")) {
+        newIds.add(id);
+      }
+    });
+
+    if (newIds.size > 0) {
+      setNewCommentIds(prev => new Set([...prev, ...newIds]));
+      // Clear new status after 5 seconds
+      setTimeout(() => {
+        setNewCommentIds(prev => {
+          const updated = new Set(prev);
+          newIds.forEach(id => updated.delete(id));
+          return updated;
+        });
+      }, 5000);
+    }
+
+    // Update seen IDs
+    seenCommentIds.current = allCommentIds;
+  }, [comments]);
+
+  // Helper to check if a comment is new
+  const isNewComment = (commentId: string): boolean => newCommentIds.has(commentId);
   const handleVote = (type: 1 | -1) => {
     if (!user) {
       navigate("/auth");
@@ -312,7 +357,7 @@ const PostDetail = () => {
                   ) : comments && comments.length > 0 ? (
                     <div className="space-y-4">
                       {comments.map((comment) => (
-                        <Comment key={comment.id} comment={comment} />
+                        <Comment key={comment.id} comment={comment} isNew={isNewComment(comment.id)} />
                       ))}
                     </div>
                   ) : (

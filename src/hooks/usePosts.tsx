@@ -1,4 +1,5 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -316,8 +317,9 @@ export const useCommunityPosts = (community: string) => {
 
 export const usePost = (postId: string) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ["post", postId, user?.id],
     queryFn: async (): Promise<Post | null> => {
       const { data: post, error } = await supabase
@@ -385,6 +387,60 @@ export const usePost = (postId: string) => {
     },
     enabled: !!postId,
   });
+
+  // Real-time subscription for post upvotes changes
+  useEffect(() => {
+    if (!postId) return;
+
+    // Subscribe to post_votes changes for this post
+    const votesChannel = supabase
+      .channel(`post-votes-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "post_votes",
+          filter: `post_id=eq.${postId}`,
+        },
+        () => {
+          // Invalidate the post query to refetch with new vote count
+          queryClient.invalidateQueries({ queryKey: ["post", postId] });
+        }
+      )
+      .subscribe();
+
+    // Subscribe to posts table changes (for upvotes column updates)
+    const postsChannel = supabase
+      .channel(`post-updates-${postId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "posts",
+          filter: `id=eq.${postId}`,
+        },
+        (payload) => {
+          // Update the post in cache with new upvotes value
+          queryClient.setQueryData(["post", postId, user?.id], (oldData: Post | null) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              upvotes: (payload.new as any).upvotes ?? oldData.upvotes,
+            };
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(votesChannel);
+      supabase.removeChannel(postsChannel);
+    };
+  }, [postId, queryClient, user?.id]);
+
+  return query;
 };
 
 export const useCreatePost = () => {
