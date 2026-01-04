@@ -51,24 +51,24 @@
   }
   
   :root {
-    /* Light theme - default */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 10%;
+    /* Light theme - refined for polish */
+    --background: 220 20% 97%;
+    --foreground: 220 15% 15%;
 
-    --card: 0 0% 98%;
-    --card-foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 10%;
+    --popover-foreground: 220 15% 15%;
 
     --primary: 349 100% 58%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 240 5% 92%;
-    --secondary-foreground: 240 10% 10%;
+    --secondary: 220 14% 92%;
+    --secondary-foreground: 220 15% 20%;
 
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 5% 40%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 10% 45%;
 
     --accent: 158 68% 42%;
     --accent-foreground: 0 0% 100%;
@@ -76,8 +76,8 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
     --ring: 349 100% 58%;
 
     --radius: 0.75rem;
@@ -88,19 +88,19 @@
     --gradient-warm: linear-gradient(135deg, hsl(349 100% 58%) 0%, hsl(158 68% 42%) 100%);
     --gradient-accent: linear-gradient(135deg, hsl(349 100% 58%) 0%, hsl(158 68% 42%) 100%);
     --gradient-accent-reverse: linear-gradient(135deg, hsl(158 68% 42%) 0%, hsl(349 100% 58%) 100%);
-    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(240 5% 96%) 100%);
-    --shadow-card: 0 2px 8px -2px hsl(0 0% 0% / 0.08), 0 4px 16px -4px hsl(0 0% 0% / 0.06);
-    --shadow-card-hover: 0 8px 24px -4px hsl(0 0% 0% / 0.12), 0 12px 32px -8px hsl(0 0% 0% / 0.08);
-    --shadow-glow: 0 0 32px hsl(349 100% 58% / 0.15);
-    --shadow-glow-accent: 0 0 32px hsl(349 100% 58% / 0.2);
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(220 20% 97%) 100%);
+    --shadow-card: 0 1px 3px hsl(220 15% 15% / 0.04), 0 4px 12px -2px hsl(220 15% 15% / 0.08);
+    --shadow-card-hover: 0 4px 12px hsl(220 15% 15% / 0.08), 0 12px 28px -4px hsl(220 15% 15% / 0.12);
+    --shadow-glow: 0 0 24px hsl(349 100% 58% / 0.12);
+    --shadow-glow-accent: 0 0 32px hsl(349 100% 58% / 0.18);
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 10% 10%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 15% 15%;
     --sidebar-primary: 349 100% 58%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 5% 96%;
-    --sidebar-accent-foreground: 240 10% 10%;
-    --sidebar-border: 240 6% 90%;
+    --sidebar-accent: 220 14% 94%;
+    --sidebar-accent-foreground: 220 15% 20%;
+    --sidebar-border: 220 15% 88%;
     --sidebar-ring: 349 100% 58%;
   }
 
