@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Bell, Shield, Eye, Volume2, Palette } from "lucide-react";
+import { ArrowLeft, Bell, Shield, Eye, Volume2, Palette, User } from "lucide-react";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { NsfwToggle } from "@/components/NsfwToggle";
 import { VideoAutoplayToggle } from "@/components/VideoAutoplayToggle";
 import { ThemeSelector } from "@/components/ThemeSelector";
 import { NotificationPreferences } from "@/components/NotificationPreferences";
+import { BlockedUsersManager } from "@/components/BlockedUsersManager";
+import { AccountSettings } from "@/components/AccountSettings";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +47,22 @@ const Settings = () => {
         <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
         <div className="space-y-6">
+          {/* Account */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Account
+              </CardTitle>
+              <CardDescription>
+                Manage your account settings and security
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AccountSettings />
+            </CardContent>
+          </Card>
+
           {/* Appearance */}
           <Card>
             <CardHeader>
@@ -117,13 +135,11 @@ const Settings = () => {
                 Privacy & Safety
               </CardTitle>
               <CardDescription>
-                Manage your privacy and safety settings
+                Manage blocked users and privacy settings
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Additional privacy settings coming soon.
-              </p>
+              <BlockedUsersManager />
             </CardContent>
           </Card>
         </div>
