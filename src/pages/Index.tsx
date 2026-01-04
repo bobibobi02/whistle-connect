@@ -170,7 +170,10 @@ const Index = () => {
                     variant={sortBy === option.value ? "default" : "ghost"}
                     size="sm"
                     onClick={() => setSortBy(option.value)}
-                    className={sortBy === option.value ? "bg-gradient-warm hover:opacity-90" : ""}
+                    className={sortBy === option.value 
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                      : "hover:bg-primary/10 hover:text-primary"
+                    }
                   >
                     <option.icon className="h-4 w-4 mr-1.5" />
                     {option.label}
@@ -184,7 +187,10 @@ const Index = () => {
                   variant={feedType === "foryou" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setFeedType("foryou")}
-                  className={feedType === "foryou" ? "bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90 text-white" : ""}
+                  className={feedType === "foryou" 
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                    : "hover:bg-primary/10 hover:text-primary"
+                  }
                 >
                   <Sparkles className="h-4 w-4 mr-1.5" />
                   For You
@@ -193,7 +199,10 @@ const Index = () => {
                   variant={feedType === "all" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setFeedType("all")}
-                  className={feedType === "all" ? "bg-gradient-warm hover:opacity-90" : ""}
+                  className={feedType === "all" 
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                    : "hover:bg-primary/10 hover:text-primary"
+                  }
                 >
                   All
                 </Button>
@@ -201,7 +210,10 @@ const Index = () => {
                   variant={feedType === "live" ? "default" : "ghost"}
                   size="sm"
                   onClick={() => setFeedType("live")}
-                  className={feedType === "live" ? "bg-red-500 hover:bg-red-600 text-white" : ""}
+                  className={feedType === "live" 
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                    : "hover:bg-primary/10 hover:text-primary"
+                  }
                 >
                   <Radio className="h-4 w-4 mr-1.5" />
                   Live
@@ -212,7 +224,10 @@ const Index = () => {
                       variant={feedType === "joined" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setFeedType("joined")}
-                      className={feedType === "joined" ? "bg-gradient-warm hover:opacity-90" : ""}
+                      className={feedType === "joined" 
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                        : "hover:bg-primary/10 hover:text-primary"
+                      }
                     >
                       <Users className="h-4 w-4 mr-1.5" />
                       Joined
@@ -221,7 +236,10 @@ const Index = () => {
                       variant={feedType === "following" ? "default" : "ghost"}
                       size="sm"
                       onClick={() => setFeedType("following")}
-                      className={feedType === "following" ? "bg-gradient-warm hover:opacity-90" : ""}
+                      className={feedType === "following" 
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                        : "hover:bg-primary/10 hover:text-primary"
+                      }
                     >
                       <UserPlus className="h-4 w-4 mr-1.5" />
                       Following
