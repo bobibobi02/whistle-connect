@@ -2,6 +2,7 @@ import { Moon, Sun, Monitor, Check } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,19 @@ const ThemeToggle = () => {
     { value: "dark", label: "Dark", icon: Moon },
     { value: "system", label: "System", icon: Monitor },
   ] as const;
+
+  const handleThemeChange = (value: "light" | "dark" | "system") => {
+    if (value === theme) return;
+    
+    setTheme(value);
+    
+    const labels = { light: "Light", dark: "Dark", system: "System" };
+    toast({
+      title: "Theme updated",
+      description: `Switched to ${labels[value]} mode`,
+      duration: 2000,
+    });
+  };
 
   return (
     <DropdownMenu>
@@ -48,7 +62,7 @@ const ThemeToggle = () => {
         {options.map(({ value, label, icon: Icon }) => (
           <DropdownMenuItem 
             key={value}
-            onClick={() => setTheme(value)} 
+            onClick={() => handleThemeChange(value)} 
             className="gap-2 cursor-pointer"
           >
             <Icon className="h-4 w-4" />
