@@ -1,4 +1,4 @@
-import { Moon, Sun, Monitor } from "lucide-react";
+import { Moon, Sun, Monitor, Check } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,12 @@ import {
 
 const ThemeToggle = () => {
   const { setTheme, theme } = useTheme();
+
+  const options = [
+    { value: "light", label: "Light", icon: Sun },
+    { value: "dark", label: "Dark", icon: Moon },
+    { value: "system", label: "System", icon: Monitor },
+  ] as const;
 
   return (
     <DropdownMenu>
@@ -38,19 +44,18 @@ const ThemeToggle = () => {
           <span className="sr-only">Toggle theme</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")} className="gap-2">
-          <Sun className="h-4 w-4" />
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")} className="gap-2">
-          <Moon className="h-4 w-4" />
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")} className="gap-2">
-          <Monitor className="h-4 w-4" />
-          System
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="bg-popover border border-border shadow-lg">
+        {options.map(({ value, label, icon: Icon }) => (
+          <DropdownMenuItem 
+            key={value}
+            onClick={() => setTheme(value)} 
+            className="gap-2 cursor-pointer"
+          >
+            <Icon className="h-4 w-4" />
+            <span className="flex-1">{label}</span>
+            {theme === value && <Check className="h-4 w-4 text-primary" />}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
