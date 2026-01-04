@@ -1,12 +1,14 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { App, URLOpenListenerEvent } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 
 export const useCapacitor = () => {
   const [isNative, setIsNative] = useState(false);
   const [platform, setPlatform] = useState<'ios' | 'android' | 'web'>('web');
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const native = Capacitor.isNativePlatform();
@@ -14,14 +16,17 @@ export const useCapacitor = () => {
     setPlatform(Capacitor.getPlatform() as 'ios' | 'android' | 'web');
 
     if (native) {
-      // Configure status bar for native
-      StatusBar.setStyle({ style: Style.Dark }).catch(() => {});
+      // Configure status bar for native - respect theme
+      const isDark = resolvedTheme === 'dark';
+      StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light }).catch(() => {});
       
       if (Capacitor.getPlatform() === 'android') {
-        StatusBar.setBackgroundColor({ color: '#0a0908' }).catch(() => {});
+        // Use theme-appropriate background color
+        const bgColor = isDark ? '#0a0908' : '#ffffff';
+        StatusBar.setBackgroundColor({ color: bgColor }).catch(() => {});
       }
     }
-  }, []);
+  }, [resolvedTheme]);
 
   return { isNative, platform };
 };
