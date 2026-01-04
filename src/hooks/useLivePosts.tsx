@@ -1,7 +1,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Post, PostFlair } from "@/hooks/usePosts";
+import { Post, PostFlair, getBlockedUserIds } from "@/hooks/usePosts";
 
 const POSTS_PER_PAGE = 10;
 
@@ -87,12 +87,22 @@ const fetchLivePostsPage = async (
   user: { id: string } | null,
   pageParam: number = 0
 ): Promise<{ posts: Post[]; nextPage: number | null }> => {
-  const { data: posts, error } = await supabase
+  // Get blocked user IDs
+  const blockedIds = user ? await getBlockedUserIds(user.id) : [];
+
+  let query = supabase
     .from("posts")
     .select("*")
     .not("live_url", "is", null)
     .order("created_at", { ascending: false })
     .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+
+  // Filter out blocked users' posts
+  if (blockedIds.length > 0) {
+    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
+  }
+
+  const { data: posts, error } = await query;
 
   if (error) throw error;
 

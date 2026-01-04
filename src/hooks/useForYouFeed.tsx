@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Post, PostFlair } from "@/hooks/usePosts";
+import { Post, PostFlair, getBlockedUserIds } from "@/hooks/usePosts";
 
 const POSTS_PER_PAGE = 10;
 
@@ -177,6 +177,9 @@ const fetchForYouPage = async (
   allowNsfw: boolean,
   pageParam: number = 0
 ): Promise<{ posts: Post[]; nextPage: number | null }> => {
+  // Get blocked user IDs
+  const blockedIds = user ? await getBlockedUserIds(user.id) : [];
+
   // Fetch candidate posts (more than we need for scoring)
   const candidateCount = POSTS_PER_PAGE * 3;
   
@@ -190,6 +193,11 @@ const fetchForYouPage = async (
   // Filter NSFW content if not allowed
   if (!allowNsfw) {
     query = query.eq("is_nsfw", false);
+  }
+
+  // Filter out blocked users' posts
+  if (blockedIds.length > 0) {
+    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
 
   const { data: posts, error } = await query;

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, Edit2, Users, Bookmark, UserPlus, UserMinus } from "lucide-react";
+import { ArrowLeft, Calendar, Edit2, Users, Bookmark, UserPlus, UserMinus, ShieldOff } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,7 @@ import { useProfileByUsername, useUserPosts } from "@/hooks/useProfile";
 import { useUserJoinedCommunities } from "@/hooks/useCommunities";
 import { useBookmarkedPosts } from "@/hooks/useBookmarks";
 import { useIsFollowing, useToggleFollow, useFollowCounts } from "@/hooks/useFollows";
+import { useIsUserBlocked, useHasUserBlockedMe } from "@/hooks/useBlockedUsers";
 
 const Profile = () => {
   const { username } = useParams();
@@ -31,6 +32,11 @@ const Profile = () => {
   const { data: isFollowing } = useIsFollowing(profile?.user_id);
   const { data: followCounts } = useFollowCounts(profile?.user_id);
   const toggleFollow = useToggleFollow();
+  
+  // Check if this user is blocked by us or has blocked us
+  const { data: isBlocked } = useIsUserBlocked(profile?.user_id);
+  const { data: hasBlockedUs } = useHasUserBlockedMe(profile?.user_id);
+  const isBlockedRelationship = isBlocked || hasBlockedUs;
 
   const isOwnProfile = user && profile && user.id === profile.user_id;
   const displayName = profile?.display_name || profile?.username || "Anonymous";
@@ -63,6 +69,23 @@ const Profile = () => {
           <div className="bg-card rounded-xl shadow-card p-8 text-center">
             <p className="text-muted-foreground">User not found.</p>
             <Link to="/" className="text-primary hover:underline mt-2 inline-block">
+              Go back to feed
+            </Link>
+          </div>
+        ) : isBlockedRelationship && !isOwnProfile ? (
+          <div className="bg-card rounded-xl shadow-card p-8 text-center">
+            <ShieldOff className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+            <p className="text-lg font-medium mb-2">This profile is unavailable</p>
+            <p className="text-muted-foreground mb-4">
+              {isBlocked ? "You have blocked this user." : "This user has blocked you."}
+            </p>
+            {isBlocked && (
+              <BlockUserButton 
+                userId={profile.user_id} 
+                username={profile.display_name || profile.username || undefined}
+              />
+            )}
+            <Link to="/" className="text-primary hover:underline mt-4 inline-block">
               Go back to feed
             </Link>
           </div>
