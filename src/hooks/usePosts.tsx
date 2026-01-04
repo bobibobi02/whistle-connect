@@ -46,6 +46,19 @@ export type SortOption = "best" | "hot" | "new";
 
 const POSTS_PER_PAGE = 10;
 
+// Get blocked user IDs (users I blocked + users who blocked me)
+export const getBlockedUserIds = async (userId: string): Promise<string[]> => {
+  const [blockedByMe, blockedMe] = await Promise.all([
+    supabase.from("blocked_users").select("blocked_id").eq("blocker_id", userId),
+    supabase.from("blocked_users").select("blocker_id").eq("blocked_id", userId),
+  ]);
+
+  const blockedIds = new Set<string>();
+  blockedByMe.data?.forEach((b) => blockedIds.add(b.blocked_id));
+  blockedMe.data?.forEach((b) => blockedIds.add(b.blocker_id));
+  return Array.from(blockedIds);
+};
+
 const enrichPosts = async (
   posts: any[],
   user: { id: string } | null,
@@ -145,10 +158,18 @@ const fetchPostsPage = async (
   pageParam: number = 0,
   community?: string
 ): Promise<{ posts: Post[]; nextPage: number | null }> => {
+  // Get blocked user IDs
+  const blockedIds = user ? await getBlockedUserIds(user.id) : [];
+
   let query = supabase.from("posts").select("*");
 
   if (community) {
     query = query.eq("community", community);
+  }
+
+  // Filter out blocked users' posts
+  if (blockedIds.length > 0) {
+    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
   }
 
   // Apply sorting
@@ -204,6 +225,9 @@ const fetchJoinedCommunityPostsPage = async (
 ): Promise<{ posts: Post[]; nextPage: number | null }> => {
   if (!user) return { posts: [], nextPage: null };
 
+  // Get blocked user IDs
+  const blockedIds = await getBlockedUserIds(user.id);
+
   // Get user's joined communities
   const { data: memberships } = await supabase
     .from("community_members")
@@ -225,12 +249,19 @@ const fetchJoinedCommunityPostsPage = async (
   const communityNames = communities.map((c) => c.name);
 
   // Fetch posts from joined communities with pagination
-  const { data: posts, error } = await supabase
+  let query = supabase
     .from("posts")
     .select("*")
     .in("community", communityNames)
     .order("created_at", { ascending: false })
     .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+
+  // Filter out blocked users' posts
+  if (blockedIds.length > 0) {
+    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
+  }
+
+  const { data: posts, error } = await query;
 
   if (error) throw error;
   if (!posts || posts.length === 0) return { posts: [], nextPage: null };
@@ -249,7 +280,10 @@ const fetchFollowingPostsPage = async (
 ): Promise<{ posts: Post[]; nextPage: number | null }> => {
   if (!user) return { posts: [], nextPage: null };
 
-  // Get users that the current user follows
+  // Get blocked user IDs
+  const blockedIds = await getBlockedUserIds(user.id);
+
+  // Get users that the current user follows (excluding blocked users)
   const { data: follows } = await supabase
     .from("follows")
     .select("following_id")
@@ -257,7 +291,12 @@ const fetchFollowingPostsPage = async (
 
   if (!follows || follows.length === 0) return { posts: [], nextPage: null };
 
-  const followingIds = follows.map((f) => f.following_id);
+  // Filter out blocked users from following list
+  const followingIds = follows
+    .map((f) => f.following_id)
+    .filter((id) => !blockedIds.includes(id));
+
+  if (followingIds.length === 0) return { posts: [], nextPage: null };
 
   // Fetch posts from followed users with pagination
   const { data: posts, error } = await supabase

@@ -133,3 +133,27 @@ export const useIsUserBlocked = (userId: string | undefined) => {
     enabled: !!userId,
   });
 };
+
+// Check if target user has blocked the current user
+export const useHasUserBlockedMe = (userId: string | undefined) => {
+  return useQuery({
+    queryKey: ["has-blocked-me", userId],
+    queryFn: async () => {
+      if (!userId) return false;
+      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      const { data, error } = await supabase
+        .from("blocked_users")
+        .select("id")
+        .eq("blocker_id", userId)
+        .eq("blocked_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!userId,
+  });
+};
