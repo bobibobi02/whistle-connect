@@ -21,22 +21,25 @@ export const countTotalComments = (commentList: Comment[] | undefined): number =
 };
 
 // Lightweight hook to fetch only comment count (not full comments)
+// This now filters out removed comments to match what PostDetail displays
 export const useCommentCount = (postId: string) => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: ["comment-count", postId],
     queryFn: async (): Promise<number> => {
+      // Count only non-removed comments to match what PostDetail displays
       const { count, error } = await supabase
         .from("comments")
         .select("*", { count: "exact", head: true })
-        .eq("post_id", postId);
+        .eq("post_id", postId)
+        .or("is_removed.is.null,is_removed.eq.false");
 
       if (error) throw error;
       return count || 0;
     },
     enabled: !!postId,
-    staleTime: 30000, // Consider fresh for 30s to reduce refetches
+    staleTime: 5000, // Shorter stale time for more responsive updates
   });
 
   // Real-time subscription for comment count updates
@@ -95,10 +98,12 @@ export const useComments = (postId: string) => {
   const query = useQuery({
     queryKey: ["comments", postId, user?.id],
     queryFn: async (): Promise<Comment[]> => {
+      // Filter out removed comments to match the count
       const { data: comments, error } = await supabase
         .from("comments")
         .select("*")
         .eq("post_id", postId)
+        .or("is_removed.is.null,is_removed.eq.false")
         .order("created_at", { ascending: true });
 
       if (error) throw error;
