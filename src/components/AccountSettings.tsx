@@ -7,6 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { TwoFactorAuth } from "@/components/TwoFactorAuth";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -182,6 +184,13 @@ export function AccountSettings() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <Separator />
+
+      {/* Two-Factor Authentication */}
+      <TwoFactorAuth />
+
+      <Separator />
 
       {/* Connected Accounts - Placeholder */}
       <div className="space-y-2">

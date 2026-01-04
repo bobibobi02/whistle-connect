@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PostCard from "@/components/PostCard";
 import EditProfileDialog from "@/components/EditProfileDialog";
+import { BlockUserButton } from "@/components/BlockUserButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfileByUsername, useUserPosts } from "@/hooks/useProfile";
 import { useUserJoinedCommunities } from "@/hooks/useCommunities";
@@ -99,25 +100,31 @@ const Profile = () => {
                           Edit Profile
                         </Button>
                       ) : user ? (
-                        <Button
-                          variant={isFollowing ? "outline" : "default"}
-                          size="sm"
-                          className="gap-2"
-                          onClick={() => toggleFollow.mutate({ targetUserId: profile.user_id, isFollowing: isFollowing ?? false })}
-                          disabled={toggleFollow.isPending}
-                        >
-                          {isFollowing ? (
-                            <>
-                              <UserMinus className="h-4 w-4" />
-                              Unfollow
-                            </>
-                          ) : (
-                            <>
-                              <UserPlus className="h-4 w-4" />
-                              Follow
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant={isFollowing ? "outline" : "default"}
+                            size="sm"
+                            className="gap-2"
+                            onClick={() => toggleFollow.mutate({ targetUserId: profile.user_id, isFollowing: isFollowing ?? false })}
+                            disabled={toggleFollow.isPending}
+                          >
+                            {isFollowing ? (
+                              <>
+                                <UserMinus className="h-4 w-4" />
+                                Unfollow
+                              </>
+                            ) : (
+                              <>
+                                <UserPlus className="h-4 w-4" />
+                                Follow
+                              </>
+                            )}
+                          </Button>
+                          <BlockUserButton 
+                            userId={profile.user_id} 
+                            username={profile.display_name || profile.username || undefined}
+                          />
+                        </div>
                       ) : (
                         <Button
                           variant="default"

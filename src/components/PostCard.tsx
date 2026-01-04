@@ -11,6 +11,7 @@ import { useNsfwSettings } from "@/hooks/useNsfwSettings";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import ReportDialog from "@/components/ReportDialog";
+import { BlockUserButton } from "@/components/BlockUserButton";
 import { SwipeToDelete } from "@/components/SwipeToDelete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import PostModActions from "@/components/community/PostModActions";
@@ -180,6 +181,16 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
                     </DropdownMenuItem>
                   }
                 />
+                {user && user.id !== post.user_id && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <BlockUserButton 
+                      userId={post.user_id} 
+                      username={post.author.display_name || post.author.username || undefined}
+                      variant="dropdown"
+                    />
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

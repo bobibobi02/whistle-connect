@@ -9,12 +9,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { Comment as CommentType, useCreateComment, useVoteComment, useDeleteComment } from "@/hooks/useComments";
 import { formatDistanceToNow } from "date-fns";
 import ReportDialog from "@/components/ReportDialog";
+import { BlockUserButton } from "@/components/BlockUserButton";
 import { SwipeToDelete } from "@/components/SwipeToDelete";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -217,6 +219,16 @@ const Comment = ({ comment, depth = 0, isNew = false }: CommentProps) => {
                       </DropdownMenuItem>
                     }
                   />
+                  {user && user.id !== comment.user_id && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <BlockUserButton 
+                        userId={comment.user_id} 
+                        username={comment.author.display_name || comment.author.username || undefined}
+                        variant="dropdown"
+                      />
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
