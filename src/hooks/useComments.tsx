@@ -328,6 +328,7 @@ export const useCreateComment = () => {
     onSuccess: (data) => {
       // Refetch to get the real data with proper IDs
       queryClient.invalidateQueries({ queryKey: ["comments", data.postId] });
+      queryClient.invalidateQueries({ queryKey: ["comment-count", data.postId] });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["post", data.postId] });
       toast({ title: "Comment posted!" });
@@ -400,6 +401,7 @@ export const useDeleteComment = () => {
     },
     onSuccess: (postId) => {
       queryClient.invalidateQueries({ queryKey: ["comments", postId] });
+      queryClient.invalidateQueries({ queryKey: ["comment-count", postId] });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       toast({ title: "Comment deleted" });
     },

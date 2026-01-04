@@ -256,6 +256,8 @@ export const useVerifyBoostPayment = () => {
         queryClient.invalidateQueries({ queryKey: ["post-boosts"] });
         queryClient.invalidateQueries({ queryKey: ["post-boost-totals"] });
         queryClient.invalidateQueries({ queryKey: ["comments"] });
+        // Also invalidate comment counts to keep feed cards in sync
+        queryClient.invalidateQueries({ queryKey: ["comment-count"] });
         toast.success("Boost confirmed! Thank you for your support.");
       }
     },
