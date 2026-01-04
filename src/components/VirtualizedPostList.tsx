@@ -3,7 +3,39 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import PostCard from "@/components/PostCard";
 import PostSkeleton from "@/components/PostSkeleton";
 import { Post } from "@/hooks/usePosts";
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+// Inline loading skeleton that matches PostCard exactly
+const LoadingPostSkeleton = () => (
+  <div className="bg-card rounded-xl shadow-card p-4 animate-pulse">
+    {/* Header with avatar and community info */}
+    <div className="flex items-center gap-3 mb-4">
+      <Skeleton className="h-8 w-8 rounded-full" />
+      <div className="space-y-1.5 flex-1">
+        <Skeleton className="h-3.5 w-24" />
+        <Skeleton className="h-3 w-36" />
+      </div>
+      <Skeleton className="h-8 w-8 rounded-md" />
+    </div>
+    
+    {/* Title */}
+    <Skeleton className="h-5 w-4/5 mb-2" />
+    
+    {/* Content preview */}
+    <div className="space-y-1.5 mb-3">
+      <Skeleton className="h-3.5 w-full" />
+      <Skeleton className="h-3.5 w-3/4" />
+    </div>
+    
+    {/* Actions bar - matches vote/comment/share layout */}
+    <div className="flex items-center gap-1.5 pt-3">
+      <Skeleton className="h-8 w-20 rounded-full" />
+      <Skeleton className="h-8 w-16 rounded-full" />
+      <Skeleton className="h-8 w-14 rounded-full" />
+      <Skeleton className="h-8 w-8 rounded-full ml-auto" />
+    </div>
+  </div>
+);
 
 interface VirtualizedPostListProps {
   posts: Post[];
@@ -80,16 +112,15 @@ const VirtualizedPostList = ({
               }}
             >
               {isLoaderRow ? (
-                <div className="py-4 flex justify-center">
+                <div className="pb-4">
                   {isFetchingNextPage ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      <span className="text-sm">Loading more...</span>
-                    </div>
+                    <LoadingPostSkeleton />
                   ) : hasNextPage ? (
-                    <span className="text-sm text-muted-foreground">
-                      Scroll for more
-                    </span>
+                    <div className="py-4 flex justify-center">
+                      <span className="text-sm text-muted-foreground">
+                        Scroll for more
+                      </span>
+                    </div>
                   ) : null}
                 </div>
               ) : (
