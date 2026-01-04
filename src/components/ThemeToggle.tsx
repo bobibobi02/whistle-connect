@@ -1,28 +1,23 @@
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, Monitor } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const ThemeToggle = () => {
-  const { setTheme, theme, resolvedTheme } = useTheme();
-
-  const toggleTheme = () => {
-    // Simple toggle between light and dark
-    setTheme(resolvedTheme === "dark" ? "light" : "dark");
-  };
+  const { setTheme, theme } = useTheme();
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
         <Button 
           variant="ghost" 
-          size="icon" 
-          onClick={toggleTheme}
+          size="icon"
           className={cn(
             "relative overflow-hidden transition-colors",
             "hover:bg-primary/10 hover:text-primary"
@@ -30,19 +25,34 @@ const ThemeToggle = () => {
         >
           <Sun className={cn(
             "h-5 w-5 transition-all duration-300",
-            resolvedTheme === "dark" ? "rotate-90 scale-0 opacity-0" : "rotate-0 scale-100 opacity-100"
+            theme === "light" ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0 absolute"
           )} />
           <Moon className={cn(
-            "absolute h-5 w-5 transition-all duration-300",
-            resolvedTheme === "dark" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0"
+            "h-5 w-5 transition-all duration-300",
+            theme === "dark" ? "rotate-0 scale-100 opacity-100" : "-rotate-90 scale-0 opacity-0 absolute"
+          )} />
+          <Monitor className={cn(
+            "h-5 w-5 transition-all duration-300",
+            theme === "system" ? "rotate-0 scale-100 opacity-100" : "rotate-90 scale-0 opacity-0 absolute"
           )} />
           <span className="sr-only">Toggle theme</span>
         </Button>
-      </TooltipTrigger>
-      <TooltipContent>
-        <p>Switch to {resolvedTheme === "dark" ? "light" : "dark"} mode</p>
-      </TooltipContent>
-    </Tooltip>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => setTheme("light")} className="gap-2">
+          <Sun className="h-4 w-4" />
+          Light
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")} className="gap-2">
+          <Moon className="h-4 w-4" />
+          Dark
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("system")} className="gap-2">
+          <Monitor className="h-4 w-4" />
+          System
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 };
 
