@@ -116,11 +116,13 @@ const enrichPosts = async (
     profileMap[p.user_id] = p;
   });
 
+  // Fetch comment counts (only non-removed comments to match useCommentCount)
   const postIds = posts.map((p) => p.id);
   const { data: commentCounts } = await supabase
     .from("comments")
     .select("post_id")
-    .in("post_id", postIds);
+    .in("post_id", postIds)
+    .or("is_removed.is.null,is_removed.eq.false");
 
   const countMap: Record<string, number> = {};
   commentCounts?.forEach((c) => {
