@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,7 +9,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import { usePosts, Post } from '@/hooks/usePosts';
+import { Ionicons } from '@expo/vector-icons';
+import { useInfinitePosts, Post } from '@/hooks/usePosts';
 import { PostCard } from '@/components/PostCard';
 import { theme } from '@/theme';
 
@@ -23,7 +24,18 @@ const sortOptions: { key: SortOption; label: string }[] = [
 
 export default function FeedScreen() {
   const [sort, setSort] = useState<SortOption>('hot');
-  const { data: posts, isLoading, refetch, isRefetching } = usePosts(sort);
+  const {
+    data,
+    isLoading,
+    refetch,
+    isRefetching,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfinitePosts(sort);
+
+  // Flatten all pages into a single array
+  const posts = data?.pages.flatMap((page) => page.posts) ?? [];
 
   const handlePostPress = (post: Post) => {
     if (post.video_url) {
@@ -33,9 +45,24 @@ export default function FeedScreen() {
     }
   };
 
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const handleCreatePost = () => {
+    router.push('/create-post');
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.title}>Feed</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Feed</Text>
+        <TouchableOpacity style={styles.createButton} onPress={handleCreatePost}>
+          <Ionicons name="add" size={24} color={theme.colors.text} />
+        </TouchableOpacity>
+      </View>
       <View style={styles.sortContainer}>
         {sortOptions.map((option) => (
           <TouchableOpacity
@@ -60,6 +87,16 @@ export default function FeedScreen() {
     </View>
   );
 
+  const renderFooter = () => {
+    if (!isFetchingNextPage) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color={theme.colors.primary} />
+        <Text style={styles.footerText}>Loading more...</Text>
+      </View>
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -77,9 +114,14 @@ export default function FeedScreen() {
           <PostCard post={item} onPress={() => handlePostPress(item)} />
         )}
         ListHeaderComponent={renderHeader}
+        ListFooterComponent={renderFooter}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
+            <Ionicons name="newspaper-outline" size={48} color={theme.colors.textMuted} />
             <Text style={styles.emptyText}>No posts yet</Text>
+            <TouchableOpacity style={styles.emptyButton} onPress={handleCreatePost}>
+              <Text style={styles.emptyButtonText}>Create the first post</Text>
+            </TouchableOpacity>
           </View>
         }
         refreshControl={
@@ -89,6 +131,8 @@ export default function FeedScreen() {
             tintColor={theme.colors.primary}
           />
         }
+        onEndReached={handleEndReached}
+        onEndReachedThreshold={0.5}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -114,10 +158,23 @@ const styles = StyleSheet.create({
     padding: theme.spacing.lg,
     gap: theme.spacing.md,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   title: {
     fontSize: theme.fontSize.xxl,
     fontWeight: '700',
     color: theme.colors.text,
+  },
+  createButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: theme.colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sortContainer: {
     flexDirection: 'row',
@@ -146,9 +203,33 @@ const styles = StyleSheet.create({
   emptyContainer: {
     padding: theme.spacing.xxl,
     alignItems: 'center',
+    gap: theme.spacing.md,
   },
   emptyText: {
-    fontSize: theme.fontSize.md,
+    fontSize: theme.fontSize.lg,
     color: theme.colors.textMuted,
+  },
+  emptyButton: {
+    marginTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.xl,
+    paddingVertical: theme.spacing.md,
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.borderRadius.full,
+  },
+  emptyButtonText: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+    gap: theme.spacing.sm,
+  },
+  footerText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
   },
 });
