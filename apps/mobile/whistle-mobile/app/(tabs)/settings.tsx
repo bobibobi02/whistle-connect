@@ -10,10 +10,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNsfwSettings } from '@/hooks/useNsfwSettings';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { theme } from '@/theme';
 
 export default function SettingsScreen() {
   const { allowNsfw, isLoading, enableNsfw, disableNsfw } = useNsfwSettings();
+  const { 
+    permission, 
+    requestPermission, 
+    isSupported: pushSupported 
+  } = usePushNotifications();
 
   const handleNsfwToggle = (value: boolean) => {
     if (value) {
@@ -34,8 +40,58 @@ export default function SettingsScreen() {
     }
   };
 
+  const handlePushToggle = async (value: boolean) => {
+    if (value) {
+      const granted = await requestPermission();
+      if (!granted) {
+        Alert.alert(
+          'Permission Required',
+          'Please enable notifications in your device settings to receive alerts.',
+          [{ text: 'OK' }]
+        );
+      }
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Notifications</Text>
+        <View style={styles.card}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <View style={styles.settingHeader}>
+                <Ionicons name="notifications" size={20} color={theme.colors.primary} />
+                <Text style={styles.settingLabel}>Push Notifications</Text>
+              </View>
+              <Text style={styles.settingDescription}>
+                Get notified about new comments, upvotes, and followers.
+              </Text>
+            </View>
+            <Switch
+              value={permission === 'granted'}
+              onValueChange={handlePushToggle}
+              disabled={!pushSupported || permission === 'denied'}
+              trackColor={{
+                false: theme.colors.border,
+                true: theme.colors.primary,
+              }}
+              thumbColor={theme.colors.text}
+            />
+          </View>
+          {!pushSupported && (
+            <Text style={styles.warningText}>
+              Push notifications are only available on physical devices.
+            </Text>
+          )}
+          {permission === 'denied' && pushSupported && (
+            <Text style={styles.warningText}>
+              Notifications are disabled. Enable them in your device settings.
+            </Text>
+          )}
+        </View>
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Content</Text>
         <View style={styles.card}>
@@ -136,6 +192,12 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  warningText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.warning,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.md,
   },
   menuItem: {
     flexDirection: 'row',

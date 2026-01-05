@@ -124,12 +124,15 @@ npm run submit:android
 ## Features
 
 - ✅ Supabase auth with secure token storage
-- ✅ Feed with Hot/New/Top sorting
+- ✅ Feed with Hot/New/Top sorting + **infinite scroll pagination**
+- ✅ **Create posts with image upload** (camera & photo library)
 - ✅ Post detail with comments
 - ✅ Full-screen video player with autoplay-next
 - ✅ NSFW content toggle (18+ confirmation)
+- ✅ **Push notifications** (comments, upvotes, followers)
 - ✅ Dark theme matching web app
 - ✅ expo-router file-based navigation
+- ✅ **Custom app icons and splash screen**
 
 ## Project Structure
 
@@ -139,13 +142,43 @@ apps/mobile/whistle-mobile/
 │   ├── (auth)/            # Auth screens (login, signup)
 │   ├── (tabs)/            # Main tab screens
 │   ├── post/[id].tsx      # Post detail
-│   └── video/[id].tsx     # Full-screen video player
+│   ├── video/[id].tsx     # Full-screen video player
+│   └── create-post.tsx    # Create new post with image upload
 ├── src/
 │   ├── components/        # Reusable components
 │   ├── hooks/             # React Query hooks
+│   │   ├── useAuth.tsx
+│   │   ├── usePosts.ts    # Infinite scroll support
+│   │   ├── useCreatePost.ts
+│   │   ├── useImageUpload.ts
+│   │   ├── usePushNotifications.ts
+│   │   └── ...
 │   ├── lib/               # Supabase client
 │   └── theme/             # Theme constants
+├── assets/                # App icons & splash screen
 ├── app.json               # Expo config
 ├── eas.json               # EAS Build config
 └── package.json
 ```
+
+## Push Notifications Setup
+
+Push notifications use Expo Notifications with Expo Push Tokens.
+
+### For Development
+Push notifications require a physical device. The Expo Go app supports testing with Expo Push Tokens.
+
+### For Production
+1. **iOS**: EAS Build automatically configures APNs credentials
+2. **Android**: Add your `google-services.json` file to the project root
+
+### Testing Notifications
+Use the [Expo Push Notification Tool](https://expo.dev/notifications) to send test notifications using your device's push token.
+
+## Image Upload
+
+The app supports image uploads for posts:
+- Pick from photo library
+- Take photo with camera
+- Images are uploaded to Supabase Storage (`post-images` bucket)
+- Progress indicator during upload
