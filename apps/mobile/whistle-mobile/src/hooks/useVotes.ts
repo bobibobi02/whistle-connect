@@ -17,14 +17,12 @@ export const useVotes = () => {
       if (!user) throw new Error('Not authenticated');
 
       if (voteType === 0) {
-        // Remove vote
         await supabase
           .from('post_votes')
           .delete()
           .eq('post_id', postId)
           .eq('user_id', user.id);
       } else {
-        // Upsert vote
         await supabase.from('post_votes').upsert(
           {
             post_id: postId,
@@ -34,10 +32,64 @@ export const useVotes = () => {
           { onConflict: 'post_id,user_id' }
         );
       }
+      return { postId, voteType };
     },
-    onSuccess: () => {
+    onMutate: async ({ postId, voteType }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
+
+      // Snapshot previous values
+      const previousPost = queryClient.getQueryData(['post', postId]);
+      const previousPosts = queryClient.getQueryData(['posts']);
+
+      // Optimistically update single post
+      queryClient.setQueryData(['post', postId], (old: any) => {
+        if (!old) return old;
+        const oldVote = old.user_vote || 0;
+        const voteDiff = voteType - oldVote;
+        return {
+          ...old,
+          user_vote: voteType === 0 ? null : voteType,
+          upvotes: old.upvotes + voteDiff,
+        };
+      });
+
+      // Optimistically update posts in infinite query
+      queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+        if (!old?.pages) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) => ({
+            ...page,
+            data: page.data.map((post: any) => {
+              if (post.id !== postId) return post;
+              const oldVote = post.user_vote || 0;
+              const voteDiff = voteType - oldVote;
+              return {
+                ...post,
+                user_vote: voteType === 0 ? null : voteType,
+                upvotes: post.upvotes + voteDiff,
+              };
+            }),
+          })),
+        };
+      });
+
+      return { previousPost, previousPosts };
+    },
+    onError: (_err, { postId }, context) => {
+      // Rollback on error
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', postId], context.previousPost);
+      }
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['posts'], context.previousPosts);
+      }
+    },
+    onSettled: (_, __, { postId }) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['post'] });
+      queryClient.invalidateQueries({ queryKey: ['post', postId] });
     },
   });
 
@@ -45,9 +97,11 @@ export const useVotes = () => {
     mutationFn: async ({
       commentId,
       voteType,
+      postId,
     }: {
       commentId: string;
       voteType: 1 | -1 | 0;
+      postId: string;
     }) => {
       if (!user) throw new Error('Not authenticated');
 
@@ -67,9 +121,46 @@ export const useVotes = () => {
           { onConflict: 'comment_id,user_id' }
         );
       }
+      return { commentId, voteType, postId };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments'] });
+    onMutate: async ({ commentId, voteType, postId }) => {
+      await queryClient.cancelQueries({ queryKey: ['comments', postId] });
+
+      const previousComments = queryClient.getQueryData(['comments', postId]);
+
+      // Helper to update comment tree recursively
+      const updateCommentVote = (comments: any[]): any[] => {
+        return comments.map((comment) => {
+          if (comment.id === commentId) {
+            const oldVote = comment.user_vote || 0;
+            const voteDiff = voteType - oldVote;
+            return {
+              ...comment,
+              user_vote: voteType === 0 ? 0 : voteType,
+              upvotes: comment.upvotes + voteDiff,
+            };
+          }
+          if (comment.replies?.length) {
+            return { ...comment, replies: updateCommentVote(comment.replies) };
+          }
+          return comment;
+        });
+      };
+
+      queryClient.setQueryData(['comments', postId], (old: any) => {
+        if (!old) return old;
+        return updateCommentVote(old);
+      });
+
+      return { previousComments };
+    },
+    onError: (_err, { postId }, context) => {
+      if (context?.previousComments) {
+        queryClient.setQueryData(['comments', postId], context.previousComments);
+      }
+    },
+    onSettled: (_, __, { postId }) => {
+      queryClient.invalidateQueries({ queryKey: ['comments', postId] });
     },
   });
 

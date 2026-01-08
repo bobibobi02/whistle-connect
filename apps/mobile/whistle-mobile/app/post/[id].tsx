@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePost } from '@/hooks/usePosts';
 import { useComments, useCreateComment, Comment } from '@/hooks/useComments';
 import { useVotes } from '@/hooks/useVotes';
@@ -42,7 +44,7 @@ function CommentItem({ comment, postId, level = 0 }: { comment: Comment; postId:
   const handleVote = (voteType: 1 | -1) => {
     if (!user) return;
     const newVote = comment.user_vote === voteType ? 0 : voteType;
-    voteOnComment.mutate({ commentId: comment.id, voteType: newVote as 1 | -1 | 0 });
+    voteOnComment.mutate({ commentId: comment.id, voteType: newVote as 1 | -1 | 0, postId });
   };
 
   return (
@@ -115,12 +117,23 @@ function CommentItem({ comment, postId, level = 0 }: { comment: Comment; postId:
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: post, isLoading: postLoading } = usePost(id);
-  const { data: comments, isLoading: commentsLoading } = useComments(id);
+  const queryClient = useQueryClient();
+  const { data: post, isLoading: postLoading, refetch: refetchPost } = usePost(id);
+  const { data: comments, isLoading: commentsLoading, refetch: refetchComments } = useComments(id);
   const createComment = useCreateComment();
   const { voteOnPost } = useVotes();
   const { user } = useAuth();
   const [newComment, setNewComment] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([refetchPost(), refetchComments()]);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetchPost, refetchComments]);
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || !user) return;
@@ -158,7 +171,17 @@ export default function PostDetailScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView style={styles.scrollView}>
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
+      >
         {/* Post Header */}
         <View style={styles.postHeader}>
           <Text style={styles.community}>w/{post.community}</Text>
