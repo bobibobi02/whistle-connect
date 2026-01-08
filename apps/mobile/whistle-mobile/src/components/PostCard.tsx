@@ -5,6 +5,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { router } from 'expo-router';
 import { Post } from '@/hooks/usePosts';
 import { useToggleBookmark } from '@/hooks/useBookmarks';
+import { useVotes } from '@/hooks/useVotes';
+import { useAuth } from '@/hooks/useAuth';
 import { theme } from '@/theme';
 
 interface PostCardProps {
@@ -15,6 +17,8 @@ interface PostCardProps {
 
 export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
   const toggleBookmark = useToggleBookmark();
+  const { voteOnPost } = useVotes();
+  const { user } = useAuth();
 
   const handleBookmarkPress = () => {
     toggleBookmark.mutate({ postId: post.id, isBookmarked: post.is_bookmarked ?? false });
@@ -26,6 +30,12 @@ export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
     } else {
       router.push(`/user/${post.user_id}`);
     }
+  };
+
+  const handleVote = (voteType: 1 | -1) => {
+    if (!user) return;
+    const newVote = post.user_vote === voteType ? 0 : voteType;
+    voteOnPost.mutate({ postId: post.id, voteType: newVote as 1 | -1 | 0 });
   };
 
   return (
@@ -85,17 +95,27 @@ export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
 
       <View style={styles.footer}>
         <View style={styles.voteContainer}>
-          <Ionicons
-            name={post.user_vote === 1 ? 'arrow-up' : 'arrow-up-outline'}
-            size={18}
-            color={post.user_vote === 1 ? theme.colors.upvote : theme.colors.textSecondary}
-          />
+          <TouchableOpacity
+            onPress={() => handleVote(1)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={post.user_vote === 1 ? 'arrow-up' : 'arrow-up-outline'}
+              size={20}
+              color={post.user_vote === 1 ? theme.colors.upvote : theme.colors.textSecondary}
+            />
+          </TouchableOpacity>
           <Text style={styles.voteCount}>{post.upvotes}</Text>
-          <Ionicons
-            name={post.user_vote === -1 ? 'arrow-down' : 'arrow-down-outline'}
-            size={18}
-            color={post.user_vote === -1 ? theme.colors.downvote : theme.colors.textSecondary}
-          />
+          <TouchableOpacity
+            onPress={() => handleVote(-1)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons
+              name={post.user_vote === -1 ? 'arrow-down' : 'arrow-down-outline'}
+              size={20}
+              color={post.user_vote === -1 ? theme.colors.downvote : theme.colors.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.commentContainer}>
