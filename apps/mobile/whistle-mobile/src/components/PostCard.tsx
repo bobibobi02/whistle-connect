@@ -7,6 +7,7 @@ import { Post } from '@/hooks/usePosts';
 import { useToggleBookmark } from '@/hooks/useBookmarks';
 import { useVotes } from '@/hooks/useVotes';
 import { useAuth } from '@/hooks/useAuth';
+import { useShare } from '@/hooks/useShare';
 import { theme } from '@/theme';
 
 interface PostCardProps {
@@ -19,9 +20,14 @@ export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
   const toggleBookmark = useToggleBookmark();
   const { voteOnPost } = useVotes();
   const { user } = useAuth();
+  const { sharePost } = useShare();
 
   const handleBookmarkPress = () => {
     toggleBookmark.mutate({ postId: post.id, isBookmarked: post.is_bookmarked ?? false });
+  };
+
+  const handleSharePress = () => {
+    sharePost(post.id, post.title);
   };
 
   const handleAuthorPress = () => {
@@ -30,6 +36,10 @@ export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
     } else {
       router.push(`/user/${post.user_id}`);
     }
+  };
+
+  const handleCommunityPress = () => {
+    router.push(`/community/${post.community}`);
   };
 
   const handleVote = (voteType: 1 | -1) => {
@@ -41,7 +51,9 @@ export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.header}>
-        <Text style={styles.community}>w/{post.community}</Text>
+        <TouchableOpacity onPress={handleCommunityPress}>
+          <Text style={styles.community}>w/{post.community}</Text>
+        </TouchableOpacity>
         <TouchableOpacity onPress={handleAuthorPress}>
           <Text style={styles.meta}>
             <Text style={styles.author}>u/{post.author_username}</Text> •{' '}
@@ -124,6 +136,14 @@ export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
         </View>
 
         <TouchableOpacity 
+          style={styles.actionButton}
+          onPress={handleSharePress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="share-outline" size={18} color={theme.colors.textSecondary} />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
           style={styles.bookmarkButton} 
           onPress={handleBookmarkPress}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -131,7 +151,7 @@ export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
           <Ionicons 
             name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'} 
             size={18} 
-            color={post.is_bookmarked ? theme.colors.primary : theme.colors.textSecondary} 
+            color={post.is_bookmarked ? theme.colors.primary : theme.colors.textSecondary}
           />
         </TouchableOpacity>
       </View>
@@ -164,6 +184,9 @@ const styles = StyleSheet.create({
   },
   author: {
     color: theme.colors.textSecondary,
+  },
+  actionButton: {
+    padding: 2,
   },
   bookmarkButton: {
     marginLeft: 'auto',
