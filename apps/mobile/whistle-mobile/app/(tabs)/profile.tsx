@@ -10,15 +10,23 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import { useFollowCounts } from '@/hooks/useFollows';
 import { theme } from '@/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ProfileScreen() {
   const { user, profile, signOut } = useAuth();
+  const { data: followCounts } = useFollowCounts(user?.id);
 
   const handleSignOut = async () => {
     await signOut();
     router.replace('/(auth)/login');
+  };
+
+  const handleViewFullProfile = () => {
+    if (user) {
+      router.push(`/user/${user.id}`);
+    }
   };
 
   if (!user) {
@@ -55,6 +63,22 @@ export default function ProfileScreen() {
           @{profile?.username || 'anonymous'}
         </Text>
         {profile?.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+
+        <View style={styles.statsRow}>
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{followCounts?.followers ?? 0}</Text>
+            <Text style={styles.statLabel}>Followers</Text>
+          </View>
+          <View style={styles.stat}>
+            <Text style={styles.statNumber}>{followCounts?.following ?? 0}</Text>
+            <Text style={styles.statLabel}>Following</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.viewProfileButton} onPress={handleViewFullProfile}>
+          <Text style={styles.viewProfileText}>View Full Profile</Text>
+          <Ionicons name="chevron-forward" size={16} color={theme.colors.primary} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -123,6 +147,34 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.xl,
+    marginBottom: theme.spacing.lg,
+  },
+  stat: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: theme.fontSize.xl,
+    fontWeight: '700',
+    color: theme.colors.text,
+  },
+  statLabel: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textSecondary,
+  },
+  viewProfileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+  },
+  viewProfileText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.primary,
+    fontWeight: '500',
   },
   section: {
     padding: theme.spacing.lg,

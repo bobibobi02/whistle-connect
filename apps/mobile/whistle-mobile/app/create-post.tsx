@@ -11,6 +11,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  FlatList,
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +20,7 @@ import { Video, ResizeMode } from 'expo-av';
 import { useImageUpload } from '@/hooks/useImageUpload';
 import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { useCreatePost } from '@/hooks/useCreatePost';
+import { useCommunities, Community } from '@/hooks/useCommunities';
 import { theme } from '@/theme';
 
 export default function CreatePostScreen() {
@@ -27,7 +30,10 @@ export default function CreatePostScreen() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [isNsfw, setIsNsfw] = useState(false);
+  const [selectedCommunity, setSelectedCommunity] = useState<string>('general');
+  const [showCommunityPicker, setShowCommunityPicker] = useState(false);
 
+  const { data: communities = [], isLoading: isLoadingCommunities } = useCommunities();
   const { pickAndUpload: pickImage, takeAndUpload: takePhoto, isUploading: isUploadingImage, progress: imageProgress } = useImageUpload();
   const { pickAndUpload: pickVideo, recordAndUpload: recordVideo, isUploading: isUploadingVideo, progress: videoProgress } = useVideoUpload();
   const createPost = useCreatePost();
@@ -89,6 +95,7 @@ export default function CreatePostScreen() {
         content: content.trim() || undefined,
         image_url: imageUrl || undefined,
         video_url: videoUrl || undefined,
+        community: selectedCommunity,
         is_nsfw: isNsfw,
       },
       {
@@ -116,6 +123,29 @@ export default function CreatePostScreen() {
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
+
+  const handleSelectCommunity = (communityName: string) => {
+    setSelectedCommunity(communityName);
+    setShowCommunityPicker(false);
+  };
+
+  const selectedCommunityData = communities.find(c => c.name === selectedCommunity);
+
+  const renderCommunityItem = ({ item }: { item: Community }) => (
+    <TouchableOpacity 
+      style={[styles.communityItem, item.name === selectedCommunity && styles.communityItemSelected]}
+      onPress={() => handleSelectCommunity(item.name)}
+    >
+      <Text style={styles.communityIcon}>{item.icon || '💬'}</Text>
+      <View style={styles.communityInfo}>
+        <Text style={styles.communityName}>w/{item.name}</Text>
+        <Text style={styles.communityMembers}>{item.member_count?.toLocaleString() || 0} members</Text>
+      </View>
+      {item.name === selectedCommunity && (
+        <Ionicons name="checkmark" size={20} color={theme.colors.primary} />
+      )}
+    </TouchableOpacity>
+  );
 
   const isSubmitting = createPost.isPending || isUploading;
 
@@ -158,6 +188,16 @@ export default function CreatePostScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Community Selector */}
+          <TouchableOpacity 
+            style={styles.communitySelector}
+            onPress={() => setShowCommunityPicker(true)}
+          >
+            <Text style={styles.communityIcon}>{selectedCommunityData?.icon || '💬'}</Text>
+            <Text style={styles.communitySelectorText}>w/{selectedCommunity}</Text>
+            <Ionicons name="chevron-down" size={18} color={theme.colors.textSecondary} />
+          </TouchableOpacity>
+
           {/* Title Input */}
           <TextInput
             style={styles.titleInput}
@@ -273,6 +313,38 @@ export default function CreatePostScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Community Picker Modal */}
+      <Modal
+        visible={showCommunityPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCommunityPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Community</Text>
+              <TouchableOpacity onPress={() => setShowCommunityPicker(false)}>
+                <Ionicons name="close" size={24} color={theme.colors.text} />
+              </TouchableOpacity>
+            </View>
+            {isLoadingCommunities ? (
+              <ActivityIndicator size="large" color={theme.colors.primary} style={styles.loader} />
+            ) : (
+              <FlatList
+                data={communities}
+                keyExtractor={(item) => item.id}
+                renderItem={renderCommunityItem}
+                contentContainerStyle={styles.communityList}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
     </>
   );
 }
@@ -410,5 +482,77 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     fontWeight: '600',
     color: theme.colors.text,
+  },
+  communitySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    gap: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  communitySelectorText: {
+    fontSize: theme.fontSize.md,
+    color: theme.colors.text,
+    fontWeight: '500',
+    flex: 1,
+  },
+  communityIcon: {
+    fontSize: theme.fontSize.lg,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: theme.colors.background,
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: theme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  modalTitle: {
+    fontSize: theme.fontSize.lg,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  communityList: {
+    padding: theme.spacing.md,
+  },
+  communityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    gap: theme.spacing.md,
+  },
+  communityItemSelected: {
+    backgroundColor: theme.colors.surface,
+  },
+  communityInfo: {
+    flex: 1,
+  },
+  communityName: {
+    fontSize: theme.fontSize.md,
+    fontWeight: '500',
+    color: theme.colors.text,
+  },
+  communityMembers: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.textMuted,
+  },
+  loader: {
+    padding: theme.spacing.xl,
   },
 });
