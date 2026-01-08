@@ -2,25 +2,42 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
+import { router } from 'expo-router';
 import { Post } from '@/hooks/usePosts';
+import { useToggleBookmark } from '@/hooks/useBookmarks';
 import { theme } from '@/theme';
 
 interface PostCardProps {
   post: Post;
   onPress: () => void;
+  onAuthorPress?: (userId: string) => void;
 }
 
-export function PostCard({ post, onPress }: PostCardProps) {
-  const hasMedia = post.image_url || post.video_url;
+export function PostCard({ post, onPress, onAuthorPress }: PostCardProps) {
+  const toggleBookmark = useToggleBookmark();
+
+  const handleBookmarkPress = () => {
+    toggleBookmark.mutate({ postId: post.id, isBookmarked: post.is_bookmarked ?? false });
+  };
+
+  const handleAuthorPress = () => {
+    if (onAuthorPress) {
+      onAuthorPress(post.user_id);
+    } else {
+      router.push(`/user/${post.user_id}`);
+    }
+  };
 
   return (
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.header}>
         <Text style={styles.community}>w/{post.community}</Text>
-        <Text style={styles.meta}>
-          u/{post.author_username} •{' '}
-          {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-        </Text>
+        <TouchableOpacity onPress={handleAuthorPress}>
+          <Text style={styles.meta}>
+            <Text style={styles.author}>u/{post.author_username}</Text> •{' '}
+            {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Text style={styles.title} numberOfLines={2}>
@@ -86,9 +103,17 @@ export function PostCard({ post, onPress }: PostCardProps) {
           <Text style={styles.commentCount}>{post.comment_count}</Text>
         </View>
 
-        {post.is_bookmarked && (
-          <Ionicons name="bookmark" size={16} color={theme.colors.primary} />
-        )}
+        <TouchableOpacity 
+          style={styles.bookmarkButton} 
+          onPress={handleBookmarkPress}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons 
+            name={post.is_bookmarked ? 'bookmark' : 'bookmark-outline'} 
+            size={18} 
+            color={post.is_bookmarked ? theme.colors.primary : theme.colors.textSecondary} 
+          />
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -116,6 +141,12 @@ const styles = StyleSheet.create({
   meta: {
     fontSize: theme.fontSize.xs,
     color: theme.colors.textMuted,
+  },
+  author: {
+    color: theme.colors.textSecondary,
+  },
+  bookmarkButton: {
+    marginLeft: 'auto',
   },
   title: {
     fontSize: theme.fontSize.lg,
