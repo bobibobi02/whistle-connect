@@ -125,14 +125,18 @@ npm run submit:android
 
 - ✅ Supabase auth with secure token storage
 - ✅ Feed with Hot/New/Top sorting + **infinite scroll pagination**
-- ✅ **Create posts with image upload** (camera & photo library)
-- ✅ Post detail with comments
+- ✅ **Offline support** - posts cached for offline viewing
+- ✅ **Create posts with image & video upload** (camera & library)
+- ✅ **Bookmarks/Saved posts** - dedicated tab for saved content
+- ✅ Post detail with comments & pull-to-refresh
+- ✅ **Optimistic updates** for upvotes/downvotes
 - ✅ Full-screen video player with autoplay-next
 - ✅ NSFW content toggle (18+ confirmation)
 - ✅ **Push notifications** (comments, upvotes, followers)
+- ✅ **Real-time notifications** with Supabase subscriptions
 - ✅ Dark theme matching web app
 - ✅ expo-router file-based navigation
-- ✅ **Custom app icons and splash screen**
+- ✅ Custom app icons and splash screen
 
 ## Project Structure
 
@@ -140,17 +144,17 @@ npm run submit:android
 apps/mobile/whistle-mobile/
 ├── app/                    # expo-router screens
 │   ├── (auth)/            # Auth screens (login, signup)
-│   ├── (tabs)/            # Main tab screens
-│   ├── post/[id].tsx      # Post detail
+│   ├── (tabs)/            # Main tab screens (feed, search, bookmarks, notifications, profile, settings)
+│   ├── post/[id].tsx      # Post detail with pull-to-refresh
 │   ├── video/[id].tsx     # Full-screen video player
-│   └── create-post.tsx    # Create new post with image upload
+│   └── create-post.tsx    # Create post with image/video upload
 ├── src/
 │   ├── components/        # Reusable components
 │   ├── hooks/             # React Query hooks
 │   │   ├── useAuth.tsx
-│   │   ├── usePosts.ts    # Infinite scroll support
-│   │   ├── useCreatePost.ts
-│   │   ├── useImageUpload.ts
+│   │   ├── usePosts.ts    # Infinite scroll + offline cache
+│   │   ├── useBookmarks.ts # Saved posts
+│   │   ├── useVideoUpload.ts
 │   │   ├── usePushNotifications.ts
 │   │   └── ...
 │   ├── lib/               # Supabase client
@@ -160,25 +164,3 @@ apps/mobile/whistle-mobile/
 ├── eas.json               # EAS Build config
 └── package.json
 ```
-
-## Push Notifications Setup
-
-Push notifications use Expo Notifications with Expo Push Tokens.
-
-### For Development
-Push notifications require a physical device. The Expo Go app supports testing with Expo Push Tokens.
-
-### For Production
-1. **iOS**: EAS Build automatically configures APNs credentials
-2. **Android**: Add your `google-services.json` file to the project root
-
-### Testing Notifications
-Use the [Expo Push Notification Tool](https://expo.dev/notifications) to send test notifications using your device's push token.
-
-## Image Upload
-
-The app supports image uploads for posts:
-- Pick from photo library
-- Take photo with camera
-- Images are uploaded to Supabase Storage (`post-images` bucket)
-- Progress indicator during upload

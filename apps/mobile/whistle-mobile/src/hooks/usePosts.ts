@@ -1,7 +1,12 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './useAuth';
 import { useNsfwSettings } from './useNsfwSettings';
+
+const CACHE_KEY = 'whistle_cached_posts';
 
 export interface Post {
   id: string;
@@ -88,14 +93,48 @@ async function enrichPosts(posts: any[], userId: string | undefined): Promise<Po
   );
 }
 
+// Cache posts for offline use
+async function cachePosts(posts: Post[]) {
+  try {
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(posts));
+  } catch (error) {
+    console.error('Failed to cache posts:', error);
+  }
+}
+
+// Load cached posts
+async function loadCachedPosts(): Promise<Post[] | null> {
+  try {
+    const cached = await AsyncStorage.getItem(CACHE_KEY);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    console.error('Failed to load cached posts:', error);
+    return null;
+  }
+}
+
 export const useInfinitePosts = (sort: SortOption = 'hot') => {
   const { user } = useAuth();
   const { allowNsfw } = useNsfwSettings();
   const queryClient = useQueryClient();
 
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: ['posts', 'infinite', sort, user?.id, allowNsfw],
     queryFn: async ({ pageParam = 0 }): Promise<{ posts: Post[]; nextPage: number | undefined }> => {
+      // Check network status
+      const netInfo = await NetInfo.fetch();
+      
+      if (!netInfo.isConnected) {
+        // Offline - return cached posts for first page only
+        if (pageParam === 0) {
+          const cached = await loadCachedPosts();
+          if (cached) {
+            return { posts: cached, nextPage: undefined };
+          }
+        }
+        return { posts: [], nextPage: undefined };
+      }
+
       let query = supabase
         .from('posts')
         .select('*')
@@ -130,6 +169,11 @@ export const useInfinitePosts = (sort: SortOption = 'hot') => {
 
       const enrichedPosts = await enrichPosts(posts, user?.id);
 
+      // Cache first page for offline use
+      if (pageParam === 0) {
+        cachePosts(enrichedPosts);
+      }
+
       return {
         posts: enrichedPosts,
         nextPage: posts.length === PAGE_SIZE ? pageParam + 1 : undefined,
@@ -139,6 +183,8 @@ export const useInfinitePosts = (sort: SortOption = 'hot') => {
     initialPageParam: 0,
     staleTime: 1000 * 60, // 1 minute
   });
+
+  return query;
 };
 
 // Legacy hook for backwards compatibility

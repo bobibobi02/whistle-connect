@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { theme } from '@/theme';
 import { useUnreadCount } from '@/hooks/useNotifications';
+import { useBookmarkCount } from '@/hooks/useBookmarks';
 
 function NotificationBadge() {
   const { data: unreadCount } = useUnreadCount();
@@ -14,6 +15,18 @@ function NotificationBadge() {
       <Text style={styles.badgeText}>
         {unreadCount > 99 ? '99+' : unreadCount}
       </Text>
+    </View>
+  );
+}
+
+function BookmarkBadge() {
+  const { data: count } = useBookmarkCount();
+
+  if (!count || count === 0) return null;
+
+  return (
+    <View style={styles.badgeSmall}>
+      <Text style={styles.badgeTextSmall}>{count > 99 ? '99+' : count}</Text>
     </View>
   );
 }
@@ -54,6 +67,17 @@ export default function TabLayout() {
           title: 'Search',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="search" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="bookmarks"
+        options={{
+          title: 'Saved',
+          tabBarIcon: ({ color, size }) => (
+            <View>
+              <Ionicons name="bookmark" size={size} color={color} />
+            </View>
           ),
         }}
       />
@@ -106,6 +130,23 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  badgeSmall: {
+    position: 'absolute',
+    top: -2,
+    right: -8,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 8,
+    minWidth: 14,
+    height: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  badgeTextSmall: {
+    fontSize: 8,
     fontWeight: '700',
     color: '#FFFFFF',
   },
