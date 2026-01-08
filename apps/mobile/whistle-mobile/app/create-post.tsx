@@ -14,7 +14,9 @@ import {
 } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
 import { useImageUpload } from '@/hooks/useImageUpload';
+import { useVideoUpload } from '@/hooks/useVideoUpload';
 import { useCreatePost } from '@/hooks/useCreatePost';
 import { theme } from '@/theme';
 
@@ -22,23 +24,57 @@ export default function CreatePostScreen() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [isNsfw, setIsNsfw] = useState(false);
 
-  const { pickAndUpload, takeAndUpload, isUploading, progress } = useImageUpload();
+  const { pickAndUpload: pickImage, takeAndUpload: takePhoto, isUploading: isUploadingImage, progress: imageProgress } = useImageUpload();
+  const { pickAndUpload: pickVideo, recordAndUpload: recordVideo, isUploading: isUploadingVideo, progress: videoProgress } = useVideoUpload();
   const createPost = useCreatePost();
 
+  const isUploading = isUploadingImage || isUploadingVideo;
+  const progress = isUploadingImage ? imageProgress : videoProgress;
+
   const handlePickImage = async () => {
-    const url = await pickAndUpload();
-    if (url) setImageUrl(url);
+    const url = await pickImage();
+    if (url) {
+      setImageUrl(url);
+      setVideoUrl(null);
+      setVideoDuration(null);
+    }
   };
 
   const handleTakePhoto = async () => {
-    const url = await takeAndUpload();
-    if (url) setImageUrl(url);
+    const url = await takePhoto();
+    if (url) {
+      setImageUrl(url);
+      setVideoUrl(null);
+      setVideoDuration(null);
+    }
   };
 
-  const handleRemoveImage = () => {
+  const handlePickVideo = async () => {
+    const result = await pickVideo();
+    if (result) {
+      setVideoUrl(result.videoUrl);
+      setVideoDuration(result.durationSeconds ?? null);
+      setImageUrl(null);
+    }
+  };
+
+  const handleRecordVideo = async () => {
+    const result = await recordVideo();
+    if (result) {
+      setVideoUrl(result.videoUrl);
+      setVideoDuration(result.durationSeconds ?? null);
+      setImageUrl(null);
+    }
+  };
+
+  const handleRemoveMedia = () => {
     setImageUrl(null);
+    setVideoUrl(null);
+    setVideoDuration(null);
   };
 
   const handleSubmit = async () => {
@@ -52,6 +88,7 @@ export default function CreatePostScreen() {
         title: title.trim(),
         content: content.trim() || undefined,
         image_url: imageUrl || undefined,
+        video_url: videoUrl || undefined,
         is_nsfw: isNsfw,
       },
       {
@@ -68,6 +105,14 @@ export default function CreatePostScreen() {
     Alert.alert('Add Image', 'Choose an option', [
       { text: 'Camera', onPress: handleTakePhoto },
       { text: 'Photo Library', onPress: handlePickImage },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const showVideoOptions = () => {
+    Alert.alert('Add Video', 'Choose an option', [
+      { text: 'Record Video', onPress: handleRecordVideo },
+      { text: 'Video Library', onPress: handlePickVideo },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -136,14 +181,42 @@ export default function CreatePostScreen() {
 
           {/* Image Preview */}
           {imageUrl && (
-            <View style={styles.imagePreviewContainer}>
+            <View style={styles.mediaPreviewContainer}>
               <Image source={{ uri: imageUrl }} style={styles.imagePreview} />
               <TouchableOpacity
-                style={styles.removeImageButton}
-                onPress={handleRemoveImage}
+                style={styles.removeMediaButton}
+                onPress={handleRemoveMedia}
               >
                 <Ionicons name="close-circle" size={28} color={theme.colors.text} />
               </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Video Preview */}
+          {videoUrl && (
+            <View style={styles.mediaPreviewContainer}>
+              <Video
+                source={{ uri: videoUrl }}
+                style={styles.videoPreview}
+                resizeMode={ResizeMode.COVER}
+                shouldPlay={false}
+                isMuted
+                useNativeControls
+              />
+              <TouchableOpacity
+                style={styles.removeMediaButton}
+                onPress={handleRemoveMedia}
+              >
+                <Ionicons name="close-circle" size={28} color={theme.colors.text} />
+              </TouchableOpacity>
+              <View style={styles.videoBadge}>
+                <Ionicons name="videocam" size={16} color={theme.colors.text} />
+                {videoDuration && (
+                  <Text style={styles.videoDurationText}>
+                    {Math.floor(videoDuration / 60)}:{String(videoDuration % 60).padStart(2, '0')}
+                  </Text>
+                )}
+              </View>
             </View>
           )}
 
@@ -151,7 +224,9 @@ export default function CreatePostScreen() {
           {isUploading && (
             <View style={styles.progressContainer}>
               <View style={[styles.progressBar, { width: `${progress}%` }]} />
-              <Text style={styles.progressText}>Uploading... {progress}%</Text>
+              <Text style={styles.progressText}>
+                Uploading {isUploadingVideo ? 'video' : 'image'}... {progress}%
+              </Text>
             </View>
           )}
 
@@ -179,9 +254,22 @@ export default function CreatePostScreen() {
             <Ionicons
               name="image-outline"
               size={24}
-              color={theme.colors.textSecondary}
+              color={imageUrl ? theme.colors.primary : theme.colors.textSecondary}
             />
-            <Text style={styles.actionText}>Image</Text>
+            <Text style={[styles.actionText, imageUrl && styles.actionTextActive]}>Image</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={showVideoOptions}
+            disabled={isUploading}
+          >
+            <Ionicons
+              name="videocam-outline"
+              size={24}
+              color={videoUrl ? theme.colors.primary : theme.colors.textSecondary}
+            />
+            <Text style={[styles.actionText, videoUrl && styles.actionTextActive]}>Video</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -213,7 +301,7 @@ const styles = StyleSheet.create({
     minHeight: 120,
     paddingVertical: theme.spacing.sm,
   },
-  imagePreviewContainer: {
+  mediaPreviewContainer: {
     position: 'relative',
     borderRadius: theme.borderRadius.md,
     overflow: 'hidden',
@@ -223,12 +311,35 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: theme.borderRadius.md,
   },
-  removeImageButton: {
+  videoPreview: {
+    width: '100%',
+    height: 200,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface,
+  },
+  removeMediaButton: {
     position: 'absolute',
     top: theme.spacing.sm,
     right: theme.spacing.sm,
     backgroundColor: 'rgba(0,0,0,0.5)',
     borderRadius: 14,
+  },
+  videoBadge: {
+    position: 'absolute',
+    bottom: theme.spacing.sm,
+    left: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.xs,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
+  },
+  videoDurationText: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    fontWeight: '500',
   },
   progressContainer: {
     height: 24,
@@ -268,6 +379,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: theme.colors.border,
     backgroundColor: theme.colors.surface,
+    gap: theme.spacing.lg,
   },
   actionButton: {
     flexDirection: 'row',
@@ -279,6 +391,9 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
+  },
+  actionTextActive: {
+    color: theme.colors.primary,
   },
   postButton: {
     backgroundColor: theme.colors.primary,
