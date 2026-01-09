@@ -13,6 +13,7 @@ import { useVideoQueue } from "@/hooks/useVideoQueue";
 import { useAuth } from "@/hooks/useAuth";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
 import FloatingActionButton from "@/components/FloatingActionButton";
+import { AdSlot } from "@/components/AdSlot";
 import { Button } from "@/components/ui/button";
 import { Users, Flame, TrendingUp, Clock, UserPlus, RefreshCw, Radio, Sparkles } from "lucide-react";
 
@@ -285,7 +286,10 @@ const Index = () => {
           </div>
 
           {/* Sidebar */}
-          <CommunitySidebar className="hidden lg:block sticky top-24 h-fit" sortBy={sortBy} onSortChange={setSortBy} />
+          <div className="hidden lg:block sticky top-24 h-fit space-y-4">
+            <CommunitySidebar sortBy={sortBy} onSortChange={setSortBy} />
+            <AdSlot placementKey="POST_VIEW_RAIL" variant="sidebar" />
+          </div>
         </div>
       </main>
 
