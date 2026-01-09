@@ -1,9 +1,11 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import PostCard from "@/components/PostCard";
 import PostSkeleton from "@/components/PostSkeleton";
 import { Post } from "@/hooks/usePosts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FeedAdSlot } from "@/components/FeedAdSlot";
+import { usePlacement } from "@/hooks/useAds";
 
 // Inline loading skeleton that matches PostCard exactly
 const LoadingPostSkeleton = () => (
@@ -43,7 +45,10 @@ interface VirtualizedPostListProps {
   isFetchingNextPage?: boolean;
   fetchNextPage?: () => void;
   isLoading?: boolean;
+  communityName?: string;
 }
+
+type FeedItem = { type: "post"; post: Post; index: number } | { type: "ad"; index: number };
 
 const VirtualizedPostList = ({
   posts,
@@ -51,11 +56,29 @@ const VirtualizedPostList = ({
   isFetchingNextPage,
   fetchNextPage,
   isLoading,
+  communityName,
 }: VirtualizedPostListProps) => {
   const parentRef = useRef<HTMLDivElement>(null);
+  const { data: placement } = usePlacement("FEED_INLINE");
+  
+  // Default to showing an ad every 10 posts
+  const adFrequency = placement?.insertion_frequency ?? 10;
+
+  // Build feed items with ads interspersed
+  const feedItems = useMemo<FeedItem[]>(() => {
+    const items: FeedItem[] = [];
+    posts.forEach((post, idx) => {
+      items.push({ type: "post", post, index: idx });
+      // Insert ad after every N posts (if placement is enabled)
+      if (placement?.enabled && (idx + 1) % adFrequency === 0 && idx < posts.length - 1) {
+        items.push({ type: "ad", index: Math.floor((idx + 1) / adFrequency) });
+      }
+    });
+    return items;
+  }, [posts, placement, adFrequency]);
 
   const virtualizer = useVirtualizer({
-    count: posts.length + (hasNextPage ? 1 : 0),
+    count: feedItems.length + (hasNextPage ? 1 : 0),
     getScrollElement: () => parentRef.current,
     estimateSize: () => 200,
     overscan: 5,
@@ -68,14 +91,14 @@ const VirtualizedPostList = ({
     const lastItem = items[items.length - 1];
     if (
       lastItem &&
-      lastItem.index >= posts.length - 3 &&
+      lastItem.index >= feedItems.length - 3 &&
       hasNextPage &&
       !isFetchingNextPage &&
       fetchNextPage
     ) {
       fetchNextPage();
     }
-  }, [items, posts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [items, feedItems.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isLoading) {
     return <PostSkeleton count={4} />;
@@ -95,8 +118,8 @@ const VirtualizedPostList = ({
         }}
       >
         {items.map((virtualItem) => {
-          const isLoaderRow = virtualItem.index >= posts.length;
-          const post = posts[virtualItem.index];
+          const isLoaderRow = virtualItem.index >= feedItems.length;
+          const feedItem = feedItems[virtualItem.index];
 
           return (
             <div
@@ -123,11 +146,15 @@ const VirtualizedPostList = ({
                     </div>
                   ) : null}
                 </div>
-              ) : (
+              ) : feedItem?.type === "ad" ? (
                 <div className="pb-4">
-                  <PostCard post={post} index={virtualItem.index} />
+                  <FeedAdSlot loopId={communityName} />
                 </div>
-              )}
+              ) : feedItem?.type === "post" ? (
+                <div className="pb-4">
+                  <PostCard post={feedItem.post} index={feedItem.index} />
+                </div>
+              ) : null}
             </div>
           );
         })}
