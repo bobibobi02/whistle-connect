@@ -13,19 +13,19 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
-import { useQueryClient } from '@tanstack/react-query';
 import { usePost } from '@/hooks/usePosts';
 import { useComments, useCreateComment, Comment } from '@/hooks/useComments';
 import { useVotes } from '@/hooks/useVotes';
 import { useAuth } from '@/hooks/useAuth';
+import { ReportModal } from '@/components/ReportModal';
 import { theme } from '@/theme';
 
 function CommentItem({ comment, postId, level = 0 }: { comment: Comment; postId: string; level?: number }) {
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [replyText, setReplyText] = useState('');
+  const [showReportModal, setShowReportModal] = useState(false);
   const createComment = useCreateComment();
   const { voteOnComment } = useVotes();
   const { user } = useAuth();
@@ -48,76 +48,92 @@ function CommentItem({ comment, postId, level = 0 }: { comment: Comment; postId:
   };
 
   return (
-    <View style={[styles.commentContainer, { marginLeft: level * 16 }]}>
-      <View style={styles.commentHeader}>
-        <Text style={styles.commentAuthor}>
-          {comment.author_display_name || comment.author_username}
-        </Text>
-        <Text style={styles.commentTime}>
-          {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
-        </Text>
-      </View>
-      <Text style={styles.commentContent}>{comment.content}</Text>
-      <View style={styles.commentActions}>
-        <TouchableOpacity
-          style={styles.voteButton}
-          onPress={() => handleVote(1)}
-        >
-          <Ionicons
-            name={comment.user_vote === 1 ? 'arrow-up' : 'arrow-up-outline'}
-            size={16}
-            color={comment.user_vote === 1 ? theme.colors.upvote : theme.colors.textMuted}
-          />
-        </TouchableOpacity>
-        <Text style={styles.voteCount}>{comment.upvotes}</Text>
-        <TouchableOpacity
-          style={styles.voteButton}
-          onPress={() => handleVote(-1)}
-        >
-          <Ionicons
-            name={comment.user_vote === -1 ? 'arrow-down' : 'arrow-down-outline'}
-            size={16}
-            color={comment.user_vote === -1 ? theme.colors.downvote : theme.colors.textMuted}
-          />
-        </TouchableOpacity>
-        {user && level < 3 && (
-          <TouchableOpacity
-            style={styles.replyButton}
-            onPress={() => setShowReplyInput(!showReplyInput)}
-          >
-            <Text style={styles.replyButtonText}>Reply</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-      {showReplyInput && (
-        <View style={styles.replyInputContainer}>
-          <TextInput
-            style={styles.replyInput}
-            placeholder="Write a reply..."
-            placeholderTextColor={theme.colors.textMuted}
-            value={replyText}
-            onChangeText={setReplyText}
-            multiline
-          />
-          <TouchableOpacity
-            style={styles.replySubmitButton}
-            onPress={handleReply}
-            disabled={!replyText.trim() || createComment.isPending}
-          >
-            <Ionicons name="send" size={18} color={theme.colors.primary} />
-          </TouchableOpacity>
+    <>
+      <View style={[styles.commentContainer, { marginLeft: level * 16 }]}>
+        <View style={styles.commentHeader}>
+          <Text style={styles.commentAuthor}>
+            {comment.author_display_name || comment.author_username}
+          </Text>
+          <Text style={styles.commentTime}>
+            {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+          </Text>
         </View>
-      )}
-      {comment.replies?.map((reply) => (
-        <CommentItem key={reply.id} comment={reply} postId={postId} level={level + 1} />
-      ))}
-    </View>
+        <Text style={styles.commentContent}>{comment.content}</Text>
+        <View style={styles.commentActions}>
+          <TouchableOpacity
+            style={styles.voteButton}
+            onPress={() => handleVote(1)}
+          >
+            <Ionicons
+              name={comment.user_vote === 1 ? 'arrow-up' : 'arrow-up-outline'}
+              size={16}
+              color={comment.user_vote === 1 ? theme.colors.upvote : theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+          <Text style={styles.voteCount}>{comment.upvotes}</Text>
+          <TouchableOpacity
+            style={styles.voteButton}
+            onPress={() => handleVote(-1)}
+          >
+            <Ionicons
+              name={comment.user_vote === -1 ? 'arrow-down' : 'arrow-down-outline'}
+              size={16}
+              color={comment.user_vote === -1 ? theme.colors.downvote : theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+          {user && level < 3 && (
+            <TouchableOpacity
+              style={styles.replyButton}
+              onPress={() => setShowReplyInput(!showReplyInput)}
+            >
+              <Text style={styles.replyButtonText}>Reply</Text>
+            </TouchableOpacity>
+          )}
+          {user && user.id !== comment.user_id && (
+            <TouchableOpacity
+              style={styles.reportButton}
+              onPress={() => setShowReportModal(true)}
+            >
+              <Ionicons name="flag-outline" size={14} color={theme.colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+        {showReplyInput && (
+          <View style={styles.replyInputContainer}>
+            <TextInput
+              style={styles.replyInput}
+              placeholder="Write a reply..."
+              placeholderTextColor={theme.colors.textMuted}
+              value={replyText}
+              onChangeText={setReplyText}
+              multiline
+            />
+            <TouchableOpacity
+              style={styles.replySubmitButton}
+              onPress={handleReply}
+              disabled={!replyText.trim() || createComment.isPending}
+            >
+              <Ionicons name="send" size={18} color={theme.colors.primary} />
+            </TouchableOpacity>
+          </View>
+        )}
+        {comment.replies?.map((reply) => (
+          <CommentItem key={reply.id} comment={reply} postId={postId} level={level + 1} />
+        ))}
+      </View>
+      
+      <ReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        contentType="comment"
+        commentId={comment.id}
+      />
+    </>
   );
 }
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const queryClient = useQueryClient();
   const { data: post, isLoading: postLoading, refetch: refetchPost } = usePost(id);
   const { data: comments, isLoading: commentsLoading, refetch: refetchComments } = useComments(id);
   const createComment = useCreateComment();
@@ -125,6 +141,7 @@ export default function PostDetailScreen() {
   const { user } = useAuth();
   const [newComment, setNewComment] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -224,7 +241,7 @@ export default function PostDetailScreen() {
               color={post.user_vote === 1 ? theme.colors.upvote : theme.colors.textSecondary}
             />
           </TouchableOpacity>
-          <Text style={styles.voteCount}>{post.upvotes}</Text>
+          <Text style={styles.postVoteCount}>{post.upvotes}</Text>
           <TouchableOpacity style={styles.voteButton} onPress={() => handleVote(-1)}>
             <Ionicons
               name={post.user_vote === -1 ? 'arrow-down' : 'arrow-down-outline'}
@@ -235,6 +252,14 @@ export default function PostDetailScreen() {
           <View style={styles.actionSpacer} />
           <Ionicons name="chatbubble-outline" size={20} color={theme.colors.textSecondary} />
           <Text style={styles.actionCount}>{post.comment_count}</Text>
+          {user && user.id !== post.user_id && (
+            <TouchableOpacity 
+              style={styles.reportPostButton}
+              onPress={() => setShowReportModal(true)}
+            >
+              <Ionicons name="flag-outline" size={20} color={theme.colors.textSecondary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Comments Section */}
@@ -279,6 +304,13 @@ export default function PostDetailScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      <ReportModal
+        visible={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        contentType="post"
+        postId={post.id}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -377,7 +409,7 @@ const styles = StyleSheet.create({
   voteButton: {
     padding: theme.spacing.xs,
   },
-  voteCount: {
+  postVoteCount: {
     fontSize: theme.fontSize.md,
     fontWeight: '600',
     color: theme.colors.text,
@@ -390,6 +422,10 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.textSecondary,
     marginLeft: theme.spacing.xs,
+  },
+  reportPostButton: {
+    marginLeft: theme.spacing.md,
+    padding: theme.spacing.xs,
   },
   commentsSection: {
     padding: theme.spacing.lg,
@@ -438,6 +474,11 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.sm,
     gap: theme.spacing.xs,
   },
+  voteCount: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.text,
+    marginHorizontal: theme.spacing.xs,
+  },
   replyButton: {
     marginLeft: theme.spacing.md,
   },
@@ -445,6 +486,10 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.sm,
     color: theme.colors.primary,
     fontWeight: '500',
+  },
+  reportButton: {
+    marginLeft: theme.spacing.sm,
+    padding: theme.spacing.xs,
   },
   replyInputContainer: {
     flexDirection: 'row',
