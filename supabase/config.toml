@@ -1,5 +1,14 @@
 project_id = "fzgtckfxntalxrwanhdn"
 
+[functions.ad-request]
+verify_jwt = false
+
+[functions.ad-event]
+verify_jwt = false
+
+[functions.ad-hide]
+verify_jwt = false
+
 [functions.send-notification-email]
 verify_jwt = false
 
