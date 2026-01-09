@@ -144,17 +144,55 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Verify JWT authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error("[Email] Missing or invalid Authorization header");
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    // Create client with user's auth token to verify
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: authError } = await supabaseAuth.auth.getUser(token);
+
+    if (authError || !claimsData?.user) {
+      console.error("[Email] Invalid token:", authError);
+      return new Response(
+        JSON.stringify({ error: "Invalid token" }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
+    }
+
+    const callerId = claimsData.user.id;
+    console.log(`[Email] Authenticated request from user ${callerId}`);
+
+    // Create service role client for admin operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { user_id, email_type, data }: EmailRequest = await req.json();
 
     console.log(`[Email] Processing ${email_type} email for user ${user_id}`);
 
-    // Check rate limit
-    const { allowed, retryAfter } = checkRateLimit(user_id);
+    // Check rate limit based on caller (not recipient) to prevent abuse
+    const { allowed, retryAfter } = checkRateLimit(callerId);
     if (!allowed) {
-      console.log(`[Email] Rate limit exceeded for user ${user_id}`);
+      console.log(`[Email] Rate limit exceeded for caller ${callerId}`);
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded", retryAfter }),
         { 
