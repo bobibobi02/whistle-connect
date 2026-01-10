@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAdRequest, useAdEvent, useAdHide, AdRequestContext, AdCreative } from "@/hooks/useAds";
 import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -331,4 +331,4 @@ function WhyModal({ open, onOpenChange }: { open: boolean; onOpenChange: (open: 
   );
 }
 
-import React from "react";
+
