@@ -14,6 +14,9 @@ import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import Messages from "./pages/Messages";
 import CreatePost from "./pages/CreatePost";
 import Profile from "./pages/Profile";
 import Community from "./pages/Community";
@@ -42,6 +45,10 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><Index /></PageTransition>} />
         <Route path="/auth" element={<PageTransition><Auth /></PageTransition>} />
+        <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
+        <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
+        <Route path="/messages" element={<PageTransition><Messages /></PageTransition>} />
+        <Route path="/messages/:conversationId" element={<PageTransition><Messages /></PageTransition>} />
         <Route path="/create" element={<PageTransition><CreatePost /></PageTransition>} />
         <Route path="/u/:username" element={<PageTransition><Profile /></PageTransition>} />
         <Route path="/communities" element={<PageTransition><Communities /></PageTransition>} />
