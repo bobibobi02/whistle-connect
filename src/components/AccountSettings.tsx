@@ -98,18 +98,27 @@ export function AccountSettings() {
 
     setIsDeletingAccount(true);
     try {
-      // Note: Full account deletion requires a backend function with service role
-      // For now, we sign out and show a message
-      await signOut();
+      // Call the delete-account edge function
+      const { data, error } = await supabase.functions.invoke('delete-account');
+      
+      if (error) throw error;
+      
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to delete account');
+      }
+
       toast({
-        title: "Account deletion requested",
-        description: "Please contact support to complete account deletion"
+        title: "Account deleted",
+        description: "Your account has been permanently deleted"
       });
+      
+      // Sign out and redirect
+      await signOut();
       navigate("/");
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Error deleting account",
+        description: error.message || "Failed to delete account. Please try again.",
         variant: "destructive"
       });
     } finally {

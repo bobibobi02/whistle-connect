@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { Search as SearchIcon, Users, FileText, ArrowLeft } from "lucide-react";
+import { Search as SearchIcon, Users, FileText, ArrowLeft, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PostCard from "@/components/PostCard";
+import VerifiedBadge from "@/components/VerifiedBadge";
+import KarmaBadge from "@/components/KarmaBadge";
 import { useSearch } from "@/hooks/useSearch";
+import { useUserSearch } from "@/hooks/useUserSearch";
 
 const formatMemberCount = (count: number | null) => {
   if (!count) return "0";
@@ -21,8 +25,8 @@ const Search = () => {
   const initialQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
   const { data: results, isLoading } = useSearch(query);
+  const { data: users, isLoading: usersLoading } = useUserSearch(query);
 
   const handleSearch = (value: string) => {
     setQuery(value);
@@ -32,8 +36,8 @@ const Search = () => {
       setSearchParams({});
     }
   };
-
-  const totalResults = (results?.posts.length || 0) + (results?.communities.length || 0);
+  const totalResults = (results?.posts.length || 0) + (results?.communities.length || 0) + (users?.length || 0);
+  const isLoadingAny = isLoading || usersLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -58,7 +62,7 @@ const Search = () => {
               autoFocus
             />
           </div>
-          {query.length >= 2 && !isLoading && (
+          {query.length >= 2 && !isLoadingAny && (
             <p className="text-sm text-muted-foreground mt-2">
               {totalResults} result{totalResults !== 1 ? "s" : ""} for "{query}"
             </p>
@@ -70,7 +74,7 @@ const Search = () => {
             <SearchIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">Enter at least 2 characters to search</p>
           </div>
-        ) : isLoading ? (
+        ) : isLoadingAny ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
               <div key={i} className="bg-card rounded-xl p-4">
@@ -90,6 +94,10 @@ const Search = () => {
               <TabsTrigger value="all">
                 All ({totalResults})
               </TabsTrigger>
+              <TabsTrigger value="users">
+                <User className="h-4 w-4 mr-1" />
+                Users ({users?.length || 0})
+              </TabsTrigger>
               <TabsTrigger value="posts">
                 <FileText className="h-4 w-4 mr-1" />
                 Posts ({results?.posts.length || 0})
@@ -101,6 +109,41 @@ const Search = () => {
             </TabsList>
 
             <TabsContent value="all" className="space-y-4">
+              {/* Users Section */}
+              {users && users.length > 0 && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-muted-foreground">USERS</h3>
+                  <div className="grid gap-2">
+                    {users.slice(0, 3).map((user) => (
+                      <Link
+                        key={user.user_id}
+                        to={`/u/${user.username || "anonymous"}`}
+                        className="flex items-center gap-3 p-3 bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all group"
+                      >
+                        <Avatar className="h-10 w-10">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback>
+                            {(user.display_name || user.username || "?").slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium group-hover:text-primary transition-colors">
+                              {user.display_name || user.username || "Anonymous"}
+                            </span>
+                            {user.is_verified && <VerifiedBadge type="creator" />}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            u/{user.username || "anonymous"}
+                          </p>
+                        </div>
+                        <KarmaBadge karma={user.karma || 0} />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {results?.communities && results.communities.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-muted-foreground">COMMUNITIES</h3>
@@ -137,6 +180,47 @@ const Search = () => {
                       <PostCard key={post.id} post={post} index={index} />
                     ))}
                   </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* Users Tab */}
+            <TabsContent value="users" className="space-y-2">
+              {users && users.length > 0 ? (
+                users.map((user) => (
+                  <Link
+                    key={user.user_id}
+                    to={`/u/${user.username || "anonymous"}`}
+                    className="flex items-center gap-4 p-4 bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all group"
+                  >
+                    <Avatar className="h-12 w-12">
+                      <AvatarImage src={user.avatar_url || undefined} />
+                      <AvatarFallback>
+                        {(user.display_name || user.username || "?").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold group-hover:text-primary transition-colors">
+                          {user.display_name || user.username || "Anonymous"}
+                        </span>
+                        {user.is_verified && <VerifiedBadge type="creator" />}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        u/{user.username || "anonymous"}
+                      </p>
+                      {user.bio && (
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                          {user.bio}
+                        </p>
+                      )}
+                    </div>
+                    <KarmaBadge karma={user.karma || 0} />
+                  </Link>
+                ))
+              ) : (
+                <div className="bg-card rounded-xl shadow-card p-8 text-center">
+                  <p className="text-muted-foreground">No users found</p>
                 </div>
               )}
             </TabsContent>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Image, Video, X, Upload, Loader2, Play, Settings2, Radio } from "lucide-react";
+import { ArrowLeft, Image, Video, X, Upload, Loader2, Play, Settings2, Radio, Clock } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,12 +19,14 @@ import {
 } from "@/components/ui/collapsible";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
+import { SchedulePostDialog } from "@/components/SchedulePostDialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreatePost } from "@/hooks/usePosts";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useVideoUpload } from "@/hooks/useVideoUpload";
 import { useVideoCompression, COMPRESSION_PRESETS, CompressionPreset } from "@/hooks/useVideoCompression";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 const communities = [
   { value: "general", label: "General", icon: "💬" },
@@ -72,6 +74,7 @@ const CreatePost = () => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
   const [isNsfw, setIsNsfw] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   
@@ -540,18 +543,37 @@ const CreatePost = () => {
               ) : null}
             </div>
 
-            {/* Submit */}
-            <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="ghost" onClick={() => navigate("/")}>
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                className="bg-gradient-warm hover:opacity-90 transition-opacity shadow-glow"
-                disabled={createPost.isPending || isUploading}
-              >
-                {createPost.isPending ? "Posting..." : "Post"}
-              </Button>
+            {/* Schedule & Submit */}
+            <div className="flex flex-col sm:flex-row justify-between gap-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                <SchedulePostDialog
+                  scheduledAt={scheduledAt}
+                  onScheduleChange={setScheduledAt}
+                  trigger={
+                    <Button type="button" variant="outline" size="sm" className="gap-2">
+                      <Clock className="h-4 w-4" />
+                      {scheduledAt ? format(scheduledAt, "MMM d, h:mm a") : "Schedule"}
+                    </Button>
+                  }
+                />
+                {scheduledAt && (
+                  <span className="text-xs text-muted-foreground">
+                    Will be posted {format(scheduledAt, "PPP 'at' h:mm a")}
+                  </span>
+                )}
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="ghost" onClick={() => navigate("/")}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-gradient-warm hover:opacity-90 transition-opacity shadow-glow"
+                  disabled={createPost.isPending || isUploading}
+                >
+                  {createPost.isPending ? "Posting..." : scheduledAt ? "Schedule Post" : "Post"}
+                </Button>
+              </div>
             </div>
           </form>
         </div>
