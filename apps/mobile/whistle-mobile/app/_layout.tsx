@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '@/hooks/useAuth';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { theme } from '@/theme';
 
 const queryClient = new QueryClient({
@@ -22,6 +23,7 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <StatusBar style="light" />
+            <OfflineBanner />
             <Stack
               screenOptions={{
                 headerStyle: {
