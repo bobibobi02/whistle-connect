@@ -94,7 +94,7 @@ export default function SearchScreen() {
       return (
         <TouchableOpacity
           style={styles.communityItem}
-          onPress={() => {/* TODO: Navigate to community */}}
+          onPress={() => router.push(`/community/${community.name}`)}
         >
           <View style={styles.communityIcon}>
             <Text style={styles.communityIconText}>{community.icon || '💬'}</Text>
