@@ -373,26 +373,63 @@ export type Database = {
         }
         Relationships: []
       }
+      bookmark_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bookmarks: {
         Row: {
           created_at: string
+          folder_id: string | null
           id: string
           post_id: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          folder_id?: string | null
           id?: string
           post_id: string
           user_id: string
         }
         Update: {
           created_at?: string
+          folder_id?: string | null
           id?: string
           post_id?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bookmarks_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "bookmark_folders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookmarks_post_id_fkey"
             columns: ["post_id"]
@@ -498,8 +535,10 @@ export type Database = {
           boost_id: string | null
           content: string
           created_at: string
+          edited_at: string | null
           id: string
           is_distinguished: boolean | null
+          is_edited: boolean | null
           is_removed: boolean | null
           parent_id: string | null
           post_id: string
@@ -514,8 +553,10 @@ export type Database = {
           boost_id?: string | null
           content: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           is_distinguished?: boolean | null
+          is_edited?: boolean | null
           is_removed?: boolean | null
           parent_id?: string | null
           post_id: string
@@ -530,8 +571,10 @@ export type Database = {
           boost_id?: string | null
           content?: string
           created_at?: string
+          edited_at?: string | null
           id?: string
           is_distinguished?: boolean | null
+          is_edited?: boolean | null
           is_removed?: boolean | null
           parent_id?: string | null
           post_id?: string
@@ -839,6 +882,59 @@ export type Database = {
           },
         ]
       }
+      conversation_participants: {
+        Row: {
+          conversation_id: string
+          id: string
+          joined_at: string
+          last_read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_participants_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          last_message_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       creatives: {
         Row: {
           advertiser_icon: string | null
@@ -995,6 +1091,36 @@ export type Database = {
         }
         Relationships: []
       }
+      edit_history: {
+        Row: {
+          content_id: string
+          content_type: string
+          created_at: string
+          edited_by: string
+          id: string
+          previous_content: string
+          previous_title: string | null
+        }
+        Insert: {
+          content_id: string
+          content_type: string
+          created_at?: string
+          edited_by: string
+          id?: string
+          previous_content: string
+          previous_title?: string | null
+        }
+        Update: {
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          edited_by?: string
+          id?: string
+          previous_content?: string
+          previous_title?: string | null
+        }
+        Relationships: []
+      }
       email_preferences: {
         Row: {
           created_at: string
@@ -1131,6 +1257,92 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      karma_history: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          reason: string
+          related_comment_id: string | null
+          related_post_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          reason: string
+          related_comment_id?: string | null
+          related_post_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          reason?: string
+          related_comment_id?: string | null
+          related_post_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "karma_history_related_comment_id_fkey"
+            columns: ["related_comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "karma_history_related_post_id_fkey"
+            columns: ["related_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          is_deleted: boolean | null
+          is_edited: boolean | null
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean | null
+          is_edited?: boolean | null
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          is_deleted?: boolean | null
+          is_edited?: boolean | null
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       moderation_logs: {
         Row: {
@@ -1297,6 +1509,112 @@ export type Database = {
         }
         Relationships: []
       }
+      poll_options: {
+        Row: {
+          created_at: string
+          id: string
+          poll_id: string
+          position: number
+          text: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          poll_id: string
+          position?: number
+          text: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          poll_id?: string
+          position?: number
+          text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_options_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      poll_votes: {
+        Row: {
+          created_at: string
+          id: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          option_id: string
+          poll_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          option_id?: string
+          poll_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "poll_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polls: {
+        Row: {
+          allow_multiple: boolean | null
+          created_at: string
+          ends_at: string | null
+          id: string
+          post_id: string
+          question: string
+        }
+        Insert: {
+          allow_multiple?: boolean | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          post_id: string
+          question: string
+        }
+        Update: {
+          allow_multiple?: boolean | null
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          post_id?: string
+          question?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polls_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_boosts: {
         Row: {
           amount_cents: number
@@ -1382,9 +1700,13 @@ export type Database = {
           community_icon: string | null
           content: string | null
           created_at: string
+          crosspost_of: string | null
+          edited_at: string | null
           flair_id: string | null
           id: string
           image_url: string | null
+          is_draft: boolean | null
+          is_edited: boolean | null
           is_locked: boolean | null
           is_nsfw: boolean | null
           is_pinned: boolean | null
@@ -1395,6 +1717,7 @@ export type Database = {
           removal_reason: string | null
           removed_at: string | null
           removed_by: string | null
+          scheduled_at: string | null
           title: string
           updated_at: string
           upvotes: number
@@ -1410,9 +1733,13 @@ export type Database = {
           community_icon?: string | null
           content?: string | null
           created_at?: string
+          crosspost_of?: string | null
+          edited_at?: string | null
           flair_id?: string | null
           id?: string
           image_url?: string | null
+          is_draft?: boolean | null
+          is_edited?: boolean | null
           is_locked?: boolean | null
           is_nsfw?: boolean | null
           is_pinned?: boolean | null
@@ -1423,6 +1750,7 @@ export type Database = {
           removal_reason?: string | null
           removed_at?: string | null
           removed_by?: string | null
+          scheduled_at?: string | null
           title: string
           updated_at?: string
           upvotes?: number
@@ -1438,9 +1766,13 @@ export type Database = {
           community_icon?: string | null
           content?: string | null
           created_at?: string
+          crosspost_of?: string | null
+          edited_at?: string | null
           flair_id?: string | null
           id?: string
           image_url?: string | null
+          is_draft?: boolean | null
+          is_edited?: boolean | null
           is_locked?: boolean | null
           is_nsfw?: boolean | null
           is_pinned?: boolean | null
@@ -1451,6 +1783,7 @@ export type Database = {
           removal_reason?: string | null
           removed_at?: string | null
           removed_by?: string | null
+          scheduled_at?: string | null
           title?: string
           updated_at?: string
           upvotes?: number
@@ -1462,6 +1795,13 @@ export type Database = {
           video_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "posts_crosspost_of_fkey"
+            columns: ["crosspost_of"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "posts_flair_id_fkey"
             columns: ["flair_id"]
@@ -1479,10 +1819,14 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          is_verified: boolean | null
+          karma: number | null
           nsfw_confirmed_at: string | null
           updated_at: string
           user_id: string
           username: string | null
+          verification_type: string | null
+          verified_at: string | null
         }
         Insert: {
           allow_nsfw?: boolean | null
@@ -1491,10 +1835,14 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_verified?: boolean | null
+          karma?: number | null
           nsfw_confirmed_at?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
+          verification_type?: string | null
+          verified_at?: string | null
         }
         Update: {
           allow_nsfw?: boolean | null
@@ -1503,10 +1851,14 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_verified?: boolean | null
+          karma?: number | null
           nsfw_confirmed_at?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
+          verification_type?: string | null
+          verified_at?: string | null
         }
         Relationships: []
       }
