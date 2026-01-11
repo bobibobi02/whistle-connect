@@ -286,35 +286,48 @@ export const useCreateBoostCheckout = () => {
         throw new Error("You must be logged in to boost a post");
       }
 
-      console.log("[Boost] Creating checkout:", { postId, amountCents, message, isPublic });
+      // Validate amount is in cents (minimum €1 = 100 cents)
+      if (amountCents < 100) {
+        throw new Error("Minimum boost amount is €1");
+      }
 
-      const { data, error } = await supabase.functions.invoke("create-boost-checkout", {
+      console.log("[Boost] Creating checkout via stripe-create-checkout:", { postId, amountCents, message, isPublic });
+
+      const { data, error } = await supabase.functions.invoke("stripe-create-checkout", {
         body: {
-          post_id: postId,
-          amount_cents: amountCents,
-          message: message || null,
-          is_public: isPublic ?? false,
+          postId,
+          amountCents,
+          currency: "eur",
+          message: message || "",
+          isPublic: isPublic ?? false,
+          successUrl: `${window.location.origin}/?boost_success=1&session_id={CHECKOUT_SESSION_ID}`,
+          cancelUrl: window.location.href,
         },
       });
 
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
+      if (error) {
+        console.error("[Boost] Edge function error:", error);
+        throw new Error(error.message || "Failed to create checkout session");
+      }
+      
+      if (data?.error) {
+        console.error("[Boost] Checkout error response:", data.error);
+        throw new Error(data.error);
+      }
 
-      // Store boost ID in session for verification on return
-      const boostId = data.boost_id;
-      if (boostId) {
-        sessionStorage.setItem("pending_boost_id", boostId);
-        console.log("[Boost] Stored pending boost ID:", boostId);
+      if (!data?.url) {
+        throw new Error("No checkout URL returned");
       }
 
       return data.url as string;
     },
     onSuccess: (url) => {
-      window.open(url, "_blank");
+      // Redirect to Stripe Checkout
+      window.location.href = url;
     },
     onError: (error: Error) => {
       console.error("[Boost] Checkout error:", error);
-      toast.error(error.message);
+      toast.error(error.message || "Failed to create boost checkout");
     },
   });
 };
