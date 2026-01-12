@@ -2239,8 +2239,58 @@ export type Database = {
           },
         ]
       }
+      public_profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string | null
+          is_verified: boolean | null
+          karma: number | null
+          user_id: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          is_verified?: boolean | null
+          karma?: number | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          is_verified?: boolean | null
+          karma?: number | null
+          user_id?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      get_public_profile: {
+        Args: { target_user_id: string }
+        Returns: {
+          avatar_url: string
+          bio: string
+          created_at: string
+          display_name: string
+          id: string
+          is_verified: boolean
+          karma: number
+          user_id: string
+          username: string
+        }[]
+      }
       has_community_role: {
         Args: {
           _community_id: string
