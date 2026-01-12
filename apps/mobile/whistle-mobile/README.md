@@ -15,13 +15,14 @@ npx expo start
 Create a `.env` file in this directory:
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://fzgtckfxntalxrwanhdn.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+EXPO_PUBLIC_SUPABASE_URL=https://sdtuywnesmsanuazqgqx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_N1-MtZ29UUpEUT3HjqSO-g_FIwowYAH
 ```
 
 ## EAS Build Commands
 
 ### Initial Setup
+
 ```bash
 # Install EAS CLI globally
 npm install -g eas-cli
@@ -34,6 +35,7 @@ eas build:configure
 ```
 
 ### Development Builds
+
 ```bash
 # iOS Simulator build
 eas build -p ios --profile development
@@ -43,6 +45,7 @@ eas build -p android --profile development
 ```
 
 ### Preview Builds (Internal Testing)
+
 ```bash
 # iOS (requires Apple Developer account)
 npm run build:ios:preview
@@ -52,6 +55,7 @@ npm run build:android:preview
 ```
 
 ### Production Builds
+
 ```bash
 # iOS production build
 npm run build:ios:production
@@ -61,6 +65,7 @@ npm run build:android:production
 ```
 
 ### App Store Submission
+
 ```bash
 # Submit to TestFlight/App Store
 npm run submit:ios
@@ -74,6 +79,7 @@ npm run submit:android
 ### Before First Build
 
 1. **Update `eas.json`** with your Apple credentials:
+
    ```json
    "submit": {
      "production": {
@@ -93,6 +99,7 @@ npm run submit:android
 ### Build & Submit to TestFlight
 
 1. Run production build:
+
    ```bash
    eas build -p ios --profile production
    ```
@@ -100,6 +107,7 @@ npm run submit:android
 2. Wait for build to complete (~15-30 min)
 
 3. Submit to App Store Connect:
+
    ```bash
    eas submit -p ios --latest
    ```
