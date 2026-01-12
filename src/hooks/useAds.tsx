@@ -156,14 +156,19 @@ export function useAdHide() {
         throw new Error("Must be logged in to hide ads");
       }
 
+      // Get the current session token for authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("No valid session");
+      }
+
       const response = await fetch(`${supabaseUrl}/functions/v1/ad-hide`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          "Authorization": `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          userId: user.id,
           campaignId,
           advertiserId,
         }),
