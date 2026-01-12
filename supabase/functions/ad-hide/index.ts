@@ -6,7 +6,6 @@ const corsHeaders = {
 };
 
 interface AdHideInput {
-  userId: string;
   campaignId?: string;
   creativeId?: string;
   advertiserId?: string;
@@ -19,18 +18,47 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Verify authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    // Create client with user's auth token to verify identity
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Invalid token" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    // Extract user ID from JWT claims
+    const userId = claimsData.claims.sub as string;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ success: false, error: "User ID not found in token" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 401 }
+      );
+    }
+
+    // Now use service role client for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const input: AdHideInput = await req.json();
-    const { userId, campaignId, advertiserId } = input;
-
-    if (!userId) {
-      return new Response(
-        JSON.stringify({ success: false, error: "userId is required" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
-      );
-    }
+    const { campaignId, advertiserId } = input;
 
     // Get existing preferences or create new
     const { data: existingPrefs } = await supabase
