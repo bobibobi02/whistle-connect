@@ -1,40 +1,46 @@
-project_id = "fzgtckfxntalxrwanhdn"
+project_id = "sdtuywnesmsanuazqgqx"
 
 [functions.ad-request]
-verify_jwt = false
-
-[functions.ad-event]
-verify_jwt = false
-
-[functions.ad-hide]
-verify_jwt = false
-
-[functions.send-notification-email]
-verify_jwt = false
-
-[functions.moderate-content]
-verify_jwt = false
-
-[functions.send-push-notification]
-verify_jwt = false
-
-[functions.process-push-queue]
-verify_jwt = false
-
-[functions.transcode-video]
-verify_jwt = false
-
-[functions.moderate-video]
-verify_jwt = false
-
-[functions.stripe-webhook]
 verify_jwt = false
 
 [functions.create-boost-checkout]
 verify_jwt = false
 
+[functions.stripe-webhook]
+verify_jwt = false
+
 [functions.verify-boost-payment]
 verify_jwt = false
 
-[functions.compute-feed-profiles]
+[functions.video-processing]
+verify_jwt = false
+
+[functions.notify-users]
+verify_jwt = false
+
+[functions.cleanup-storage]
+verify_jwt = false
+
+[functions.send-email-notifications]
+verify_jwt = false
+
+[functions.create-reel]
+verify_jwt = false
+
+[functions.delete-reel]
+verify_jwt = false
+
+[functions.lovable-upload-video]
+verify_jwt = false
+
+[functions.lovable-delete-video]
+verify_jwt = false
+
+[functions.get-video-info]
+verify_jwt = false
+
+[functions.update-video-meta]
+verify_jwt = false
+
+[functions.moderate-video]
 verify_jwt = false
