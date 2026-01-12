@@ -25,8 +25,8 @@ npx expo start
 Create a `.env` file:
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://fzgtckfxntalxrwanhdn.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ6Z3Rja2Z4bnRhbHhyd2FuaGRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU3ODY0OTcsImV4cCI6MjA4MTM2MjQ5N30.nZA8tdYlA2MOkhD78Zn_yx8F8CqG8sL-I9MjVqcGCxc
+EXPO_PUBLIC_SUPABASE_URL=https://sdtuywnesmsmsanuazqgqx.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_N1-MtZ29UUpEUT3HjqSO-g_FIwowYAH
 ```
 
 ## Project Structure
