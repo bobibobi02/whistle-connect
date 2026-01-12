@@ -66,11 +66,25 @@ const Auth = () => {
     setIsLoading(false);
 
     if (error) {
+      // Enhanced error handling for login failures
+      let errorTitle = "Sign in failed";
+      let errorDescription = error.message;
+      
+      // Check for common auth error scenarios
+      if (error.message === "Invalid login credentials" || 
+          error.message?.includes("Invalid login") ||
+          error.message?.includes("invalid_credentials")) {
+        errorDescription = "Invalid email or password. If you recently migrated, please sign up again or use Google.";
+      } else if (error.message?.includes("User not found") || 
+                 error.message?.includes("user_not_found")) {
+        errorDescription = "This account may not exist. Please sign up or try Google sign-in.";
+      } else if (error.message?.includes("Email not confirmed")) {
+        errorDescription = "Please check your email and confirm your account.";
+      }
+      
       toast({
-        title: "Sign in failed",
-        description: error.message === "Invalid login credentials" 
-          ? "Invalid email or password. Please try again." 
-          : error.message,
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive",
       });
     } else {

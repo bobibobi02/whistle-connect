@@ -195,12 +195,13 @@ export const useVotePoll = () => {
         if (error) throw error;
         return { action: "removed" };
       } else {
-        // Check if poll allows multiple votes
+        // Check if poll allows multiple votes - use .maybeSingle() for safety
         const { data: poll } = await supabase
           .from("polls")
           .select("allow_multiple")
           .eq("id", pollId)
-          .single();
+          .limit(1)
+          .maybeSingle();
 
         if (!poll?.allow_multiple) {
           // Remove any existing vote first

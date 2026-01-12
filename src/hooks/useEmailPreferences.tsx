@@ -24,13 +24,20 @@ export const useEmailPreferences = () => {
     queryFn: async () => {
       if (!user) return null;
 
+      // Use .maybeSingle() instead of .single() to avoid 406 errors
+      // when no row exists for the user
       const { data, error } = await supabase
         .from("email_preferences")
         .select("*")
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") throw error;
+      // PGRST116 = no rows found, which is expected for new users
+      if (error && error.code !== "PGRST116") {
+        console.error("[EmailPreferences] Query error:", error);
+        throw error;
+      }
       
       // Return defaults if no preferences exist
       if (!data) {
@@ -59,12 +66,13 @@ export const useUpdateEmailPreferences = () => {
     mutationFn: async (preferences: Partial<EmailPreferences>) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Try to update first
+      // Check if record exists - use .maybeSingle() to avoid 406
       const { data: existing } = await supabase
         .from("email_preferences")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (existing) {
         const { error } = await supabase
@@ -95,11 +103,13 @@ export const useSnoozeNotifications = () => {
     mutationFn: async (snoozeUntil: Date | null) => {
       if (!user) throw new Error("Not authenticated");
 
+      // Check if record exists - use .maybeSingle() to avoid 406
       const { data: existing } = await supabase
         .from("email_preferences")
         .select("id")
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (existing) {
         const { error } = await supabase

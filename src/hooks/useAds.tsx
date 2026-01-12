@@ -188,6 +188,7 @@ export function useAdHide() {
 }
 
 // Hook for getting placement configuration
+// Uses .limit(1).maybeSingle() to avoid 406 errors when multiple rows exist or none
 export function usePlacement(placementKey: string) {
   return useQuery({
     queryKey: ["placement", placementKey],
@@ -197,9 +198,15 @@ export function usePlacement(placementKey: string) {
         .select("*")
         .eq("key", placementKey)
         .eq("enabled", true)
-        .single();
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (error) throw error;
+      // PGRST116 = no rows found, which is fine - return null
+      if (error && error.code !== "PGRST116") {
+        console.error("[Ads] Placement query error:", error);
+        throw error;
+      }
       return data;
     },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
@@ -215,11 +222,13 @@ export function useCreatorMonetization() {
     queryFn: async () => {
       if (!user?.id) return null;
 
+      // Use .maybeSingle() to avoid 406 errors when no record exists
       const { data, error } = await supabase
         .from("creator_monetization")
         .select("*")
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (error && error.code !== "PGRST116") throw error;
       return data;
@@ -279,12 +288,13 @@ export function useToggleMonetization() {
     mutationFn: async (enabled: boolean) => {
       if (!user?.id) throw new Error("Not authenticated");
 
-      // Check if record exists
+      // Check if record exists - use .maybeSingle() to avoid 406
       const { data: existing } = await supabase
         .from("creator_monetization")
         .select("user_id")
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (existing) {
         const { error } = await supabase
@@ -322,12 +332,13 @@ export function useRequestPayout() {
 
       if (error) throw error;
 
-      // Update pending payout amount in monetization
+      // Update pending payout amount in monetization - use .maybeSingle()
       const { data: monetization } = await supabase
         .from("creator_monetization")
         .select("pending_payout_cents")
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (monetization) {
         await supabase
