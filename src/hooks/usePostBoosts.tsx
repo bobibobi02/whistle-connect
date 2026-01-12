@@ -3,9 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 
-// Debug: Log Supabase URL once on module load
-console.log("[WhistleConnect] SUPABASE_URL =", import.meta.env.VITE_SUPABASE_URL);
-
 // Interface for old post_boosts table (used by BoostModal, etc.)
 export interface PostBoost {
   id: string;
@@ -291,7 +288,13 @@ export const useCreateBoostCheckout = () => {
         throw new Error("Minimum boost amount is €1");
       }
 
-      console.log("[Boost] Creating checkout via stripe-create-checkout:", { postId, amountCents, message, isPublic });
+      console.log("[Boost] Creating checkout via stripe-create-checkout:", { 
+        postId, 
+        amountCents, 
+        message, 
+        isPublic,
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL 
+      });
 
       const { data, error } = await supabase.functions.invoke("stripe-create-checkout", {
         body: {
@@ -306,8 +309,23 @@ export const useCreateBoostCheckout = () => {
       });
 
       if (error) {
-        console.error("[Boost] Edge function error:", error);
-        throw new Error(error.message || "Failed to create checkout session");
+        // Enhanced error logging for edge function failures
+        console.error("[Boost] Edge function invoke error:", {
+          message: error.message,
+          name: error.name,
+          context: error.context,
+          status: error.status,
+        });
+        
+        // Provide more helpful error messages
+        let userMessage = "Failed to create checkout session";
+        if (error.message?.includes("Failed to send")) {
+          userMessage = "Could not connect to payment service. Please try again.";
+        } else if (error.message) {
+          userMessage = error.message;
+        }
+        
+        throw new Error(userMessage);
       }
       
       if (data?.error) {
@@ -316,9 +334,11 @@ export const useCreateBoostCheckout = () => {
       }
 
       if (!data?.url) {
-        throw new Error("No checkout URL returned");
+        console.error("[Boost] No checkout URL in response:", data);
+        throw new Error("No checkout URL returned from payment service");
       }
 
+      console.log("[Boost] Checkout URL received successfully");
       return data.url as string;
     },
     onSuccess: (url) => {
@@ -326,7 +346,7 @@ export const useCreateBoostCheckout = () => {
       window.location.href = url;
     },
     onError: (error: Error) => {
-      console.error("[Boost] Checkout error:", error);
+      console.error("[Boost] Checkout mutation error:", error);
       toast.error(error.message || "Failed to create boost checkout");
     },
   });
