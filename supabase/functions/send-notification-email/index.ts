@@ -222,7 +222,8 @@ serve(async (req) => {
       .from("email_preferences")
       .select("*")
       .eq("user_id", user_id)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     // Check if user wants this type of email
     const prefKey = email_type === "follower" ? "email_new_follower" 
