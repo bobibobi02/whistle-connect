@@ -169,7 +169,8 @@ async function allocateCreatorRevenue(
       .from("creator_monetization")
       .select("enabled, creator_share_percent, eligibility_status, total_earnings_cents, pending_payout_cents")
       .eq("user_id", postUserId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (!monetization) return;
     const mon = monetization as any;
@@ -207,7 +208,8 @@ async function allocateCreatorRevenue(
       .select("id, estimated_cents, impressions, clicks")
       .eq("user_id", postUserId)
       .eq("period_start", periodStart.toISOString().split("T")[0])
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (existingEarnings) {
       const existing = existingEarnings as any;

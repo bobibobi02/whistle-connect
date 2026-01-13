@@ -65,7 +65,8 @@ Deno.serve(async (req) => {
       .from("user_ad_preferences")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     let hiddenCampaignIds = existingPrefs?.hidden_campaign_ids || [];
     let hiddenAdvertiserIds = existingPrefs?.hidden_advertiser_ids || [];

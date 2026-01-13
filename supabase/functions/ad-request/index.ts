@@ -79,7 +79,8 @@ Deno.serve(async (req) => {
       .select("*")
       .eq("key", placementKey)
       .eq("enabled", true)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (placementError || !placement) {
       return new Response(
@@ -95,7 +96,8 @@ Deno.serve(async (req) => {
         .from("user_ad_preferences")
         .select("hidden_campaign_ids, hidden_advertiser_ids")
         .eq("user_id", userId)
-        .single();
+        .limit(1)
+        .maybeSingle();
       
       if (prefs) {
         hiddenCampaignIds = prefs.hidden_campaign_ids || [];

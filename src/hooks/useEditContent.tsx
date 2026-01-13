@@ -26,9 +26,11 @@ export const useEditPost = () => {
         .select("title, content")
         .eq("id", postId)
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
-      if (fetchError) throw fetchError;
+      if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
+      if (!currentPost) throw new Error("Post not found or you don't have permission to edit it");
 
       // Save edit history
       const { error: historyError } = await supabase
@@ -100,9 +102,11 @@ export const useEditComment = () => {
         .select("content")
         .eq("id", commentId)
         .eq("user_id", user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
-      if (fetchError) throw fetchError;
+      if (fetchError && fetchError.code !== "PGRST116") throw fetchError;
+      if (!currentComment) throw new Error("Comment not found or you don't have permission to edit it");
 
       // Save edit history
       const { error: historyError } = await supabase
