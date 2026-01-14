@@ -288,23 +288,21 @@ export const useCreateBoostCheckout = () => {
         throw new Error("Minimum boost amount is €1");
       }
 
-      console.log("[Boost] Creating checkout via stripe-create-checkout:", { 
+      const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-boost-checkout`;
+      console.log("[Boost] Creating checkout:", { 
         postId, 
         amountCents, 
         message, 
         isPublic,
-        supabaseUrl: import.meta.env.VITE_SUPABASE_URL 
+        functionsUrl 
       });
 
-      const { data, error } = await supabase.functions.invoke("stripe-create-checkout", {
+      const { data, error } = await supabase.functions.invoke("create-boost-checkout", {
         body: {
-          postId,
-          amountCents,
-          currency: "eur",
+          post_id: postId,
+          amount_cents: amountCents,
           message: message || "",
-          isPublic: isPublic ?? false,
-          successUrl: `${window.location.origin}/?boost_success=1&session_id={CHECKOUT_SESSION_ID}`,
-          cancelUrl: window.location.href,
+          is_public: isPublic ?? false,
         },
       });
 
