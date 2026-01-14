@@ -30,6 +30,7 @@ import AdminAds from "./pages/AdminAds";
 import Settings from "./pages/Settings";
 import CreatorMonetization from "./pages/CreatorMonetization";
 import AuthCallback from "./pages/AuthCallback";
+import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
@@ -63,6 +64,7 @@ const AnimatedRoutes = () => {
         <Route path="/settings/monetization" element={<PageTransition><CreatorMonetization /></PageTransition>} />
         <Route path="/c/:communityName" element={<PageTransition><Community /></PageTransition>} />
         <Route path="/post/:postId" element={<PageTransition><PostDetail /></PageTransition>} />
+        <Route path="/debug" element={<Debug />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>

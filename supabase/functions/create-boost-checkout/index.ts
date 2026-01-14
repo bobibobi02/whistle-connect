@@ -12,14 +12,24 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Use anon client for auth verification
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? ""
   );
 
+  // Use service role client for DB operations (bypasses RLS)
+  const serviceClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+  );
+
   try {
+    console.log("[create-boost-checkout] Request received");
+    
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
+      console.error("[create-boost-checkout] No authorization header");
       throw new Error("Authorization required");
     }
 
@@ -27,32 +37,39 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     
     if (authError || !user) {
+      console.error("[create-boost-checkout] Auth failed:", authError);
       throw new Error("Authentication failed");
     }
 
+    console.log("[create-boost-checkout] User authenticated:", user.id);
+
     const { post_id, amount_cents, message, is_public } = await req.json();
+    console.log("[create-boost-checkout] Request body:", { post_id, amount_cents, message, is_public });
 
     if (!post_id || !amount_cents || amount_cents < 100) {
       throw new Error("Invalid request: post_id and amount_cents (min 100) required");
     }
 
-    // Verify post exists
-    const { data: post, error: postError } = await supabaseClient
+    // Verify post exists using service client (bypasses RLS)
+    const { data: post, error: postError } = await serviceClient
       .from("posts")
       .select("id, title")
       .eq("id", post_id)
       .single();
 
-    if (postError || !post) {
+    if (postError) {
+      console.error("[create-boost-checkout] Post query error:", postError);
+      throw new Error(`Post not found: ${postError.message}`);
+    }
+
+    if (!post) {
+      console.error("[create-boost-checkout] Post not found for id:", post_id);
       throw new Error("Post not found");
     }
 
-    // Create pending boost record
-    const serviceClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    console.log("[create-boost-checkout] Post found:", post.title);
 
+    // Create pending boost record
     const { data: boost, error: boostError } = await serviceClient
       .from("post_boosts")
       .insert({
@@ -68,16 +85,27 @@ serve(async (req) => {
       .single();
 
     if (boostError) {
-      console.error("Boost insert error:", boostError);
+      console.error("[create-boost-checkout] Boost insert error:", boostError);
       throw new Error("Failed to create boost record");
     }
 
+    console.log("[create-boost-checkout] Boost record created:", boost.id);
+
     // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      console.error("[create-boost-checkout] STRIPE_SECRET_KEY not configured");
+      throw new Error("Payment service not configured");
+    }
+
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2025-08-27.basil",
     });
 
     // Create checkout session
+    const origin = req.headers.get("origin") || "https://whistle-connect-hub.lovable.app";
+    console.log("[create-boost-checkout] Creating Stripe session, origin:", origin);
+
     const session = await stripe.checkout.sessions.create({
       customer_email: user.email,
       line_items: [
@@ -94,8 +122,8 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/post/${post_id}?boost=success`,
-      cancel_url: `${req.headers.get("origin")}/post/${post_id}?boost=cancelled`,
+      success_url: `${origin}/post/${post_id}?boost=success`,
+      cancel_url: `${origin}/post/${post_id}?boost=cancelled`,
       metadata: {
         boost_id: boost.id,
         post_id: post_id,
@@ -103,20 +131,22 @@ serve(async (req) => {
       },
     });
 
+    console.log("[create-boost-checkout] Stripe session created:", session.id);
+
     // Update boost with session ID
     await serviceClient
       .from("post_boosts")
       .update({ stripe_checkout_session_id: session.id })
       .eq("id", boost.id);
 
-    console.log("Boost created:", { boost_id: boost.id, message: boost.message, is_public: boost.is_public });
+    console.log("[create-boost-checkout] Success! Returning URL");
 
     return new Response(JSON.stringify({ url: session.url, boost_id: boost.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });
   } catch (error) {
-    console.error("Error:", error);
+    console.error("[create-boost-checkout] Error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
