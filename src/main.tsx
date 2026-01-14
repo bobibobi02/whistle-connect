@@ -8,16 +8,18 @@ import { syncStorageFromPreferences } from "./lib/capacitorStorage";
 // ========== Supabase Environment Verification ==========
 // Log at startup (dev only) to confirm correct project is in use
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const expectedProject = "sdtuywnesmsanuazqgqx";
+const expectedProject = "fzgtckfxntalxrwanhdn";
 
 if (import.meta.env.DEV) {
   console.log("[Whistle] SUPABASE_URL =", supabaseUrl);
-  if (supabaseUrl && supabaseUrl.includes(expectedProject)) {
+  const projectRef = typeof supabaseUrl === "string" ? supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] : null;
+  console.log("[Whistle] Project ref:", projectRef);
+  if (projectRef === expectedProject) {
     console.log("[Whistle] ✅ Connected to correct Supabase project");
   } else {
     console.error("[Whistle] ⚠️ WARNING: Supabase URL does not match expected project!", {
       expected: expectedProject,
-      actual: supabaseUrl,
+      actual: projectRef,
     });
   }
 }
