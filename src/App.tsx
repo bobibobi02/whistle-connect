@@ -29,8 +29,8 @@ import AdminSettings from "./pages/AdminSettings";
 import AdminAds from "./pages/AdminAds";
 import Settings from "./pages/Settings";
 import CreatorMonetization from "./pages/CreatorMonetization";
+import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
-
 const queryClient = new QueryClient();
 
 const AnimatedRoutes = () => {
@@ -45,6 +45,7 @@ const AnimatedRoutes = () => {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageTransition><Index /></PageTransition>} />
         <Route path="/auth" element={<PageTransition><Auth /></PageTransition>} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/forgot-password" element={<PageTransition><ForgotPassword /></PageTransition>} />
         <Route path="/reset-password" element={<PageTransition><ResetPassword /></PageTransition>} />
         <Route path="/messages" element={<PageTransition><Messages /></PageTransition>} />
