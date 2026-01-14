@@ -8,20 +8,32 @@ import { syncStorageFromPreferences } from "./lib/capacitorStorage";
 // ========== Supabase Environment Verification ==========
 // Log at startup (dev only) to confirm correct project is in use
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const expectedProject = "fzgtckfxntalxrwanhdn";
 
+// Extract project ref from URL
+const projectRef = typeof supabaseUrl === "string" 
+  ? supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] 
+  : null;
+
+// Always log in dev mode
 if (import.meta.env.DEV) {
-  console.log("[Whistle] SUPABASE_URL =", supabaseUrl);
-  const projectRef = typeof supabaseUrl === "string" ? supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] : null;
-  console.log("[Whistle] Project ref:", projectRef);
+  console.log("=".repeat(60));
+  console.log("[Whistle] 🚀 STARTUP ENVIRONMENT CHECK");
+  console.log("[Whistle] VITE_SUPABASE_URL:", supabaseUrl);
+  console.log("[Whistle] VITE_SUPABASE_PUBLISHABLE_KEY:", anonKey ? `${anonKey.substring(0, 20)}...` : "NOT SET");
+  console.log("[Whistle] Extracted Project Ref:", projectRef);
+  console.log("[Whistle] Expected Project Ref:", expectedProject);
+  
   if (projectRef === expectedProject) {
-    console.log("[Whistle] ✅ Connected to correct Supabase project");
+    console.log("[Whistle] ✅ Using correct Supabase project:", projectRef);
   } else {
-    console.error("[Whistle] ⚠️ WARNING: Supabase URL does not match expected project!", {
-      expected: expectedProject,
-      actual: projectRef,
-    });
+    console.error("[Whistle] ❌ PROJECT MISMATCH!");
+    console.error("[Whistle] Expected:", expectedProject);
+    console.error("[Whistle] Actual:", projectRef);
+    console.error("[Whistle] This may cause auth/db issues!");
   }
+  console.log("=".repeat(60));
 }
 
 // Initialize storage sync for native platforms

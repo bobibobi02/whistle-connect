@@ -288,14 +288,21 @@ export const useCreateBoostCheckout = () => {
         throw new Error("Minimum boost amount is €1");
       }
 
-      const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-boost-checkout`;
-      console.log("[Boost] Creating checkout:", { 
-        postId, 
-        amountCents, 
-        message, 
-        isPublic,
-        functionsUrl 
-      });
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const projectRef = supabaseUrl?.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "unknown";
+      const functionsUrl = `${supabaseUrl}/functions/v1/create-boost-checkout`;
+      
+      // Enhanced pre-invoke logging
+      console.log("=".repeat(60));
+      console.log("[Boost] PRE-INVOKE DIAGNOSTICS:");
+      console.log("[Boost] Project ref:", projectRef);
+      console.log("[Boost] Functions URL:", functionsUrl);
+      console.log("[Boost] User ID:", user.id);
+      console.log("[Boost] Post ID:", postId);
+      console.log("[Boost] Amount (cents):", amountCents);
+      console.log("[Boost] Message:", message || "(none)");
+      console.log("[Boost] Is Public:", isPublic);
+      console.log("=".repeat(60));
 
       const { data, error } = await supabase.functions.invoke("create-boost-checkout", {
         body: {
@@ -308,35 +315,41 @@ export const useCreateBoostCheckout = () => {
 
       if (error) {
         // Enhanced error logging for edge function failures
-        console.error("[Boost] Edge function invoke error:", {
-          message: error.message,
-          name: error.name,
-          context: error.context,
-          status: error.status,
+        console.error("=".repeat(60));
+        console.error("[Boost] EDGE FUNCTION ERROR:");
+        console.error("[Boost] Error message:", error.message);
+        console.error("[Boost] Error name:", error.name);
+        console.error("[Boost] Error context:", JSON.stringify(error.context, null, 2));
+        console.error("[Boost] Error status:", (error as any).status);
+        console.error("[Boost] Full error:", error);
+        console.error("=".repeat(60));
+        
+        // Show detailed error in toast for debugging
+        const statusCode = (error as any).status || "unknown";
+        const contextStr = error.context ? JSON.stringify(error.context) : "";
+        
+        toast.error(`Boost failed: ${error.message}`, {
+          description: `Status: ${statusCode}. Check console for details.`,
+          duration: 8000,
         });
         
-        // Provide more helpful error messages
-        let userMessage = "Failed to create checkout session";
-        if (error.message?.includes("Failed to send")) {
-          userMessage = "Could not connect to payment service. Please try again.";
-        } else if (error.message) {
-          userMessage = error.message;
-        }
-        
-        throw new Error(userMessage);
+        throw new Error(`${error.message} (status: ${statusCode}, context: ${contextStr})`);
       }
       
       if (data?.error) {
-        console.error("[Boost] Checkout error response:", data.error);
+        console.error("[Boost] Server returned error:", data.error);
+        toast.error(`Boost failed: ${data.error}`);
         throw new Error(data.error);
       }
 
       if (!data?.url) {
         console.error("[Boost] No checkout URL in response:", data);
+        toast.error("No checkout URL returned");
         throw new Error("No checkout URL returned from payment service");
       }
 
-      console.log("[Boost] Checkout URL received successfully");
+      console.log("[Boost] ✅ Checkout URL received successfully");
+      console.log("[Boost] Redirecting to:", data.url.substring(0, 80) + "...");
       return data.url as string;
     },
     onSuccess: (url) => {
@@ -345,7 +358,7 @@ export const useCreateBoostCheckout = () => {
     },
     onError: (error: Error) => {
       console.error("[Boost] Checkout mutation error:", error);
-      toast.error(error.message || "Failed to create boost checkout");
+      // Toast already shown in mutationFn
     },
   });
 };
