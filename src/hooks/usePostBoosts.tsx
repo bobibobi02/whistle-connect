@@ -372,12 +372,27 @@ export const useCreateBoostCheckout = () => {
       return data.url as string;
     },
     onSuccess: (url) => {
-      // Redirect to Stripe Checkout in the same window for reliability
-      toast.success("Redirecting to payment...");
-      // Small delay to show toast, then redirect
+      toast.success("Redirecting to Stripe...");
+      
+      // Use anchor-based redirect for reliability (bypasses some extension interference)
+      const link = document.createElement("a");
+      link.href = url;
+      link.rel = "noopener noreferrer";
+      // Setting target and then removing forces browser navigation
+      document.body.appendChild(link);
+      
+      // Small delay then trigger navigation
       setTimeout(() => {
-        window.location.href = url;
-      }, 500);
+        link.click();
+        // Fallback: if click didn't work, try direct assignment
+        setTimeout(() => {
+          if (document.body.contains(link)) {
+            document.body.removeChild(link);
+          }
+          // Final fallback - direct location change
+          window.location.assign(url);
+        }, 100);
+      }, 300);
     },
     onError: (error: Error) => {
       console.error("[Boost] Checkout mutation error:", error);
