@@ -324,14 +324,33 @@ export const useCreateBoostCheckout = () => {
         console.error("[Boost] Full error:", error);
         console.error("=".repeat(60));
         
-        // Show detailed error in toast for debugging
+        // Detect CORS/network failures vs server errors
+        const isCorsOrNetwork = 
+          error.message?.includes("Failed to fetch") ||
+          error.message?.includes("NetworkError") ||
+          error.message?.includes("CORS") ||
+          error.name === "TypeError";
+        
         const statusCode = (error as any).status || "unknown";
         const contextStr = error.context ? JSON.stringify(error.context) : "";
         
-        toast.error(`Boost failed: ${error.message}`, {
-          description: `Status: ${statusCode}. Check console for details.`,
-          duration: 8000,
-        });
+        if (isCorsOrNetwork) {
+          console.error("[Boost] CORS/Network failure detected!");
+          console.error("[Boost] This usually means:");
+          console.error("  1. Edge function not deployed");
+          console.error("  2. CORS headers missing from edge function");
+          console.error("  3. Network connectivity issue");
+          
+          toast.error("Could not connect to payment service", {
+            description: "Network or CORS error. The edge function may not be deployed or configured correctly.",
+            duration: 10000,
+          });
+        } else {
+          toast.error(`Boost failed: ${error.message}`, {
+            description: `Status: ${statusCode}. Check console for details.`,
+            duration: 8000,
+          });
+        }
         
         throw new Error(`${error.message} (status: ${statusCode}, context: ${contextStr})`);
       }
