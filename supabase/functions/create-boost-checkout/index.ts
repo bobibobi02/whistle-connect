@@ -2,14 +2,46 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+// CORS headers - allow production domain and localhost for development
+const getAllowedOrigin = (requestOrigin: string | null): string => {
+  const allowedOrigins = [
+    "https://whistle-connect-hub.lovable.app",
+    "https://id-preview--856f8f4a-52f9-4355-8af6-22a21abcc85e.lovable.app",
+    "http://localhost:5173",
+    "http://localhost:8080",
+  ];
+  
+  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+    return requestOrigin;
+  }
+  // Default to production for requests without origin
+  return "https://whistle-connect-hub.lovable.app";
 };
 
+const getCorsHeaders = (origin: string) => ({
+  "Access-Control-Allow-Origin": origin,
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Max-Age": "86400",
+});
+
 serve(async (req) => {
+  const requestOrigin = req.headers.get("origin");
+  const allowedOrigin = getAllowedOrigin(requestOrigin);
+  const corsHeaders = getCorsHeaders(allowedOrigin);
+  
+  console.log("[create-boost-checkout] Request received");
+  console.log("[create-boost-checkout] Method:", req.method);
+  console.log("[create-boost-checkout] Origin:", requestOrigin);
+  console.log("[create-boost-checkout] Allowed origin:", allowedOrigin);
+
+  // Handle CORS preflight
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    console.log("[create-boost-checkout] Handling OPTIONS preflight");
+    return new Response(null, { 
+      status: 204,
+      headers: corsHeaders 
+    });
   }
 
   // Use anon client for auth verification
@@ -25,12 +57,16 @@ serve(async (req) => {
   );
 
   try {
-    console.log("[create-boost-checkout] Request received");
-    
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       console.error("[create-boost-checkout] No authorization header");
-      throw new Error("Authorization required");
+      return new Response(
+        JSON.stringify({ error: "Authorization required" }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     const token = authHeader.replace("Bearer ", "");
@@ -38,7 +74,13 @@ serve(async (req) => {
     
     if (authError || !user) {
       console.error("[create-boost-checkout] Auth failed:", authError);
-      throw new Error("Authentication failed");
+      return new Response(
+        JSON.stringify({ error: "Authentication failed", details: authError?.message }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     console.log("[create-boost-checkout] User authenticated:", user.id);
@@ -47,7 +89,13 @@ serve(async (req) => {
     console.log("[create-boost-checkout] Request body:", { post_id, amount_cents, message, is_public });
 
     if (!post_id || !amount_cents || amount_cents < 100) {
-      throw new Error("Invalid request: post_id and amount_cents (min 100) required");
+      return new Response(
+        JSON.stringify({ error: "Invalid request: post_id and amount_cents (min 100) required" }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     // Verify post exists using service client (bypasses RLS)
@@ -59,12 +107,24 @@ serve(async (req) => {
 
     if (postError) {
       console.error("[create-boost-checkout] Post query error:", postError);
-      throw new Error(`Post not found: ${postError.message}`);
+      return new Response(
+        JSON.stringify({ error: `Post not found: ${postError.message}` }),
+        { 
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     if (!post) {
       console.error("[create-boost-checkout] Post not found for id:", post_id);
-      throw new Error("Post not found");
+      return new Response(
+        JSON.stringify({ error: "Post not found" }),
+        { 
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     console.log("[create-boost-checkout] Post found:", post.title);
@@ -86,7 +146,13 @@ serve(async (req) => {
 
     if (boostError) {
       console.error("[create-boost-checkout] Boost insert error:", boostError);
-      throw new Error("Failed to create boost record");
+      return new Response(
+        JSON.stringify({ error: "Failed to create boost record", details: boostError.message }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     console.log("[create-boost-checkout] Boost record created:", boost.id);
@@ -95,7 +161,13 @@ serve(async (req) => {
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
     if (!stripeKey) {
       console.error("[create-boost-checkout] STRIPE_SECRET_KEY not configured");
-      throw new Error("Payment service not configured");
+      return new Response(
+        JSON.stringify({ error: "Payment service not configured (missing STRIPE_SECRET_KEY)" }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        }
+      );
     }
 
     const stripe = new Stripe(stripeKey, {
@@ -103,7 +175,7 @@ serve(async (req) => {
     });
 
     // Create checkout session
-    const origin = req.headers.get("origin") || "https://whistle-connect-hub.lovable.app";
+    const origin = requestOrigin || "https://whistle-connect-hub.lovable.app";
     console.log("[create-boost-checkout] Creating Stripe session, origin:", origin);
 
     const session = await stripe.checkout.sessions.create({
@@ -141,16 +213,25 @@ serve(async (req) => {
 
     console.log("[create-boost-checkout] Success! Returning URL");
 
-    return new Response(JSON.stringify({ url: session.url, boost_id: boost.id }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({ url: session.url, boost_id: boost.id }), 
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
-    console.error("[create-boost-checkout] Error:", error);
+    console.error("[create-boost-checkout] Unexpected error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 400,
-    });
+    const stack = error instanceof Error ? error.stack : "";
+    console.error("[create-boost-checkout] Stack trace:", stack);
+    
+    return new Response(
+      JSON.stringify({ error: message, type: "server_error" }), 
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   }
 });
