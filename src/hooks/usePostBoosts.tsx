@@ -372,11 +372,12 @@ export const useCreateBoostCheckout = () => {
       return data.url as string;
     },
     onSuccess: (url) => {
-      // Open Stripe Checkout in new tab to prevent white screen flash
-      window.open(url, "_blank");
-      toast.success("Redirecting to payment...", {
-        description: "A new tab has opened with Stripe checkout.",
-      });
+      // Redirect to Stripe Checkout in the same window for reliability
+      toast.success("Redirecting to payment...");
+      // Small delay to show toast, then redirect
+      setTimeout(() => {
+        window.location.href = url;
+      }, 500);
     },
     onError: (error: Error) => {
       console.error("[Boost] Checkout mutation error:", error);
