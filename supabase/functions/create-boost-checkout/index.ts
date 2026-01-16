@@ -2,19 +2,24 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-// CORS headers - allow production domain and localhost for development
+// CORS headers - allow production domain, lovable preview domains, and localhost
 const getAllowedOrigin = (requestOrigin: string | null): string => {
-  const allowedOrigins = [
-    "https://whistle-connect-hub.lovable.app",
-    "https://id-preview--856f8f4a-52f9-4355-8af6-22a21abcc85e.lovable.app",
-    "http://localhost:5173",
-    "http://localhost:8080",
-  ];
+  if (!requestOrigin) {
+    return "https://whistle-connect-hub.lovable.app";
+  }
   
-  if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
+  // Allow any lovable.app or lovableproject.com domain (preview/production)
+  if (
+    requestOrigin.endsWith(".lovable.app") ||
+    requestOrigin.endsWith(".lovableproject.com") ||
+    requestOrigin === "http://localhost:5173" ||
+    requestOrigin === "http://localhost:8080" ||
+    requestOrigin === "http://localhost:3000"
+  ) {
     return requestOrigin;
   }
-  // Default to production for requests without origin
+  
+  // Default to production
   return "https://whistle-connect-hub.lovable.app";
 };
 
