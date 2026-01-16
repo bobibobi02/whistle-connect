@@ -372,27 +372,17 @@ export const useCreateBoostCheckout = () => {
       return data.url as string;
     },
     onSuccess: (url) => {
-      toast.success("Redirecting to Stripe...");
+      console.log("[Boost] Redirecting to:", url);
+      toast.success("Opening payment page...");
       
-      // Use anchor-based redirect for reliability (bypasses some extension interference)
-      const link = document.createElement("a");
-      link.href = url;
-      link.rel = "noopener noreferrer";
-      // Setting target and then removing forces browser navigation
-      document.body.appendChild(link);
+      // Open in new tab - this was working before and is most reliable
+      const popup = window.open(url, "_blank");
       
-      // Small delay then trigger navigation
-      setTimeout(() => {
-        link.click();
-        // Fallback: if click didn't work, try direct assignment
-        setTimeout(() => {
-          if (document.body.contains(link)) {
-            document.body.removeChild(link);
-          }
-          // Final fallback - direct location change
-          window.location.assign(url);
-        }, 100);
-      }, 300);
+      // If popup was blocked, fall back to same-window redirect
+      if (!popup || popup.closed) {
+        console.log("[Boost] Popup blocked, using same-window redirect");
+        window.location.href = url;
+      }
     },
     onError: (error: Error) => {
       console.error("[Boost] Checkout mutation error:", error);
