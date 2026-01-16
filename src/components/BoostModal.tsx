@@ -57,14 +57,19 @@ const BoostModal = ({ postId, postTitle, trigger }: BoostModalProps) => {
 
     if (amountCents < 100) return;
 
-    await createCheckout.mutateAsync({
-      postId,
-      amountCents,
-      message: message.trim() || undefined,
-      isPublic,
-    });
-
-    setIsOpen(false);
+    try {
+      await createCheckout.mutateAsync({
+        postId,
+        amountCents,
+        message: message.trim() || undefined,
+        isPublic,
+      });
+      // Note: redirect to Stripe happens in onSuccess, so we don't close dialog here
+    } catch (error) {
+      // Error is already handled in the mutation with toast
+      console.error("[BoostModal] Checkout failed:", error);
+      // Don't close modal on error so user can retry
+    }
   };
 
   return (
