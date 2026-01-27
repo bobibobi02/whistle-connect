@@ -184,6 +184,7 @@ export const usePublishDraft = () => {
         .from("posts")
         .update({
           is_draft: false,
+          scheduled_at: null, // Clear scheduled time on immediate publish
           updated_at: new Date().toISOString(),
         })
         .eq("id", draftId)

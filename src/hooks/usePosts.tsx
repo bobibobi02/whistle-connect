@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { createMentionNotifications } from "@/hooks/useMentionNotifications";
 
 export interface PostFlair {
   id: string;
@@ -162,12 +163,15 @@ const fetchPostsPage = async (
   // Get blocked user IDs
   const blockedIds = user ? await getBlockedUserIds(user.id) : [];
 
-  let query = supabase.from("posts").select("*");
-
-  // Exclude drafts and scheduled posts (not yet published)
-  query = query
+  const now = new Date().toISOString();
+  
+  // Build query with proper filtering for drafts and scheduled posts
+  // A post should appear if: NOT a draft AND (no schedule OR scheduled time has passed)
+  let query = supabase
+    .from("posts")
+    .select("*")
     .or("is_draft.is.null,is_draft.eq.false")
-    .or("scheduled_at.is.null,scheduled_at.lte." + new Date().toISOString());
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`);
 
   if (community) {
     query = query.eq("community", community);
@@ -253,12 +257,15 @@ const fetchJoinedCommunityPostsPage = async (
   if (!communities || communities.length === 0) return { posts: [], nextPage: null };
 
   const communityNames = communities.map((c) => c.name);
+  const now = new Date().toISOString();
 
   // Fetch posts from joined communities with pagination
   let query = supabase
     .from("posts")
     .select("*")
     .in("community", communityNames)
+    .or("is_draft.is.null,is_draft.eq.false")
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
     .order("created_at", { ascending: false })
     .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
 
@@ -304,11 +311,15 @@ const fetchFollowingPostsPage = async (
 
   if (followingIds.length === 0) return { posts: [], nextPage: null };
 
+  const now = new Date().toISOString();
+
   // Fetch posts from followed users with pagination
   const { data: posts, error } = await supabase
     .from("posts")
     .select("*")
     .in("user_id", followingIds)
+    .or("is_draft.is.null,is_draft.eq.false")
+    .or(`scheduled_at.is.null,scheduled_at.lte.${now}`)
     .order("created_at", { ascending: false })
     .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
 
@@ -558,11 +569,33 @@ export const useCreatePost = () => {
         .single();
 
       if (error) throw error;
+
+      // Create mention notifications for any @mentions in the post
+      if (data && (title || content)) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("user_id", user.id)
+          .single();
+
+        await createMentionNotifications({
+          content: `${title}\n${content || ""}`,
+          authorId: user.id,
+          authorUsername: profile?.username || null,
+          postId: data.id,
+          contentType: "post",
+        });
+      }
+
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
-      toast({ title: "Post created!", description: "Your post is now live." });
+      const isScheduled = data?.scheduled_at && new Date(data.scheduled_at) > new Date();
+      toast({ 
+        title: isScheduled ? "Post scheduled!" : "Post created!", 
+        description: isScheduled ? "Your post will go live at the scheduled time." : "Your post is now live." 
+      });
     },
     onError: (error) => {
       toast({

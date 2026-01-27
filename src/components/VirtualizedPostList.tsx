@@ -1,5 +1,5 @@
-import { useRef, useEffect, useMemo } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
+import { useVirtualizer, Virtualizer } from "@tanstack/react-virtual";
 import PostCard from "@/components/PostCard";
 import PostSkeleton from "@/components/PostSkeleton";
 import { Post } from "@/hooks/usePosts";
@@ -39,6 +39,10 @@ const LoadingPostSkeleton = () => (
   </div>
 );
 
+export interface VirtualizedPostListHandle {
+  virtualizer: Virtualizer<HTMLDivElement, Element> | null;
+}
+
 interface VirtualizedPostListProps {
   posts: Post[];
   hasNextPage?: boolean;
@@ -46,18 +50,20 @@ interface VirtualizedPostListProps {
   fetchNextPage?: () => void;
   isLoading?: boolean;
   communityName?: string;
+  focusedPostId?: string | null;
 }
 
 type FeedItem = { type: "post"; post: Post; index: number } | { type: "ad"; index: number };
 
-const VirtualizedPostList = ({
+const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPostListProps>(({
   posts,
   hasNextPage,
   isFetchingNextPage,
   fetchNextPage,
   isLoading,
   communityName,
-}: VirtualizedPostListProps) => {
+  focusedPostId,
+}, ref) => {
   const parentRef = useRef<HTMLDivElement>(null);
   const { data: placement } = usePlacement("FEED_INLINE");
   
@@ -83,6 +89,11 @@ const VirtualizedPostList = ({
     estimateSize: () => 200,
     overscan: 5,
   });
+
+  // Expose virtualizer to parent via ref for keyboard navigation
+  useImperativeHandle(ref, () => ({
+    virtualizer,
+  }), [virtualizer]);
 
   const items = virtualizer.getVirtualItems();
 
@@ -152,7 +163,11 @@ const VirtualizedPostList = ({
                 </div>
               ) : feedItem?.type === "post" ? (
                 <div className="pb-4">
-                  <PostCard post={feedItem.post} index={feedItem.index} />
+                  <PostCard 
+                    post={feedItem.post} 
+                    index={feedItem.index}
+                    isFocused={focusedPostId === feedItem.post.id}
+                  />
                 </div>
               ) : null}
             </div>
@@ -168,6 +183,8 @@ const VirtualizedPostList = ({
       )}
     </div>
   );
-};
+});
+
+VirtualizedPostList.displayName = "VirtualizedPostList";
 
 export default VirtualizedPostList;
