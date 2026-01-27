@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Image, Video, X, Upload, Loader2, Play, Settings2, Radio, Clock } from "lucide-react";
+import { ArrowLeft, Image, Video, X, Upload, Loader2, Play, Settings2, Radio, Clock, Save, FileText } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,13 +20,17 @@ import {
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { SchedulePostDialog } from "@/components/SchedulePostDialog";
+import DraftsDrawer from "@/components/DraftsDrawer";
 import { useAuth } from "@/hooks/useAuth";
 import { useCreatePost } from "@/hooks/usePosts";
+import { useSaveDraft, Draft } from "@/hooks/useDrafts";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { useVideoUpload } from "@/hooks/useVideoUpload";
 import { useVideoCompression, COMPRESSION_PRESETS, CompressionPreset } from "@/hooks/useVideoCompression";
+import { useDebouncedCallback } from "@/hooks/useThrottle";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
+import { toast } from "sonner";
 
 const communities = [
   { value: "general", label: "General", icon: "💬" },
@@ -75,10 +79,14 @@ const CreatePost = () => {
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
   const [isNsfw, setIsNsfw] = useState(false);
   const [scheduledAt, setScheduledAt] = useState<Date | null>(null);
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   
   const createPost = useCreatePost();
+  const saveDraft = useSaveDraft();
   const { uploadImage, isUploading: isUploadingImage, progress: imageProgress } = useImageUpload({ bucket: "post-images", maxSizeMB: 5 });
   const { 
     uploadVideo, 
@@ -110,6 +118,86 @@ const CreatePost = () => {
       community: "general",
     },
   });
+
+  // Auto-save draft function
+  const autoSaveDraft = useCallback(() => {
+    const formData = form.getValues();
+    if (!formData.title?.trim() && !formData.content?.trim()) return;
+    
+    setIsSavingDraft(true);
+    saveDraft.mutate(
+      {
+        id: currentDraftId || undefined,
+        title: formData.title || "Untitled Draft",
+        content: formData.content,
+        image_url: formData.image_url,
+        video_url: formData.video_url,
+        video_mime_type: formData.video_mime_type,
+        video_size_bytes: formData.video_size_bytes,
+        video_duration_seconds: formData.video_duration_seconds,
+        poster_image_url: formData.poster_image_url,
+        live_url: formData.live_url,
+        community: formData.community,
+        community_icon: communities.find(c => c.value === formData.community)?.icon,
+        is_nsfw: isNsfw,
+      },
+      {
+        onSuccess: (data) => {
+          if (!currentDraftId && data?.id) {
+            setCurrentDraftId(data.id);
+          }
+          setLastSaved(new Date());
+          setIsSavingDraft(false);
+        },
+        onError: () => {
+          setIsSavingDraft(false);
+        },
+      }
+    );
+  }, [currentDraftId, isNsfw, form, saveDraft]);
+
+  // Debounced auto-save (15 seconds after last change)
+  const { debouncedFn: debouncedAutoSave, cancel: cancelAutoSave } = useDebouncedCallback(
+    autoSaveDraft,
+    15000
+  );
+
+  // Watch form changes for auto-save
+  const watchedTitle = form.watch("title");
+  const watchedContent = form.watch("content");
+  
+  useEffect(() => {
+    if (watchedTitle || watchedContent) {
+      debouncedAutoSave();
+    }
+    return () => cancelAutoSave();
+  }, [watchedTitle, watchedContent, debouncedAutoSave, cancelAutoSave]);
+
+  // Load draft handler
+  const handleLoadDraft = (draft: Draft) => {
+    setCurrentDraftId(draft.id);
+    form.setValue("title", draft.title);
+    form.setValue("content", draft.content || "");
+    form.setValue("community", draft.community);
+    form.setValue("image_url", draft.image_url || "");
+    form.setValue("video_url", draft.video_url || "");
+    form.setValue("video_mime_type", draft.video_mime_type || undefined);
+    form.setValue("video_size_bytes", draft.video_size_bytes || undefined);
+    form.setValue("video_duration_seconds", draft.video_duration_seconds || undefined);
+    form.setValue("poster_image_url", draft.poster_image_url || undefined);
+    form.setValue("live_url", draft.live_url || "");
+    setImagePreview(draft.image_url);
+    setVideoPreview(draft.video_url);
+    setVideoPoster(draft.poster_image_url);
+    setIsNsfw(draft.is_nsfw);
+    toast.success("Draft loaded");
+  };
+
+  // Manual save draft
+  const handleSaveDraft = () => {
+    autoSaveDraft();
+    toast.success("Draft saved");
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -270,7 +358,32 @@ const CreatePost = () => {
         </Link>
 
         <div className="bg-card rounded-xl shadow-card p-6 animate-fade-in">
-          <h1 className="text-2xl font-bold mb-6">Create a post</h1>
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold">Create a post</h1>
+            <div className="flex items-center gap-2">
+              {lastSaved && (
+                <span className="text-xs text-muted-foreground">
+                  Saved {format(lastSaved, "h:mm a")}
+                </span>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSaveDraft}
+                disabled={isSavingDraft || isUploading}
+                className="gap-1.5"
+              >
+                {isSavingDraft ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Save Draft
+              </Button>
+              <DraftsDrawer onLoadDraft={handleLoadDraft} />
+            </div>
+          </div>
 
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             {/* Community Select */}

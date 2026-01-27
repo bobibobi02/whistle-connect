@@ -33,9 +33,10 @@ interface PostCardProps {
   post: Post;
   index?: number;
   showModActions?: boolean;
+  isFocused?: boolean;
 }
 
-const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) => {
+const PostCard = ({ post, index = 0, showModActions = false, isFocused = false }: PostCardProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const votePost = useVotePost();
@@ -99,9 +100,11 @@ const PostCard = ({ post, index = 0, showModActions = false }: PostCardProps) =>
 
   const cardContent = (
     <article
+      data-post-id={post.id}
       className={cn(
         "group bg-card rounded-xl shadow-card hover:shadow-card-hover transition-all duration-300 animate-fade-in overflow-hidden card-interactive",
-        post.is_removed && "opacity-60 border border-destructive/30"
+        post.is_removed && "opacity-60 border border-destructive/30",
+        isFocused && "ring-2 ring-primary ring-offset-2 ring-offset-background"
       )}
       style={{ animationDelay: `${index * 50}ms` }}
     >

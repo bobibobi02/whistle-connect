@@ -1825,6 +1825,7 @@ export type Database = {
           is_verified: boolean | null
           karma: number | null
           nsfw_confirmed_at: string | null
+          social_links: Json | null
           updated_at: string
           user_id: string
           username: string | null
@@ -1841,6 +1842,7 @@ export type Database = {
           is_verified?: boolean | null
           karma?: number | null
           nsfw_confirmed_at?: string | null
+          social_links?: Json | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -1857,6 +1859,7 @@ export type Database = {
           is_verified?: boolean | null
           karma?: number | null
           nsfw_confirmed_at?: string | null
+          social_links?: Json | null
           updated_at?: string
           user_id?: string
           username?: string | null
