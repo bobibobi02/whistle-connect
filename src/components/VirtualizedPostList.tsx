@@ -118,7 +118,7 @@ const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPos
   return (
     <div
       ref={parentRef}
-      className="h-[calc(100vh-200px)] overflow-auto scrollbar-thin"
+      className="h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden scrollbar-hide"
       style={{ contain: "strict" }}
     >
       <div
