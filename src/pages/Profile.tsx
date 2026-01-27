@@ -10,6 +10,7 @@ import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import PostCard from "@/components/PostCard";
 import EditProfileDialog from "@/components/EditProfileDialog";
+import SocialLinksDisplay from "@/components/SocialLinksDisplay";
 import { BlockUserButton } from "@/components/BlockUserButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfileByUsername, useUserPosts } from "@/hooks/useProfile";
@@ -166,6 +167,12 @@ const Profile = () => {
                 {profile.bio && (
                   <p className="mt-4 text-foreground/90">{profile.bio}</p>
                 )}
+
+                {/* Social Links */}
+                <SocialLinksDisplay 
+                  links={(profile as any).social_links} 
+                  className="mt-4" 
+                />
 
                 <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />

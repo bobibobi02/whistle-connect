@@ -164,6 +164,11 @@ const fetchPostsPage = async (
 
   let query = supabase.from("posts").select("*");
 
+  // Exclude drafts and scheduled posts (not yet published)
+  query = query
+    .or("is_draft.is.null,is_draft.eq.false")
+    .or("scheduled_at.is.null,scheduled_at.lte." + new Date().toISOString());
+
   if (community) {
     query = query.eq("community", community);
   }
@@ -501,6 +506,7 @@ export const useCreatePost = () => {
       community,
       community_icon,
       is_nsfw,
+      scheduled_at,
     }: {
       title: string;
       content?: string;
@@ -514,6 +520,7 @@ export const useCreatePost = () => {
       community?: string;
       community_icon?: string;
       is_nsfw?: boolean;
+      scheduled_at?: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
@@ -544,6 +551,8 @@ export const useCreatePost = () => {
           community: community || "general",
           community_icon: community_icon || "💬",
           is_nsfw: is_nsfw || false,
+          scheduled_at: scheduled_at || null,
+          is_draft: false,
         })
         .select()
         .single();
