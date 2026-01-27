@@ -1,17 +1,18 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import Header from "@/components/Header";
 import CommunitySidebar from "@/components/CommunitySidebar";
 import CreatePostBar from "@/components/CreatePostBar";
 import MobileNav from "@/components/MobileNav";
-import VirtualizedPostList from "@/components/VirtualizedPostList";
+import VirtualizedPostList, { VirtualizedPostListHandle } from "@/components/VirtualizedPostList";
 import { useInfinitePosts, useJoinedCommunityPosts, useFollowingPosts, SortOption } from "@/hooks/usePosts";
 import { useLivePosts } from "@/hooks/useLivePosts";
 import { useForYouFeed, useUpdateFeedProfile } from "@/hooks/useForYouFeed";
 import { useVideoQueue } from "@/hooks/useVideoQueue";
 import { useAuth } from "@/hooks/useAuth";
 import { usePullToRefresh } from "@/hooks/usePullToRefresh";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 import FloatingActionButton from "@/components/FloatingActionButton";
 import { AdSlot } from "@/components/AdSlot";
 import { Button } from "@/components/ui/button";
@@ -111,6 +112,16 @@ const Index = () => {
   };
 
   const { posts, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = getCurrentFeed();
+
+  // Ref for virtualized list to enable keyboard navigation with scrollToIndex
+  const virtualizedListRef = useRef<VirtualizedPostListHandle>(null);
+
+  // Keyboard navigation (J/K)
+  const { focusedId } = useKeyboardNavigation({
+    items: posts,
+    enabled: posts.length > 0 && !isLoading,
+    virtualizerRef: virtualizedListRef as any,
+  });
 
   // Initialize video queue when posts load
   useEffect(() => {
@@ -256,11 +267,13 @@ const Index = () => {
               </div>
             ) : posts.length > 0 || isLoading ? (
               <VirtualizedPostList
+                ref={virtualizedListRef}
                 posts={posts}
                 hasNextPage={hasNextPage}
                 isFetchingNextPage={isFetchingNextPage}
                 fetchNextPage={fetchNextPage}
                 isLoading={isLoading}
+                focusedPostId={focusedId}
               />
             ) : feedType === "joined" ? (
               <div className="bg-card rounded-xl shadow-card p-8 text-center">

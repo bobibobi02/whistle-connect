@@ -314,6 +314,7 @@ const CreatePost = () => {
         community: data.community,
         community_icon: community?.icon,
         is_nsfw: isNsfw,
+        scheduled_at: scheduledAt ? scheduledAt.toISOString() : undefined,
       },
       {
         onSuccess: () => navigate("/"),

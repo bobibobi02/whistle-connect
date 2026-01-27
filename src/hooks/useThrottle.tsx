@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ThrottleOptions {
@@ -28,7 +28,6 @@ export const useThrottle = (options: ThrottleOptions = {}) => {
             toast({
               title: "Slow down",
               description: `Please wait ${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''} before trying again.`,
-              variant: "default",
             });
           }
           return undefined;
@@ -51,24 +50,18 @@ export const useThrottle = (options: ThrottleOptions = {}) => {
 };
 
 /**
- * Simple debounce hook for input fields / autosave
+ * Simple debounce hook for input fields / autosave - uses useEffect properly
  */
 export const useDebounce = <T,>(value: T, delay: number): T => {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
-  useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
       setDebouncedValue(value);
     }, delay);
 
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      clearTimeout(timer);
     };
   }, [value, delay]);
 
@@ -83,6 +76,12 @@ export const useDebouncedCallback = <T extends (...args: any[]) => any>(
   delay: number
 ) => {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const callbackRef = useRef(callback);
+
+  // Keep callback ref up to date
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
 
   const debouncedFn = useCallback(
     (...args: Parameters<T>) => {
@@ -90,10 +89,10 @@ export const useDebouncedCallback = <T extends (...args: any[]) => any>(
         clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = setTimeout(() => {
-        callback(...args);
+        callbackRef.current(...args);
       }, delay);
     },
-    [callback, delay]
+    [delay]
   );
 
   const cancel = useCallback(() => {

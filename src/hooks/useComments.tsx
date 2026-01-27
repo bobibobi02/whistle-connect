@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { createMentionNotifications } from "@/hooks/useMentionNotifications";
 
 // Helper to count total comments including nested replies
 export const countTotalComments = (commentList: Comment[] | undefined): number => {
@@ -260,6 +261,25 @@ export const useCreateComment = () => {
         .single();
 
       if (error) throw error;
+
+      // Create mention notifications for any @mentions in the comment
+      if (data && content) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("user_id", authUser.id)
+          .single();
+
+        await createMentionNotifications({
+          content,
+          authorId: authUser.id,
+          authorUsername: profile?.username || null,
+          postId,
+          commentId: data.id,
+          contentType: "comment",
+        });
+      }
+
       return { ...data, postId };
     },
     // Optimistic update: immediately add the comment to the cache

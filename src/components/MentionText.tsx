@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Fragment } from "react";
+import React from "react";
 
 interface MentionTextProps {
   text: string;
@@ -10,8 +10,8 @@ interface MentionTextProps {
  * Renders text with @username mentions as clickable links.
  * Matches @username pattern where username contains letters, numbers, and underscores.
  */
-const MentionText = ({ text, className }: MentionTextProps) => {
-  if (!text) return null;
+const MentionText = ({ text, className }: MentionTextProps): React.ReactElement => {
+  if (!text) return <span className={className}></span>;
 
   // Match @username pattern (alphanumeric + underscores, 3-20 chars)
   const mentionPattern = /@([a-zA-Z0-9_]{3,20})\b/g;
@@ -19,6 +19,9 @@ const MentionText = ({ text, className }: MentionTextProps) => {
   const parts: Array<{ type: "text" | "mention"; content: string }> = [];
   let lastIndex = 0;
   let match;
+
+  // Reset regex lastIndex
+  mentionPattern.lastIndex = 0;
 
   while ((match = mentionPattern.exec(text)) !== null) {
     // Add text before the mention
@@ -54,7 +57,7 @@ const MentionText = ({ text, className }: MentionTextProps) => {
   return (
     <span className={className}>
       {parts.map((part, index) => (
-        <Fragment key={index}>
+        <React.Fragment key={index}>
           {part.type === "mention" ? (
             <Link
               to={`/u/${part.content}`}
@@ -64,9 +67,9 @@ const MentionText = ({ text, className }: MentionTextProps) => {
               @{part.content}
             </Link>
           ) : (
-            part.content
+            <>{part.content}</>
           )}
-        </Fragment>
+        </React.Fragment>
       ))}
     </span>
   );
@@ -83,6 +86,9 @@ export const extractMentions = (text: string): string[] => {
   const mentionPattern = /@([a-zA-Z0-9_]{3,20})\b/g;
   const mentions = new Set<string>();
   let match;
+
+  // Reset regex lastIndex
+  mentionPattern.lastIndex = 0;
 
   while ((match = mentionPattern.exec(text)) !== null) {
     mentions.add(match[1].toLowerCase());
