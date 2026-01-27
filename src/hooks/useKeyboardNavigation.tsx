@@ -6,7 +6,7 @@ interface UseKeyboardNavigationOptions {
   items: { id: string }[];
   enabled?: boolean;
   onNavigate?: (id: string, index: number) => void;
-  virtualizerRef?: React.RefObject<Virtualizer<HTMLDivElement, Element> | null>;
+  virtualizerRef?: React.RefObject<{ virtualizer: Virtualizer<Window, Element> | null } | null>;
 }
 
 /**
@@ -32,8 +32,8 @@ export const useKeyboardNavigation = ({
 
   const scrollToIndex = useCallback((index: number) => {
     // Prefer virtualizer's scrollToIndex for proper virtualization support
-    if (virtualizerRef?.current) {
-      virtualizerRef.current.scrollToIndex(index, { align: "center", behavior: "smooth" });
+    if (virtualizerRef?.current?.virtualizer) {
+      virtualizerRef.current.virtualizer.scrollToIndex(index, { align: "center", behavior: "smooth" });
     } else {
       // Fallback to querySelector for non-virtualized lists
       const element = document.querySelector(`[data-post-id="${items[index]?.id}"]`);

@@ -1,5 +1,5 @@
 import { useRef, useEffect, useMemo, useImperativeHandle, forwardRef } from "react";
-import { useVirtualizer, Virtualizer } from "@tanstack/react-virtual";
+import { useWindowVirtualizer, Virtualizer } from "@tanstack/react-virtual";
 import PostCard from "@/components/PostCard";
 import PostSkeleton from "@/components/PostSkeleton";
 import { Post } from "@/hooks/usePosts";
@@ -40,7 +40,7 @@ const LoadingPostSkeleton = () => (
 );
 
 export interface VirtualizedPostListHandle {
-  virtualizer: Virtualizer<HTMLDivElement, Element> | null;
+  virtualizer: Virtualizer<Window, Element> | null;
 }
 
 interface VirtualizedPostListProps {
@@ -64,8 +64,9 @@ const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPos
   communityName,
   focusedPostId,
 }, ref) => {
-  const parentRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const { data: placement } = usePlacement("FEED_INLINE");
+  const autoFetchCountRef = useRef(0);
   
   // Default to showing an ad every 10 posts
   const adFrequency = placement?.insertion_frequency ?? 10;
@@ -83,11 +84,12 @@ const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPos
     return items;
   }, [posts, placement, adFrequency]);
 
-  const virtualizer = useVirtualizer({
+  // Use window virtualizer - the window is the scroll container
+  const virtualizer = useWindowVirtualizer({
     count: feedItems.length + (hasNextPage ? 1 : 0),
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 200,
+    estimateSize: () => 280, // Slightly larger estimate for posts with media
     overscan: 5,
+    scrollMargin: listRef.current?.offsetTop ?? 0,
   });
 
   // Expose virtualizer to parent via ref for keyboard navigation
@@ -111,16 +113,46 @@ const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPos
     }
   }, [items, feedItems.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  // Auto-fill viewport if content is shorter than window height
+  useEffect(() => {
+    if (!hasNextPage || isFetchingNextPage || !fetchNextPage || isLoading) {
+      return;
+    }
+
+    // Safety guard: max 5 auto-fetches per mount
+    if (autoFetchCountRef.current >= 5) {
+      return;
+    }
+
+    const checkAndFetch = () => {
+      const totalHeight = virtualizer.getTotalSize();
+      const viewportHeight = window.innerHeight;
+      
+      // If content is shorter than viewport and we have more pages, fetch
+      if (totalHeight < viewportHeight && hasNextPage && !isFetchingNextPage) {
+        autoFetchCountRef.current += 1;
+        fetchNextPage();
+      }
+    };
+
+    // Check after a small delay to allow virtualizer to calculate
+    const timer = setTimeout(checkAndFetch, 100);
+    return () => clearTimeout(timer);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isLoading, virtualizer, feedItems.length]);
+
+  // Reset auto-fetch count when posts change significantly
+  useEffect(() => {
+    if (posts.length === 0) {
+      autoFetchCountRef.current = 0;
+    }
+  }, [posts.length]);
+
   if (isLoading) {
     return <PostSkeleton count={4} />;
   }
 
   return (
-    <div
-      ref={parentRef}
-      className="h-[calc(100vh-200px)] overflow-y-auto overflow-x-hidden scrollbar-hide"
-      style={{ contain: "strict" }}
-    >
+    <div ref={listRef}>
       <div
         style={{
           height: `${virtualizer.getTotalSize()}px`,
@@ -142,7 +174,7 @@ const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPos
                 top: 0,
                 left: 0,
                 width: "100%",
-                transform: `translateY(${virtualItem.start}px)`,
+                transform: `translateY(${virtualItem.start - (listRef.current?.offsetTop ?? 0)}px)`,
               }}
             >
               {isLoaderRow ? (
