@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import ReactMarkdown from "react-markdown";
 import {
   Shield,
   FileText,
@@ -192,12 +193,24 @@ export default function AdminLegal() {
               <CardContent>
                 {showPreview ? (
                   <div className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[400px]">
-                    {editedContent.split("\n\n").map((block, i) => {
-                      if (block.startsWith("# ")) return <h1 key={i} className="text-2xl font-bold">{block.slice(2)}</h1>;
-                      if (block.startsWith("## ")) return <h2 key={i} className="text-xl font-semibold mt-4">{block.slice(3)}</h2>;
-                      if (block.startsWith("### ")) return <h3 key={i} className="text-lg font-semibold mt-3">{block.slice(4)}</h3>;
-                      return <p key={i} className="text-muted-foreground">{block}</p>;
-                    })}
+                    <ReactMarkdown
+                      components={{
+                        h1: ({ children }) => <h1 className="text-2xl font-bold text-foreground">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-xl font-semibold mt-4 text-foreground">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-lg font-semibold mt-3 text-foreground">{children}</h3>,
+                        p: ({ children }) => <p className="text-muted-foreground mb-3">{children}</p>,
+                        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 text-muted-foreground">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 text-muted-foreground">{children}</ol>,
+                        li: ({ children }) => <li>{children}</li>,
+                        a: ({ href, children }) => (
+                          <a href={href} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {editedContent}
+                    </ReactMarkdown>
                   </div>
                 ) : (
                   <div className="space-y-4">
