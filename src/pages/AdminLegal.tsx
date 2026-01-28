@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Shield,
   FileText,
@@ -192,20 +193,36 @@ export default function AdminLegal() {
               </CardHeader>
               <CardContent>
                 {showPreview ? (
-                  <div className="prose prose-invert max-w-none p-4 bg-muted/30 rounded-lg min-h-[400px]">
+                  <div className="rounded-lg border border-border bg-card/40 p-4 min-h-[400px]">
                     <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
                       components={{
-                        h1: ({ children }) => <h1 className="text-2xl font-bold text-foreground">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-xl font-semibold mt-4 text-foreground">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-lg font-semibold mt-3 text-foreground">{children}</h3>,
-                        p: ({ children }) => <p className="text-muted-foreground mb-3">{children}</p>,
-                        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 text-muted-foreground">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 text-muted-foreground">{children}</ol>,
-                        li: ({ children }) => <li>{children}</li>,
+                        h1: ({ children }) => (<h1 className="text-2xl font-bold mt-0 mb-3">{children}</h1>),
+                        h2: ({ children }) => (<h2 className="text-xl font-semibold mt-6 mb-2">{children}</h2>),
+                        h3: ({ children }) => (<h3 className="text-lg font-semibold mt-4 mb-2">{children}</h3>),
+                        p: ({ children }) => (<p className="text-sm text-muted-foreground leading-6 mb-3">{children}</p>),
+                        ul: ({ children }) => (<ul className="list-disc pl-6 space-y-1 mb-3">{children}</ul>),
+                        ol: ({ children }) => (<ol className="list-decimal pl-6 space-y-1 mb-3">{children}</ol>),
+                        li: ({ children }) => (<li className="text-sm text-muted-foreground">{children}</li>),
                         a: ({ href, children }) => (
-                          <a href={href} className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="text-primary underline underline-offset-4 hover:opacity-90"
+                          >
                             {children}
                           </a>
+                        ),
+                        blockquote: ({ children }) => (
+                          <blockquote className="border-l-2 border-border pl-4 italic text-muted-foreground my-3">
+                            {children}
+                          </blockquote>
+                        ),
+                        code: ({ children }) => (
+                          <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                            {children}
+                          </code>
                         ),
                       }}
                     >
