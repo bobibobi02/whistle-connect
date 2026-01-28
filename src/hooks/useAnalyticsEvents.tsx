@@ -1,14 +1,15 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCallback, useRef } from "react";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface AnalyticsEvent {
   id: string;
   user_id: string | null;
   session_id: string | null;
   event_name: string;
-  properties: Record<string, any>;
+  properties: Json;
   ip_hash: string | null;
   user_agent: string | null;
   route: string | null;
@@ -31,7 +32,7 @@ export const useTrackEvent = () => {
 
   const trackEvent = useCallback(async (
     eventName: string,
-    properties: Record<string, any> = {}
+    properties: Record<string, string | number | boolean | null> = {}
   ) => {
     // Deduplicate rapid repeat events (same event within 1 second)
     const now = Date.now();
@@ -41,14 +42,14 @@ export const useTrackEvent = () => {
     lastEventRef.current = { name: eventName, time: now };
 
     try {
-      await supabase.from("events").insert({
+      await supabase.from("events").insert([{
         user_id: user?.id || null,
         session_id: getSessionId(),
         event_name: eventName,
-        properties,
+        properties: properties as Json,
         user_agent: navigator.userAgent,
         route: window.location.pathname,
-      });
+      }]);
     } catch (error) {
       console.error("Failed to track event:", error);
     }
@@ -56,6 +57,11 @@ export const useTrackEvent = () => {
 
   return { trackEvent };
 };
+
+interface DailyData {
+  users: Set<string>;
+  events: number;
+}
 
 export const useAnalyticsDashboard = (days: number = 30) => {
   return useQuery({
@@ -83,7 +89,7 @@ export const useAnalyticsDashboard = (days: number = 30) => {
       });
 
       // Group by day
-      const dailyData: Record<string, { users: Set<string>; events: number }> = {};
+      const dailyData: Record<string, DailyData> = {};
       events?.forEach(e => {
         const day = e.created_at.split("T")[0];
         if (!dailyData[day]) {

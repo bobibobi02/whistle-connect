@@ -45,7 +45,7 @@ export default function Status() {
               : c
           )
         );
-      } catch (err) {
+      } catch {
         setChecks(prev =>
           prev.map(c =>
             c.name === "Database API"
@@ -69,7 +69,7 @@ export default function Status() {
               : c
           )
         );
-      } catch (err) {
+      } catch {
         setChecks(prev =>
           prev.map(c =>
             c.name === "Authentication"

@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsAdmin, useIsModerator } from "@/hooks/useUserRoles";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface LegalPage {
   id: string;
@@ -28,8 +30,11 @@ export const useLegalPages = () => {
 };
 
 export const useLegalPage = (slug: string) => {
+  const { isAdmin, isLoading: adminLoading } = useIsAdmin();
+  const { isModerator, isLoading: modLoading } = useIsModerator();
+
   return useQuery({
-    queryKey: ["legal-pages", slug],
+    queryKey: ["legal-pages", slug, isAdmin, isModerator],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("legal_pages")
@@ -38,11 +43,24 @@ export const useLegalPage = (slug: string) => {
         .maybeSingle();
 
       if (error) throw error;
+      
+      // If user is not admin/mod, only return published pages
+      if (data && !isAdmin && !isModerator && !data.is_published) {
+        return null;
+      }
+      
       return data as LegalPage | null;
     },
-    enabled: !!slug,
+    enabled: !!slug && !adminLoading && !modLoading,
   });
 };
+
+interface LegalPageUpdate {
+  slug: string;
+  title?: string;
+  markdown_content?: string;
+  is_published?: boolean;
+}
 
 export const useUpdateLegalPage = () => {
   const queryClient = useQueryClient();
@@ -53,12 +71,7 @@ export const useUpdateLegalPage = () => {
       title, 
       markdown_content, 
       is_published 
-    }: { 
-      slug: string; 
-      title?: string;
-      markdown_content?: string; 
-      is_published?: boolean;
-    }) => {
+    }: LegalPageUpdate) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       const updates: Partial<LegalPage> = { updated_by: user?.id };
@@ -93,11 +106,28 @@ export const usePublishAllLegalPages = () => {
 
       if (error) throw error;
 
-      // Update app setting
-      await supabase
+      // Upsert app setting to track that pages have been published
+      // First check if setting exists
+      const { data: existing } = await supabase
         .from("app_settings")
-        .update({ value: { published: true } })
-        .eq("key", "legal_pages_published");
+        .select("id")
+        .eq("key", "legal_pages_published")
+        .maybeSingle();
+
+      const settingValue: Json = { published: true, published_at: new Date().toISOString() };
+      
+      if (existing) {
+        const { error: settingsError } = await supabase
+          .from("app_settings")
+          .update({ value: settingValue, updated_by: user?.id })
+          .eq("key", "legal_pages_published");
+        if (settingsError) throw settingsError;
+      } else {
+        const { error: settingsError } = await supabase
+          .from("app_settings")
+          .insert([{ key: "legal_pages_published", value: settingValue, updated_by: user?.id }]);
+        if (settingsError) throw settingsError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["legal-pages"] });
