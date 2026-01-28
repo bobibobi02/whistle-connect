@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useIsAdmin } from "@/hooks/useUserRoles";
-import Header from "@/components/Header";
-import MobileNav from "@/components/MobileNav";
+import PageShell from "@/components/PageShell";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,7 +14,6 @@ import {
   CheckCircle2,
   Clock,
   HardDrive,
-  Download,
   AlertTriangle,
 } from "lucide-react";
 
@@ -71,7 +69,6 @@ const recoverySteps = [
 
 export default function AdminBackups() {
   const { isAdmin, isLoading: roleLoading } = useIsAdmin();
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
   const toggleStep = (id: string) => {
@@ -90,15 +87,13 @@ export default function AdminBackups() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-background">
-        <Header onMenuClick={() => setIsMobileNavOpen(true)} />
-        <main className="container max-w-2xl mx-auto px-4 py-8 text-center">
+      <PageShell maxWidth="max-w-2xl">
+        <div className="text-center py-8">
           <Shield className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
           <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
           <p className="text-muted-foreground">You need admin privileges to access this page.</p>
-        </main>
-        <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
-      </div>
+        </div>
+      </PageShell>
     );
   }
 
@@ -107,155 +102,151 @@ export default function AdminBackups() {
   const allRequiredComplete = completedRequired === requiredSteps.length;
 
   return (
-    <div className="min-h-screen bg-background">
-      <Header onMenuClick={() => setIsMobileNavOpen(true)} />
-      <main className="container max-w-4xl mx-auto px-4 py-8 pb-24 md:pb-8">
-        <Button variant="ghost" size="sm" asChild className="mb-6">
-          <Link to="/admin/go-live">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Go-Live
-          </Link>
-        </Button>
+    <PageShell maxWidth="max-w-4xl">
+      <Button variant="ghost" size="sm" asChild className="mb-6">
+        <Link to="/admin/go-live">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Go-Live
+        </Link>
+      </Button>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Backups & Recovery</h1>
-          <p className="text-muted-foreground">
-            Runbook for database backup and disaster recovery
-          </p>
-        </div>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Backups & Recovery</h1>
+        <p className="text-muted-foreground">
+          Runbook for database backup and disaster recovery
+        </p>
+      </div>
 
-        {/* Status */}
-        <Card className="mb-6">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-full ${allRequiredComplete ? "bg-primary/10" : "bg-yellow-500/10"}`}>
-                  {allRequiredComplete ? (
-                    <CheckCircle2 className="h-6 w-6 text-primary" />
-                  ) : (
-                    <AlertTriangle className="h-6 w-6 text-yellow-500" />
+      {/* Status */}
+      <Card className="mb-6">
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`p-3 rounded-full ${allRequiredComplete ? "bg-primary/10" : "bg-yellow-500/10"}`}>
+                {allRequiredComplete ? (
+                  <CheckCircle2 className="h-6 w-6 text-primary" />
+                ) : (
+                  <AlertTriangle className="h-6 w-6 text-yellow-500" />
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">
+                  {allRequiredComplete ? "Backup Setup Complete" : "Setup Incomplete"}
+                </h2>
+                <p className="text-muted-foreground">
+                  {completedRequired} of {requiredSteps.length} required steps complete
+                </p>
+              </div>
+            </div>
+            <Badge variant={allRequiredComplete ? "default" : "secondary"}>
+              {Math.round((completedSteps.length / backupSteps.length) * 100)}%
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Setup Checklist */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5" />
+            Backup Setup Checklist
+          </CardTitle>
+          <CardDescription>
+            Complete these steps to ensure your data is protected
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {backupSteps.map((step) => (
+            <div
+              key={step.id}
+              className="flex items-start gap-3 p-3 rounded-lg border border-border"
+            >
+              <Checkbox
+                id={step.id}
+                checked={completedSteps.includes(step.id)}
+                onCheckedChange={() => toggleStep(step.id)}
+              />
+              <div className="flex-1">
+                <label htmlFor={step.id} className="font-medium cursor-pointer">
+                  {step.title}
+                  {step.required && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      Required
+                    </Badge>
                   )}
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold">
-                    {allRequiredComplete ? "Backup Setup Complete" : "Setup Incomplete"}
-                  </h2>
-                  <p className="text-muted-foreground">
-                    {completedRequired} of {requiredSteps.length} required steps complete
-                  </p>
-                </div>
+                </label>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {step.description}
+                </p>
               </div>
-              <Badge variant={allRequiredComplete ? "default" : "secondary"}>
-                {Math.round((completedSteps.length / backupSteps.length) * 100)}%
-              </Badge>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+        </CardContent>
+      </Card>
 
-        {/* Setup Checklist */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              Backup Setup Checklist
-            </CardTitle>
-            <CardDescription>
-              Complete these steps to ensure your data is protected
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {backupSteps.map((step) => (
-              <div
-                key={step.id}
-                className="flex items-start gap-3 p-3 rounded-lg border border-border"
-              >
-                <Checkbox
-                  id={step.id}
-                  checked={completedSteps.includes(step.id)}
-                  onCheckedChange={() => toggleStep(step.id)}
-                />
-                <div className="flex-1">
-                  <label htmlFor={step.id} className="font-medium cursor-pointer">
-                    {step.title}
-                    {step.required && (
-                      <Badge variant="outline" className="ml-2 text-xs">
-                        Required
-                      </Badge>
-                    )}
-                  </label>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {step.description}
-                  </p>
-                </div>
-              </div>
+      {/* Recovery Procedure */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Recovery Procedure
+          </CardTitle>
+          <CardDescription>
+            Steps to follow during a disaster recovery event
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ol className="space-y-3">
+            {recoverySteps.map((step, index) => (
+              <li key={index} className="flex items-start gap-3">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-sm font-medium shrink-0">
+                  {index + 1}
+                </span>
+                <span className="text-muted-foreground">{step}</span>
+              </li>
             ))}
-          </CardContent>
-        </Card>
+          </ol>
+        </CardContent>
+      </Card>
 
-        {/* Recovery Procedure */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5" />
-              Recovery Procedure
-            </CardTitle>
-            <CardDescription>
-              Steps to follow during a disaster recovery event
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ol className="space-y-3">
-              {recoverySteps.map((step, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-sm font-medium shrink-0">
-                    {index + 1}
-                  </span>
-                  <span className="text-muted-foreground">{step}</span>
-                </li>
-              ))}
-            </ol>
-          </CardContent>
-        </Card>
-
-        {/* Best Practices */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <HardDrive className="h-5 w-5" />
-              Best Practices
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-muted/50">
-                <h3 className="font-medium mb-2">Backup Frequency</h3>
-                <p className="text-sm text-muted-foreground">
-                  Enable continuous backups with PITR. This allows you to restore to any point in time.
-                </p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted/50">
-                <h3 className="font-medium mb-2">Retention Period</h3>
-                <p className="text-sm text-muted-foreground">
-                  Keep at least 7 days of backups. For critical data, consider 30 days.
-                </p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted/50">
-                <h3 className="font-medium mb-2">Test Regularly</h3>
-                <p className="text-sm text-muted-foreground">
-                  Perform a test restore at least once per month to verify backup integrity.
-                </p>
-              </div>
-              <div className="p-4 rounded-lg bg-muted/50">
-                <h3 className="font-medium mb-2">Monitor Storage</h3>
-                <p className="text-sm text-muted-foreground">
-                  Set up alerts for storage capacity to avoid backup failures.
-                </p>
-              </div>
+      {/* Best Practices */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HardDrive className="h-5 w-5" />
+            Best Practices
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-2">Backup Frequency</h3>
+              <p className="text-sm text-muted-foreground">
+                Enable continuous backups with PITR. This allows you to restore to any point in time.
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      </main>
-      <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
-    </div>
+            <div className="p-4 rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-2">Retention Period</h3>
+              <p className="text-sm text-muted-foreground">
+                Keep at least 7 days of backups. For critical data, consider 30 days.
+              </p>
+            </div>
+            <div className="p-4 rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-2">Test Regularly</h3>
+              <p className="text-sm text-muted-foreground">
+                Perform a test restore at least once per month to verify backup integrity.
+              </p>
+            </div>
+            <div className="p-4 rounded-lg bg-muted/50">
+              <h3 className="font-medium mb-2">Monitor Storage</h3>
+              <p className="text-sm text-muted-foreground">
+                Set up alerts for storage capacity to avoid backup failures.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </PageShell>
   );
 }
