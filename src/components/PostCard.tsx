@@ -233,8 +233,8 @@ const PostCard = ({ post, index = 0, showModActions = false, isFocused = false }
 
         {/* Live Embed */}
         {post.live_url && (
-          <div className="relative -mx-4 mb-3 overflow-hidden">
-            <LiveEmbed url={post.live_url} className="max-h-96" />
+          <div className="relative -mx-4 mb-3 overflow-hidden max-h-[400px]">
+            <LiveEmbed url={post.live_url} className="max-h-[400px] object-contain" />
           </div>
         )}
 
@@ -244,7 +244,7 @@ const PostCard = ({ post, index = 0, showModActions = false, isFocused = false }
             <img
               src={post.image_url}
               alt={post.title}
-              className="w-full h-auto max-h-96 object-cover"
+              className="w-full h-auto max-h-[400px] object-contain bg-black/5"
             />
           </div>
         )}
@@ -256,7 +256,7 @@ const PostCard = ({ post, index = 0, showModActions = false, isFocused = false }
               src={post.video_url}
               poster={post.poster_image_url || undefined}
               compact
-              className="w-full max-h-96"
+              className="w-full max-h-[400px] object-contain"
             />
           </div>
         )}
