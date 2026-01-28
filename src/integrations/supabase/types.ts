@@ -322,6 +322,33 @@ export type Database = {
         }
         Relationships: []
       }
+      app_settings: {
+        Row: {
+          description: string | null
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: Json
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: Json
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -1196,6 +1223,42 @@ export type Database = {
         }
         Relationships: []
       }
+      events: {
+        Row: {
+          created_at: string
+          event_name: string
+          id: string
+          ip_hash: string | null
+          properties: Json | null
+          route: string | null
+          session_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_name: string
+          id?: string
+          ip_hash?: string | null
+          properties?: Json | null
+          route?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_name?: string
+          id?: string
+          ip_hash?: string | null
+          properties?: Json | null
+          route?: string | null
+          session_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       feed_events: {
         Row: {
           created_at: string
@@ -1302,6 +1365,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      legal_pages: {
+        Row: {
+          created_at: string
+          id: string
+          is_published: boolean
+          markdown_content: string
+          slug: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          markdown_content?: string
+          slug: string
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_published?: boolean
+          markdown_content?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -1901,6 +1997,33 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          action_type: string
+          id: string
+          ip_hash: string | null
+          request_count: number
+          user_id: string | null
+          window_start: string
+        }
+        Insert: {
+          action_type: string
+          id?: string
+          ip_hash?: string | null
+          request_count?: number
+          user_id?: string | null
+          window_start?: string
+        }
+        Update: {
+          action_type?: string
+          id?: string
+          ip_hash?: string | null
+          request_count?: number
+          user_id?: string | null
+          window_start?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           comment_id: string | null
@@ -1957,6 +2080,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      support_tickets: {
+        Row: {
+          app_version: string | null
+          assigned_to: string | null
+          browser_info: Json | null
+          category: string
+          created_at: string
+          description: string
+          email: string | null
+          id: string
+          notes: string | null
+          priority: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          route: string | null
+          screenshot_url: string | null
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          app_version?: string | null
+          assigned_to?: string | null
+          browser_info?: Json | null
+          category?: string
+          created_at?: string
+          description: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          route?: string | null
+          screenshot_url?: string | null
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          app_version?: string | null
+          assigned_to?: string | null
+          browser_info?: Json | null
+          category?: string
+          created_at?: string
+          description?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          route?: string | null
+          screenshot_url?: string | null
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       targeting_rules: {
         Row: {

@@ -11,6 +11,7 @@ import { useBackgroundSync } from "@/hooks/useBackgroundSync";
 import PageTransition from "@/components/PageTransition";
 import SafeAreaWrapper from "@/components/SafeAreaWrapper";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
+import EmergencyBanner from "@/components/EmergencyBanner";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import Auth from "./pages/Auth";
@@ -27,11 +28,21 @@ import Moderation from "./pages/Moderation";
 import ModQueue from "./pages/ModQueue";
 import AdminSettings from "./pages/AdminSettings";
 import AdminAds from "./pages/AdminAds";
+import AdminGoLive from "./pages/AdminGoLive";
+import AdminLegal from "./pages/AdminLegal";
+import AdminAnalytics from "./pages/AdminAnalytics";
+import AdminBackups from "./pages/AdminBackups";
+import AdminSupport from "./pages/AdminSupport";
 import Settings from "./pages/Settings";
 import CreatorMonetization from "./pages/CreatorMonetization";
 import AuthCallback from "./pages/AuthCallback";
 import Debug from "./pages/Debug";
 import NotFound from "./pages/NotFound";
+import LegalPage from "./pages/LegalPage";
+import Status from "./pages/Status";
+import Help from "./pages/Help";
+import ReportBug from "./pages/ReportBug";
+
 const queryClient = new QueryClient();
 
 const AnimatedRoutes = () => {
@@ -60,11 +71,29 @@ const AnimatedRoutes = () => {
         <Route path="/mod-queue" element={<PageTransition><ModQueue /></PageTransition>} />
         <Route path="/admin" element={<PageTransition><AdminSettings /></PageTransition>} />
         <Route path="/admin/ads" element={<PageTransition><AdminAds /></PageTransition>} />
+        <Route path="/admin/go-live" element={<PageTransition><AdminGoLive /></PageTransition>} />
+        <Route path="/admin/legal" element={<PageTransition><AdminLegal /></PageTransition>} />
+        <Route path="/admin/analytics" element={<PageTransition><AdminAnalytics /></PageTransition>} />
+        <Route path="/admin/backups" element={<PageTransition><AdminBackups /></PageTransition>} />
+        <Route path="/admin/support" element={<PageTransition><AdminSupport /></PageTransition>} />
         <Route path="/settings" element={<PageTransition><Settings /></PageTransition>} />
         <Route path="/settings/monetization" element={<PageTransition><CreatorMonetization /></PageTransition>} />
         <Route path="/c/:communityName" element={<PageTransition><Community /></PageTransition>} />
         <Route path="/post/:postId" element={<PageTransition><PostDetail /></PageTransition>} />
         <Route path="/debug" element={<Debug />} />
+        {/* Legal & Help Pages */}
+        <Route path="/terms" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/privacy" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/content-policy" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/cookies" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/copyright" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/contact" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/refunds" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/advertiser-terms" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/creator-terms" element={<PageTransition><LegalPage /></PageTransition>} />
+        <Route path="/status" element={<Status />} />
+        <Route path="/help" element={<PageTransition><Help /></PageTransition>} />
+        <Route path="/report-bug" element={<PageTransition><ReportBug /></PageTransition>} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
       </Routes>
@@ -83,6 +112,7 @@ const AppContent = () => {
   
   return (
     <SafeAreaWrapper>
+      <EmergencyBanner />
       <AnimatedRoutes />
       {!isNative && <PWAInstallBanner />}
     </SafeAreaWrapper>
