@@ -1,0 +1,10 @@
+afterEvaluate { project ->
+    if (project.hasProperty('android')) {
+        project.android.buildTypes.all { buildType ->
+            buildType.proguardFiles.removeIf { file ->
+                file.name.equalsIgnoreCase('proguard-android.txt')
+            }
+            buildType.proguardFiles.add(project.android.getDefaultProguardFile('proguard-android-optimize.txt'))
+        }
+    }
+}
