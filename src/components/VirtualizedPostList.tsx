@@ -87,9 +87,8 @@ const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPos
   // Use window virtualizer - the window is the scroll container
   const virtualizer = useWindowVirtualizer({
     count: feedItems.length + (hasNextPage ? 1 : 0),
-    estimateSize: () => 280, // Slightly larger estimate for posts with media
-    overscan: 5,
-    scrollMargin: listRef.current?.offsetTop ?? 0,
+    estimateSize: () => 300, // Estimate for posts with media
+    overscan: 3,
   });
 
   // Expose virtualizer to parent via ref for keyboard navigation
@@ -174,7 +173,7 @@ const VirtualizedPostList = forwardRef<VirtualizedPostListHandle, VirtualizedPos
                 top: 0,
                 left: 0,
                 width: "100%",
-                transform: `translateY(${virtualItem.start - (listRef.current?.offsetTop ?? 0)}px)`,
+                transform: `translateY(${virtualItem.start}px)`,
               }}
             >
               {isLoaderRow ? (
