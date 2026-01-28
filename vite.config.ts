@@ -19,6 +19,7 @@ export default defineConfig(({ mode }) => {
         includeAssets: ["favicon.png", "icons/*.png", "splash.png"],
         manifest: false,
         workbox: {
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
           globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
           runtimeCaching: [
             {
