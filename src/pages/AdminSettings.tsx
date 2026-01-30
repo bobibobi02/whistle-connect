@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Shield, UserCog, Lock, Search, Plus, X, Clock, History, Trash2, UserPlus, UserMinus, CheckCircle, XCircle, Ban, Undo2 } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { ArrowLeft, Shield, UserCog, Lock, Search, Plus, X, Clock, History, Trash2, UserPlus, UserMinus, CheckCircle, XCircle, Ban, Undo2, Megaphone, Rocket, FileText, BarChart3, Database, Headphones } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -137,6 +137,51 @@ const AdminSettings = () => {
             <p className="text-muted-foreground">Manage user roles and view audit logs</p>
           </div>
         </div>
+
+        {/* Admin Quick Links */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Admin Tools</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            <Link to="/admin/ads">
+              <Button variant="outline" className="w-full gap-2 justify-start">
+                <Megaphone className="h-4 w-4" />
+                Advertising
+              </Button>
+            </Link>
+            <Link to="/admin/go-live">
+              <Button variant="outline" className="w-full gap-2 justify-start">
+                <Rocket className="h-4 w-4" />
+                Go Live
+              </Button>
+            </Link>
+            <Link to="/admin/legal">
+              <Button variant="outline" className="w-full gap-2 justify-start">
+                <FileText className="h-4 w-4" />
+                Legal Pages
+              </Button>
+            </Link>
+            <Link to="/admin/analytics">
+              <Button variant="outline" className="w-full gap-2 justify-start">
+                <BarChart3 className="h-4 w-4" />
+                Analytics
+              </Button>
+            </Link>
+            <Link to="/admin/backups">
+              <Button variant="outline" className="w-full gap-2 justify-start">
+                <Database className="h-4 w-4" />
+                Backups
+              </Button>
+            </Link>
+            <Link to="/admin/support">
+              <Button variant="outline" className="w-full gap-2 justify-start">
+                <Headphones className="h-4 w-4" />
+                Support
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4">

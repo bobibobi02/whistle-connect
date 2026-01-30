@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp, Flag, Rocket } from "lucide-react";
+import { ArrowBigUp, ArrowBigDown, MessageCircle, MoreHorizontal, ChevronDown, ChevronUp, Flag, Rocket, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -90,12 +90,15 @@ const Comment = ({ comment, depth = 0, isNew = false }: CommentProps) => {
     deleteComment.mutate({ commentId: comment.id, postId: comment.post_id });
   };
 
+  const isRemoved = comment.is_removed === true;
+
   const commentContent = (
     <div className={cn(
       "relative transition-all duration-500",
       depth > 0 && "ml-4 sm:ml-6",
       isBoostComment && "bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/20 p-2 -ml-2",
-      showHighlight && !isBoostComment && "bg-primary/10 rounded-lg ring-2 ring-primary/30 animate-pulse"
+      showHighlight && !isBoostComment && "bg-primary/10 rounded-lg ring-2 ring-primary/30 animate-pulse",
+      isRemoved && "opacity-60 bg-destructive/5 border border-destructive/20 rounded-lg p-2"
     )}>
       {/* Thread line */}
       {depth > 0 && !isBoostComment && (
@@ -147,6 +150,12 @@ const Comment = ({ comment, depth = 0, isNew = false }: CommentProps) => {
             </Badge>
           )}
           <span className="text-xs text-muted-foreground">· {timeAgo}</span>
+          {isRemoved && (
+            <Badge variant="destructive" className="gap-1 text-xs">
+              <AlertTriangle className="h-3 w-3" />
+              Removed
+            </Badge>
+          )}
           {isCollapsed && comment.replies && comment.replies.length > 0 && (
             <span className="text-xs text-muted-foreground">
               ({comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'})
