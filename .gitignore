@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# native app folders (leave for later)
+/android/app/
+/ios/
+
