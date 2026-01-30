@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { LogOut, User, Settings, Shield, UserCog, ClipboardList } from "lucide-react";
+import { LogOut, User, Settings, Shield, UserCog, ClipboardList, Megaphone } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsModerator, useIsAdmin } from "@/hooks/useUserRoles";
 import { Button } from "@/components/ui/button";
@@ -73,12 +73,20 @@ const UserMenu = () => {
           </>
         )}
         {isAdmin && (
-          <DropdownMenuItem asChild>
-            <Link to="/admin" className="cursor-pointer">
-              <UserCog className="mr-2 h-4 w-4" />
-              Admin Settings
-            </Link>
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem asChild>
+              <Link to="/admin/ads" className="cursor-pointer">
+                <Megaphone className="mr-2 h-4 w-4" />
+                Advertising
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/admin" className="cursor-pointer">
+                <UserCog className="mr-2 h-4 w-4" />
+                Admin Settings
+              </Link>
+            </DropdownMenuItem>
+          </>
         )}
         <DropdownMenuItem asChild>
           <Link to="/settings" className="cursor-pointer">
