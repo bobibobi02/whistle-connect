@@ -83,6 +83,8 @@ export interface Comment {
   boost_id: string | null;
   boost_amount_cents?: number | null;
   boost_currency?: string | null;
+  is_removed?: boolean | null;
+  removal_reason?: string | null;
   author: {
     username: string | null;
     display_name: string | null;
