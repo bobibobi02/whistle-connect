@@ -29,6 +29,7 @@ import Moderation from "./pages/Moderation";
 import ModQueue from "./pages/ModQueue";
 import AdminSettings from "./pages/AdminSettings";
 import AdminAds from "./pages/AdminAds";
+import AdminMediaKit from "./pages/AdminMediaKit";
 import AdminGoLive from "./pages/AdminGoLive";
 import AdminLegal from "./pages/AdminLegal";
 import AdminAnalytics from "./pages/AdminAnalytics";
@@ -74,6 +75,7 @@ const AnimatedRoutes = () => {
           <Route path="/mod-queue" element={<PageTransition><ErrorBoundary><ModQueue /></ErrorBoundary></PageTransition>} />
           <Route path="/admin" element={<PageTransition><ErrorBoundary><AdminSettings /></ErrorBoundary></PageTransition>} />
           <Route path="/admin/ads" element={<PageTransition><ErrorBoundary><AdminAds /></ErrorBoundary></PageTransition>} />
+          <Route path="/admin/media-kit" element={<PageTransition><ErrorBoundary><AdminMediaKit /></ErrorBoundary></PageTransition>} />
           <Route path="/admin/go-live" element={<PageTransition><ErrorBoundary><AdminGoLive /></ErrorBoundary></PageTransition>} />
           <Route path="/admin/legal" element={<PageTransition><ErrorBoundary><AdminLegal /></ErrorBoundary></PageTransition>} />
           <Route path="/admin/analytics" element={<PageTransition><ErrorBoundary><AdminAnalytics /></ErrorBoundary></PageTransition>} />

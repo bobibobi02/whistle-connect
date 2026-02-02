@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Users, LogIn, Shield, Settings } from "lucide-react";
 import CommunityRulesSection from "@/components/community/CommunityRulesSection";
 import ModeratorPanel from "@/components/community/ModeratorPanel";
+import LoopSponsorshipBadge from "@/components/LoopSponsorshipBadge";
 import {
   Sheet,
   SheetContent,
@@ -102,9 +103,12 @@ const Community = () => {
                       )}
                     </div>
                     <p className="text-muted-foreground mt-1">{community.description || "A community for discussions"}</p>
-                    <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{formatMemberCount(community.member_count)} members</span>
+                    <div className="flex items-center flex-wrap gap-3 mt-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="h-4 w-4" />
+                        <span>{formatMemberCount(community.member_count)} members</span>
+                      </div>
+                      <LoopSponsorshipBadge communityId={community.id} />
                     </div>
                   </div>
                   <div className="flex gap-2">
