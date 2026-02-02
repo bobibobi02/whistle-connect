@@ -2089,6 +2089,8 @@ export type Database = {
           category: string
           created_at: string
           description: string
+          duplicate_count: number | null
+          duplicate_of: string | null
           email: string | null
           id: string
           notes: string | null
@@ -2097,6 +2099,7 @@ export type Database = {
           resolved_by: string | null
           route: string | null
           screenshot_url: string | null
+          severity: string | null
           status: string
           subject: string
           updated_at: string
@@ -2109,6 +2112,8 @@ export type Database = {
           category?: string
           created_at?: string
           description: string
+          duplicate_count?: number | null
+          duplicate_of?: string | null
           email?: string | null
           id?: string
           notes?: string | null
@@ -2117,6 +2122,7 @@ export type Database = {
           resolved_by?: string | null
           route?: string | null
           screenshot_url?: string | null
+          severity?: string | null
           status?: string
           subject: string
           updated_at?: string
@@ -2129,6 +2135,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string
+          duplicate_count?: number | null
+          duplicate_of?: string | null
           email?: string | null
           id?: string
           notes?: string | null
@@ -2137,12 +2145,28 @@ export type Database = {
           resolved_by?: string | null
           route?: string | null
           screenshot_url?: string | null
+          severity?: string | null
           status?: string
           subject?: string
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_duplicate_of_fkey"
+            columns: ["duplicate_of"]
+            isOneToOne: false
+            referencedRelation: "top_issues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       targeting_rules: {
         Row: {
@@ -2464,6 +2488,25 @@ export type Database = {
           karma?: number | null
           user_id?: string | null
           username?: string | null
+        }
+        Relationships: []
+      }
+      top_issues: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          duplicate_count: number | null
+          email: string | null
+          id: string | null
+          priority: string | null
+          route: string | null
+          severity: string | null
+          status: string | null
+          subject: string | null
+          triage_score: number | null
+          updated_at: string | null
+          user_id: string | null
         }
         Relationships: []
       }
