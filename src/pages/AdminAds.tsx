@@ -268,6 +268,24 @@ const AdminAds = () => {
           </Card>
         </div>
 
+        {/* How to Sell Ads Early - Admin Only Note */}
+        <Card className="mb-6 border-primary/30 bg-primary/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Megaphone className="h-4 w-4" />
+              How to Sell Ads Early
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground space-y-2">
+            <p><strong>1. Create an advertiser</strong> — Add the business name and billing email.</p>
+            <p><strong>2. Create a campaign</strong> — Select campaign type (sponsored_post, banner, or loop_sponsorship), set budget.</p>
+            <p><strong>3. Add a creative</strong> — Upload image/video, write headline and CTA.</p>
+            <p><strong>4. Set status to "active"</strong> — The ad will begin serving immediately.</p>
+            <p><strong>5. Track manually</strong> — Use "Payments" tab to record payments. Platform fee is 30%.</p>
+            <p className="pt-2 text-xs">Use the <strong>Media Kit</strong> page to share specs with potential advertisers.</p>
+          </CardContent>
+        </Card>
+
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-4 flex-wrap h-auto gap-1">
             <TabsTrigger value="overview" className="gap-2">
