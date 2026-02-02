@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Megaphone, Building2, BarChart3, Target, Image, Plus, Edit, Trash2, Eye, Play, Pause, DollarSign } from "lucide-react";
+import { ArrowLeft, Megaphone, Building2, BarChart3, Target, Image, Plus, Edit, Trash2, Eye, Play, Pause, DollarSign, Package, CreditCard, Users, FileText, Download } from "lucide-react";
 import Header from "@/components/Header";
 import MobileNav from "@/components/MobileNav";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -35,23 +36,28 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { useIsAdmin } from "@/hooks/useUserRoles";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import {
+  useAdPackages,
+  useAdPayments,
+  useLoopSponsorships,
+  useAdRevenueSummary,
+  useCreateAdPackage,
+  useUpdateAdPackage,
+  useCreateAdPayment,
+  useUpdatePaymentStatus,
+  useCreateLoopSponsorship,
+  useUpdateLoopSponsorship,
+  exportToCSV,
+  AdPackage,
+  AdPayment,
+  LoopSponsorship,
+} from "@/hooks/useAdPackages";
 
 // Types
 interface Advertiser {
@@ -70,6 +76,7 @@ interface Campaign {
   advertiser_id: string;
   status: string;
   objective: string;
+  campaign_type?: string;
   bid_type: string;
   bid_value_cents: number;
   budget_cents: number;
@@ -77,6 +84,7 @@ interface Campaign {
   daily_cap_cents: number | null;
   start_at: string | null;
   end_at: string | null;
+  payment_status?: string;
   created_at: string;
 }
 
@@ -97,21 +105,17 @@ interface Creative {
   created_at: string;
 }
 
-interface CampaignPerformance {
-  campaign_id: string;
-  campaign_name: string;
-  advertiser_name: string | null;
-  status: string | null;
-  impressions: number | null;
-  clicks: number | null;
-  ctr: number | null;
-  spent_cents: number | null;
-  budget_cents: number | null;
+interface Community {
+  id: string;
+  name: string;
+  display_name: string;
 }
+
+const PLATFORM_FEE_PERCENT = 30;
 
 const AdminAds = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("advertisers");
+  const [activeTab, setActiveTab] = useState("overview");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user, loading: authLoading } = useAuth();
@@ -148,15 +152,20 @@ const AdminAds = () => {
     enabled: isAdmin,
   });
 
-  const { data: performance, isLoading: performanceLoading } = useQuery({
-    queryKey: ["admin-campaign-performance"],
+  const { data: communities } = useQuery({
+    queryKey: ["all-communities"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("campaign_performance").select("*");
+      const { data, error } = await supabase.from("communities").select("id, name, display_name").order("name");
       if (error) throw error;
-      return data as CampaignPerformance[];
+      return data as Community[];
     },
     enabled: isAdmin,
   });
+
+  const { data: revenueSummary } = useAdRevenueSummary();
+  const { data: packages } = useAdPackages();
+  const { data: payments } = useAdPayments();
+  const { data: sponsorships } = useLoopSponsorships();
 
   if (authLoading || rolesLoading) {
     return <div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>;
@@ -179,11 +188,12 @@ const AdminAds = () => {
     );
   }
 
-  // Calculate totals
-  const totalSpent = campaigns?.reduce((sum, c) => sum + c.spent_cents, 0) ?? 0;
-  const totalBudget = campaigns?.reduce((sum, c) => sum + c.budget_cents, 0) ?? 0;
-  const totalImpressions = performance?.reduce((sum, p) => sum + (p.impressions ?? 0), 0) ?? 0;
-  const totalClicks = performance?.reduce((sum, p) => sum + (p.clicks ?? 0), 0) ?? 0;
+  // Calculate totals with platform fee
+  const totalGross = campaigns?.reduce((sum, c) => sum + c.spent_cents, 0) ?? 0;
+  const totalPlatformFee = Math.round(totalGross * (PLATFORM_FEE_PERCENT / 100));
+  const totalNet = totalGross - totalPlatformFee;
+  const totalImpressions = revenueSummary?.reduce((sum, p) => sum + Number(p.impressions || 0), 0) ?? 0;
+  const totalClicks = revenueSummary?.reduce((sum, p) => sum + Number(p.clicks || 0), 0) ?? 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -196,28 +206,51 @@ const AdminAds = () => {
           <span className="text-sm">Back to Admin</span>
         </Link>
 
-        <div className="flex items-center gap-3 mb-6">
-          <Megaphone className="h-8 w-8 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Ad Management</h1>
-            <p className="text-muted-foreground">Manage advertisers, campaigns, creatives, and view performance</p>
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <Megaphone className="h-8 w-8 text-primary" />
+            <div>
+              <h1 className="text-2xl font-bold">Ad Management</h1>
+              <p className="text-muted-foreground">Manage advertisers, campaigns, packages & revenue</p>
+            </div>
           </div>
+          <Button variant="outline" asChild>
+            <Link to="/admin/media-kit">
+              <FileText className="h-4 w-4 mr-2" />
+              Media Kit
+            </Link>
+          </Button>
         </div>
 
-        {/* Overview Stats */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+        {/* Overview Stats with Platform Fee */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-6">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Revenue</CardDescription>
+              <CardDescription>Gross Revenue</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">${(totalSpent / 100).toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground">of ${(totalBudget / 100).toLocaleString()} budget</p>
+              <div className="text-2xl font-bold">€{(totalGross / 100).toLocaleString()}</div>
+            </CardContent>
+          </Card>
+          <Card className="border-primary/50">
+            <CardHeader className="pb-2">
+              <CardDescription>Platform Fee (30%)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">€{(totalPlatformFee / 100).toLocaleString()}</div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Impressions</CardDescription>
+              <CardDescription>Net to Creators</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">€{(totalNet / 100).toLocaleString()}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Impressions</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalImpressions.toLocaleString()}</div>
@@ -225,15 +258,7 @@ const AdminAds = () => {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Clicks</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalClicks.toLocaleString()}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Average CTR</CardDescription>
+              <CardDescription>CTR</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -244,24 +269,43 @@ const AdminAds = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-4 flex-wrap">
+          <TabsList className="mb-4 flex-wrap h-auto gap-1">
+            <TabsTrigger value="overview" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
             <TabsTrigger value="advertisers" className="gap-2">
               <Building2 className="h-4 w-4" />
-              Advertisers ({advertisers?.length ?? 0})
+              Advertisers
             </TabsTrigger>
             <TabsTrigger value="campaigns" className="gap-2">
               <Target className="h-4 w-4" />
-              Campaigns ({campaigns?.length ?? 0})
+              Campaigns
             </TabsTrigger>
             <TabsTrigger value="creatives" className="gap-2">
               <Image className="h-4 w-4" />
-              Creatives ({creatives?.length ?? 0})
+              Creatives
             </TabsTrigger>
-            <TabsTrigger value="performance" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Performance
+            <TabsTrigger value="packages" className="gap-2">
+              <Package className="h-4 w-4" />
+              Packages
+            </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Payments
+            </TabsTrigger>
+            <TabsTrigger value="sponsorships" className="gap-2">
+              <Users className="h-4 w-4" />
+              Loop Sponsors
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="overview">
+            <OverviewTab 
+              revenueSummary={revenueSummary ?? []} 
+              isLoading={!revenueSummary}
+            />
+          </TabsContent>
 
           <TabsContent value="advertisers">
             <AdvertisersTab 
@@ -289,10 +333,24 @@ const AdminAds = () => {
             />
           </TabsContent>
 
-          <TabsContent value="performance">
-            <PerformanceTab 
-              performance={performance ?? []} 
-              isLoading={performanceLoading} 
+          <TabsContent value="packages">
+            <PackagesTab packages={packages ?? []} />
+          </TabsContent>
+
+          <TabsContent value="payments">
+            <PaymentsTab 
+              payments={payments ?? []} 
+              advertisers={advertisers ?? []}
+              campaigns={campaigns ?? []}
+            />
+          </TabsContent>
+
+          <TabsContent value="sponsorships">
+            <SponsorshipsTab 
+              sponsorships={sponsorships ?? []}
+              advertisers={advertisers ?? []}
+              campaigns={campaigns ?? []}
+              communities={communities ?? []}
             />
           </TabsContent>
         </Tabs>
@@ -301,7 +359,84 @@ const AdminAds = () => {
   );
 };
 
-// Advertisers Tab Component
+// Overview Tab with Export
+function OverviewTab({ revenueSummary, isLoading }: { revenueSummary: any[], isLoading: boolean }) {
+  const handleExport = () => {
+    const exportData = revenueSummary.map(r => ({
+      campaign: r.campaign_name,
+      advertiser: r.advertiser_name,
+      type: r.campaign_type,
+      status: r.status,
+      impressions: r.impressions,
+      clicks: r.clicks,
+      ctr: r.ctr,
+      gross_revenue: (Number(r.gross_revenue_cents) / 100).toFixed(2),
+      platform_fee_30pct: (Number(r.platform_fee_cents) / 100).toFixed(2),
+      net_revenue: (Number(r.net_revenue_cents) / 100).toFixed(2),
+    }));
+    exportToCSV(exportData, "ad_performance_report");
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Performance Overview</CardTitle>
+            <CardDescription>Revenue breakdown by campaign with 30% platform fee</CardDescription>
+          </div>
+          <Button variant="outline" onClick={handleExport} disabled={!revenueSummary.length}>
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading...</div>
+        ) : revenueSummary.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>No performance data yet</p>
+          </div>
+        ) : (
+          <ScrollArea className="h-[400px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Impressions</TableHead>
+                  <TableHead>Clicks</TableHead>
+                  <TableHead>CTR</TableHead>
+                  <TableHead>Gross</TableHead>
+                  <TableHead>Fee (30%)</TableHead>
+                  <TableHead>Net</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {revenueSummary.map((r) => (
+                  <TableRow key={r.campaign_id}>
+                    <TableCell className="font-medium">{r.campaign_name}</TableCell>
+                    <TableCell><Badge variant="outline">{r.campaign_type || "sponsored_post"}</Badge></TableCell>
+                    <TableCell>{Number(r.impressions || 0).toLocaleString()}</TableCell>
+                    <TableCell>{Number(r.clicks || 0).toLocaleString()}</TableCell>
+                    <TableCell>{Number(r.ctr || 0).toFixed(2)}%</TableCell>
+                    <TableCell>€{(Number(r.gross_revenue_cents || 0) / 100).toFixed(2)}</TableCell>
+                    <TableCell className="text-primary font-medium">€{(Number(r.platform_fee_cents || 0) / 100).toFixed(2)}</TableCell>
+                    <TableCell>€{(Number(r.net_revenue_cents || 0) / 100).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Advertisers Tab
 function AdvertisersTab({ advertisers, isLoading, onRefresh }: { advertisers: Advertiser[], isLoading: boolean, onRefresh: () => void }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({ name: "", company_name: "", billing_email: "", website_url: "" });
@@ -420,12 +555,13 @@ function AdvertisersTab({ advertisers, isLoading, onRefresh }: { advertisers: Ad
   );
 }
 
-// Campaigns Tab Component
+// Campaigns Tab with campaign type
 function CampaignsTab({ campaigns, advertisers, isLoading, onRefresh }: { campaigns: Campaign[], advertisers: Advertiser[], isLoading: boolean, onRefresh: () => void }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     advertiser_id: "",
+    campaign_type: "sponsored_post",
     objective: "clicks",
     bid_type: "cpm",
     bid_value_cents: 100,
@@ -438,12 +574,14 @@ function CampaignsTab({ campaigns, advertisers, isLoading, onRefresh }: { campai
       const { error } = await supabase.from("campaigns").insert({
         name: data.name,
         advertiser_id: data.advertiser_id,
+        campaign_type: data.campaign_type,
         objective: data.objective as "awareness" | "clicks" | "engagement",
         bid_type: data.bid_type as "cpm" | "cpc",
         bid_value_cents: data.bid_value_cents,
         budget_cents: data.budget_cents,
         daily_cap_cents: data.daily_cap_cents,
         status: "draft",
+        payment_status: "unpaid",
       });
       if (error) throw error;
     },
@@ -471,7 +609,7 @@ function CampaignsTab({ campaigns, advertisers, isLoading, onRefresh }: { campai
       case "active": return <Badge className="bg-green-500/10 text-green-500">Active</Badge>;
       case "paused": return <Badge className="bg-yellow-500/10 text-yellow-500">Paused</Badge>;
       case "draft": return <Badge variant="outline">Draft</Badge>;
-      case "completed": return <Badge className="bg-blue-500/10 text-blue-500">Completed</Badge>;
+      case "pending": return <Badge className="bg-blue-500/10 text-blue-500">Pending</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };
@@ -508,6 +646,17 @@ function CampaignsTab({ campaigns, advertisers, isLoading, onRefresh }: { campai
                       {advertisers.map(a => (
                         <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Campaign Type</Label>
+                  <Select value={formData.campaign_type} onValueChange={(v) => setFormData(f => ({ ...f, campaign_type: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sponsored_post">Sponsored Post</SelectItem>
+                      <SelectItem value="banner">Banner</SelectItem>
+                      <SelectItem value="loop_sponsorship">Loop Sponsorship</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -569,10 +718,11 @@ function CampaignsTab({ campaigns, advertisers, isLoading, onRefresh }: { campai
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Advertiser</TableHead>
                   <TableHead>Budget</TableHead>
-                  <TableHead>Spent</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Payment</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -580,10 +730,15 @@ function CampaignsTab({ campaigns, advertisers, isLoading, onRefresh }: { campai
                 {campaigns.map((campaign) => (
                   <TableRow key={campaign.id}>
                     <TableCell className="font-medium">{campaign.name}</TableCell>
+                    <TableCell><Badge variant="outline">{campaign.campaign_type || "sponsored_post"}</Badge></TableCell>
                     <TableCell>{getAdvertiserName(campaign.advertiser_id)}</TableCell>
-                    <TableCell>${(campaign.budget_cents / 100).toFixed(2)}</TableCell>
-                    <TableCell>${(campaign.spent_cents / 100).toFixed(2)}</TableCell>
+                    <TableCell>€{(campaign.budget_cents / 100).toFixed(2)}</TableCell>
                     <TableCell>{getStatusBadge(campaign.status)}</TableCell>
+                    <TableCell>
+                      <Badge variant={campaign.payment_status === "paid" ? "default" : "secondary"}>
+                        {campaign.payment_status || "unpaid"}
+                      </Badge>
+                    </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {campaign.status === "active" ? (
@@ -608,7 +763,7 @@ function CampaignsTab({ campaigns, advertisers, isLoading, onRefresh }: { campai
   );
 }
 
-// Creatives Tab Component
+// Creatives Tab
 function CreativesTab({ creatives, campaigns, isLoading, onRefresh }: { creatives: Creative[], campaigns: Campaign[], isLoading: boolean, onRefresh: () => void }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -649,6 +804,17 @@ function CreativesTab({ creatives, campaigns, isLoading, onRefresh }: { creative
     onError: () => toast.error("Failed to create creative"),
   });
 
+  const updateStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string, status: string }) => {
+      const { error } = await supabase.from("creatives").update({ status: status as any }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Creative updated");
+      onRefresh();
+    },
+  });
+
   const getCampaignName = (id: string) => campaigns.find(c => c.id === id)?.name ?? "Unknown";
 
   return (
@@ -657,7 +823,7 @@ function CreativesTab({ creatives, campaigns, isLoading, onRefresh }: { creative
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Creatives</CardTitle>
-            <CardDescription>Manage ad creatives and media</CardDescription>
+            <CardDescription>Manage ad creatives and approvals</CardDescription>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -757,7 +923,7 @@ function CreativesTab({ creatives, campaigns, isLoading, onRefresh }: { creative
                   <TableHead>Campaign</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -767,11 +933,24 @@ function CreativesTab({ creatives, campaigns, isLoading, onRefresh }: { creative
                     <TableCell>{getCampaignName(creative.campaign_id)}</TableCell>
                     <TableCell><Badge variant="outline">{creative.type}</Badge></TableCell>
                     <TableCell>
-                      <Badge className={creative.status === "active" ? "bg-green-500/10 text-green-500" : "bg-yellow-500/10 text-yellow-500"}>
+                      <Badge className={creative.status === "active" ? "bg-green-500/10 text-green-500" : creative.status === "pending" ? "bg-yellow-500/10 text-yellow-500" : ""}>
                         {creative.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{format(new Date(creative.created_at), "MMM d, yyyy")}</TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {creative.status === "pending" && (
+                          <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: creative.id, status: "active" })}>
+                            Approve
+                          </Button>
+                        )}
+                        {creative.status === "active" && (
+                          <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: creative.id, status: "paused" })}>
+                            Pause
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -783,46 +962,432 @@ function CreativesTab({ creatives, campaigns, isLoading, onRefresh }: { creative
   );
 }
 
-// Performance Tab Component
-function PerformanceTab({ performance, isLoading }: { performance: CampaignPerformance[], isLoading: boolean }) {
+// Packages Tab
+function PackagesTab({ packages }: { packages: AdPackage[] }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    price_cents: 10000,
+    currency: "EUR",
+    duration_days: 7,
+    includes_sponsored_posts: 1,
+    includes_banners: 0,
+    includes_loop_sponsorship: false,
+    includes_reporting: true,
+    is_exclusive: false,
+  });
+
+  const createPackage = useCreateAdPackage();
+  const updatePackage = useUpdateAdPackage();
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Campaign Performance</CardTitle>
-        <CardDescription>View detailed analytics for all campaigns</CardDescription>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Advertising Packages</CardTitle>
+            <CardDescription>Configure pricing presets for advertisers</CardDescription>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" /> Add Package</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Package</DialogTitle>
+                <DialogDescription>Define a new ad package</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+                <div className="space-y-2">
+                  <Label>Package Name *</Label>
+                  <Input value={formData.name} onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Textarea value={formData.description} onChange={(e) => setFormData(f => ({ ...f, description: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Price (cents)</Label>
+                    <Input type="number" value={formData.price_cents} onChange={(e) => setFormData(f => ({ ...f, price_cents: parseInt(e.target.value) || 0 }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Duration (days)</Label>
+                    <Input type="number" value={formData.duration_days} onChange={(e) => setFormData(f => ({ ...f, duration_days: parseInt(e.target.value) || 7 }))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Sponsored Posts</Label>
+                    <Input type="number" value={formData.includes_sponsored_posts} onChange={(e) => setFormData(f => ({ ...f, includes_sponsored_posts: parseInt(e.target.value) || 0 }))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Banners</Label>
+                    <Input type="number" value={formData.includes_banners} onChange={(e) => setFormData(f => ({ ...f, includes_banners: parseInt(e.target.value) || 0 }))} />
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Switch checked={formData.includes_loop_sponsorship} onCheckedChange={(c) => setFormData(f => ({ ...f, includes_loop_sponsorship: c }))} />
+                    <Label>Loop Sponsorship</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={formData.is_exclusive} onCheckedChange={(c) => setFormData(f => ({ ...f, is_exclusive: c }))} />
+                    <Label>Exclusive</Label>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                <Button 
+                  onClick={() => {
+                    createPackage.mutate(formData);
+                    setDialogOpen(false);
+                  }} 
+                  disabled={!formData.name || createPackage.isPending}
+                >
+                  Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading...</div>
-        ) : performance.length === 0 ? (
+        {packages.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
-            <BarChart3 className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p>No performance data yet</p>
+            <Package className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>No packages yet</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            {packages.map((pkg) => (
+              <Card key={pkg.id} className={!pkg.is_active ? "opacity-50" : pkg.is_exclusive ? "border-primary" : ""}>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{pkg.name}</CardTitle>
+                    <div className="flex gap-1">
+                      {pkg.is_exclusive && <Badge className="bg-primary">Exclusive</Badge>}
+                      {!pkg.is_active && <Badge variant="secondary">Inactive</Badge>}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold mb-2">
+                    €{(pkg.price_cents / 100).toLocaleString()}
+                    <span className="text-sm font-normal text-muted-foreground">/{pkg.duration_days}d</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">{pkg.description}</p>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {pkg.includes_sponsored_posts > 0 && <li>• {pkg.includes_sponsored_posts} Sponsored Posts</li>}
+                    {pkg.includes_banners > 0 && <li>• {pkg.includes_banners} Banners</li>}
+                    {pkg.includes_loop_sponsorship && <li>• Loop Sponsorship</li>}
+                    {pkg.includes_reporting && <li>• Reporting</li>}
+                  </ul>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 w-full"
+                    onClick={() => updatePackage.mutate({ id: pkg.id, is_active: !pkg.is_active })}
+                  >
+                    {pkg.is_active ? "Deactivate" : "Activate"}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Payments Tab
+function PaymentsTab({ payments, advertisers, campaigns }: { payments: AdPayment[], advertisers: Advertiser[], campaigns: Campaign[] }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    advertiser_id: "",
+    campaign_id: "",
+    gross_amount_cents: 10000,
+    currency: "EUR",
+    payment_method: "manual",
+    notes: "",
+  });
+
+  const createPayment = useCreateAdPayment();
+  const updateStatus = useUpdatePaymentStatus();
+
+  const getAdvertiserName = (id: string) => advertisers.find(a => a.id === id)?.name ?? "Unknown";
+  const getCampaignName = (id: string) => campaigns.find(c => c.id === id)?.name;
+
+  const totalGross = payments.reduce((sum, p) => sum + p.gross_amount_cents, 0);
+  const totalFee = payments.reduce((sum, p) => sum + p.platform_fee_cents, 0);
+  const totalNet = payments.reduce((sum, p) => sum + p.net_amount_cents, 0);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Ad Payments</CardTitle>
+            <CardDescription>
+              Track payments with 30% platform fee. 
+              Totals: Gross €{(totalGross/100).toFixed(2)} | Fee €{(totalFee/100).toFixed(2)} | Net €{(totalNet/100).toFixed(2)}
+            </CardDescription>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" /> Record Payment</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Record Payment</DialogTitle>
+                <DialogDescription>Log an ad payment (30% platform fee auto-applied)</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Advertiser *</Label>
+                  <Select value={formData.advertiser_id} onValueChange={(v) => setFormData(f => ({ ...f, advertiser_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select advertiser" /></SelectTrigger>
+                    <SelectContent>
+                      {advertisers.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Campaign</Label>
+                  <Select value={formData.campaign_id} onValueChange={(v) => setFormData(f => ({ ...f, campaign_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select campaign (optional)" /></SelectTrigger>
+                    <SelectContent>
+                      {campaigns.filter(c => c.advertiser_id === formData.advertiser_id).map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Gross Amount (cents)</Label>
+                  <Input type="number" value={formData.gross_amount_cents} onChange={(e) => setFormData(f => ({ ...f, gross_amount_cents: parseInt(e.target.value) || 0 }))} />
+                  <p className="text-xs text-muted-foreground">
+                    Platform fee (30%): €{((formData.gross_amount_cents * 0.30) / 100).toFixed(2)} | 
+                    Net: €{((formData.gross_amount_cents * 0.70) / 100).toFixed(2)}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Notes</Label>
+                  <Input value={formData.notes} onChange={(e) => setFormData(f => ({ ...f, notes: e.target.value }))} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                <Button 
+                  onClick={() => {
+                    createPayment.mutate(formData);
+                    setDialogOpen(false);
+                  }} 
+                  disabled={!formData.advertiser_id || createPayment.isPending}
+                >
+                  Record
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {payments.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <CreditCard className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>No payments recorded</p>
           </div>
         ) : (
           <ScrollArea className="h-[400px]">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Campaign</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Advertiser</TableHead>
-                  <TableHead>Impressions</TableHead>
-                  <TableHead>Clicks</TableHead>
-                  <TableHead>CTR</TableHead>
-                  <TableHead>Spent</TableHead>
-                  <TableHead>Budget</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Gross</TableHead>
+                  <TableHead>Fee (30%)</TableHead>
+                  <TableHead>Net</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {performance.map((p) => (
-                  <TableRow key={p.campaign_id}>
-                    <TableCell className="font-medium">{p.campaign_name}</TableCell>
-                    <TableCell>{p.advertiser_name || "—"}</TableCell>
-                    <TableCell>{(p.impressions ?? 0).toLocaleString()}</TableCell>
-                    <TableCell>{(p.clicks ?? 0).toLocaleString()}</TableCell>
-                    <TableCell>{(p.ctr ?? 0).toFixed(2)}%</TableCell>
-                    <TableCell>${((p.spent_cents ?? 0) / 100).toFixed(2)}</TableCell>
-                    <TableCell>${((p.budget_cents ?? 0) / 100).toFixed(2)}</TableCell>
+                {payments.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell className="text-muted-foreground">{format(new Date(p.created_at), "MMM d, yyyy")}</TableCell>
+                    <TableCell>{getAdvertiserName(p.advertiser_id)}</TableCell>
+                    <TableCell>{p.campaign_id ? getCampaignName(p.campaign_id) : "—"}</TableCell>
+                    <TableCell>€{(p.gross_amount_cents / 100).toFixed(2)}</TableCell>
+                    <TableCell className="text-primary font-medium">€{(p.platform_fee_cents / 100).toFixed(2)}</TableCell>
+                    <TableCell>€{(p.net_amount_cents / 100).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge variant={p.status === "paid" ? "default" : p.status === "pending" ? "secondary" : "destructive"}>
+                        {p.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {p.status === "pending" && (
+                        <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: p.id, status: "paid" })}>
+                          Mark Paid
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Sponsorships Tab
+function SponsorshipsTab({ sponsorships, advertisers, campaigns, communities }: { 
+  sponsorships: LoopSponsorship[], 
+  advertisers: Advertiser[], 
+  campaigns: Campaign[],
+  communities: Community[]
+}) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    community_id: "",
+    advertiser_id: "",
+    campaign_id: "",
+    label_text: "Sponsored by",
+    sponsor_name: "",
+    sponsor_logo_url: "",
+  });
+
+  const createSponsorship = useCreateLoopSponsorship();
+  const updateSponsorship = useUpdateLoopSponsorship();
+
+  const getAdvertiserName = (id: string) => advertisers.find(a => a.id === id)?.name ?? "Unknown";
+  const getCommunityName = (id: string) => communities.find(c => c.id === id)?.name ?? "Unknown";
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Loop Sponsorships</CardTitle>
+            <CardDescription>Assign sponsors to communities/loops</CardDescription>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" /> Add Sponsorship</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Loop Sponsorship</DialogTitle>
+                <DialogDescription>Assign a sponsor to a community</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Community *</Label>
+                  <Select value={formData.community_id} onValueChange={(v) => setFormData(f => ({ ...f, community_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select community" /></SelectTrigger>
+                    <SelectContent>
+                      {communities.map(c => <SelectItem key={c.id} value={c.id}>w/{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Advertiser *</Label>
+                  <Select value={formData.advertiser_id} onValueChange={(v) => setFormData(f => ({ ...f, advertiser_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select advertiser" /></SelectTrigger>
+                    <SelectContent>
+                      {advertisers.map(a => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Campaign (optional)</Label>
+                  <Select value={formData.campaign_id} onValueChange={(v) => setFormData(f => ({ ...f, campaign_id: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select campaign" /></SelectTrigger>
+                    <SelectContent>
+                      {campaigns.filter(c => c.advertiser_id === formData.advertiser_id && c.campaign_type === "loop_sponsorship").map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sponsor Label</Label>
+                  <Input value={formData.label_text} onChange={(e) => setFormData(f => ({ ...f, label_text: e.target.value }))} placeholder="Sponsored by" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sponsor Name</Label>
+                  <Input value={formData.sponsor_name} onChange={(e) => setFormData(f => ({ ...f, sponsor_name: e.target.value }))} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sponsor Logo URL</Label>
+                  <Input value={formData.sponsor_logo_url} onChange={(e) => setFormData(f => ({ ...f, sponsor_logo_url: e.target.value }))} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                <Button 
+                  onClick={() => {
+                    createSponsorship.mutate(formData);
+                    setDialogOpen(false);
+                  }} 
+                  disabled={!formData.community_id || !formData.advertiser_id || createSponsorship.isPending}
+                >
+                  Create
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {sponsorships.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>No loop sponsorships yet</p>
+          </div>
+        ) : (
+          <ScrollArea className="h-[400px]">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Community</TableHead>
+                  <TableHead>Advertiser</TableHead>
+                  <TableHead>Sponsor Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sponsorships.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">w/{getCommunityName(s.community_id)}</TableCell>
+                    <TableCell>{getAdvertiserName(s.advertiser_id)}</TableCell>
+                    <TableCell>{s.sponsor_name || "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={s.status === "active" ? "default" : "secondary"}>{s.status}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {s.status !== "active" && (
+                          <Button variant="ghost" size="sm" onClick={() => updateSponsorship.mutate({ id: s.id, status: "active" })}>
+                            Activate
+                          </Button>
+                        )}
+                        {s.status === "active" && (
+                          <Button variant="ghost" size="sm" onClick={() => updateSponsorship.mutate({ id: s.id, status: "paused" })}>
+                            Pause
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

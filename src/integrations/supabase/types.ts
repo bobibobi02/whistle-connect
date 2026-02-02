@@ -72,6 +72,13 @@ export type Database = {
             foreignKeyName: "ad_events_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "ad_events_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign_performance"
             referencedColumns: ["campaign_id"]
           },
@@ -94,6 +101,157 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ad_packages: {
+        Row: {
+          created_at: string
+          currency: string
+          description: string | null
+          duration_days: number
+          id: string
+          includes_banners: number
+          includes_loop_sponsorship: boolean
+          includes_reporting: boolean
+          includes_sponsored_posts: number
+          is_active: boolean
+          is_exclusive: boolean
+          name: string
+          price_cents: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_days?: number
+          id?: string
+          includes_banners?: number
+          includes_loop_sponsorship?: boolean
+          includes_reporting?: boolean
+          includes_sponsored_posts?: number
+          is_active?: boolean
+          is_exclusive?: boolean
+          name: string
+          price_cents?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_days?: number
+          id?: string
+          includes_banners?: number
+          includes_loop_sponsorship?: boolean
+          includes_reporting?: boolean
+          includes_sponsored_posts?: number
+          is_active?: boolean
+          is_exclusive?: boolean
+          name?: string
+          price_cents?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ad_payments: {
+        Row: {
+          advertiser_id: string
+          campaign_id: string | null
+          created_at: string
+          currency: string
+          gross_amount_cents: number
+          id: string
+          net_amount_cents: number
+          notes: string | null
+          package_id: string | null
+          paid_at: string | null
+          payment_method: string | null
+          payment_reference: string | null
+          platform_fee_cents: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          advertiser_id: string
+          campaign_id?: string | null
+          created_at?: string
+          currency?: string
+          gross_amount_cents?: number
+          id?: string
+          net_amount_cents?: number
+          notes?: string | null
+          package_id?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          platform_fee_cents?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          advertiser_id?: string
+          campaign_id?: string | null
+          created_at?: string
+          currency?: string
+          gross_amount_cents?: number
+          id?: string
+          net_amount_cents?: number
+          notes?: string | null
+          package_id?: string | null
+          paid_at?: string | null
+          payment_method?: string | null
+          payment_reference?: string | null
+          platform_fee_cents?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_payments_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["advertiser_id"]
+          },
+          {
+            foreignKeyName: "ad_payments_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "advertisers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_payments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "ad_payments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_performance"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "ad_payments_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_payments_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "ad_packages"
             referencedColumns: ["id"]
           },
         ]
@@ -167,6 +325,13 @@ export type Database = {
             foreignKeyName: "ad_reports_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "ad_reports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign_performance"
             referencedColumns: ["campaign_id"]
           },
@@ -218,6 +383,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ad_requests_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "ad_requests_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -472,12 +644,15 @@ export type Database = {
           bid_type: Database["public"]["Enums"]["ad_bid_type"]
           bid_value_cents: number
           budget_cents: number
+          campaign_type: string | null
           created_at: string
           daily_cap_cents: number | null
           end_at: string | null
           id: string
           name: string
           objective: Database["public"]["Enums"]["ad_objective"]
+          package_id: string | null
+          payment_status: string | null
           spent_cents: number
           start_at: string | null
           status: Database["public"]["Enums"]["ad_status"]
@@ -488,12 +663,15 @@ export type Database = {
           bid_type?: Database["public"]["Enums"]["ad_bid_type"]
           bid_value_cents?: number
           budget_cents?: number
+          campaign_type?: string | null
           created_at?: string
           daily_cap_cents?: number | null
           end_at?: string | null
           id?: string
           name: string
           objective?: Database["public"]["Enums"]["ad_objective"]
+          package_id?: string | null
+          payment_status?: string | null
           spent_cents?: number
           start_at?: string | null
           status?: Database["public"]["Enums"]["ad_status"]
@@ -504,12 +682,15 @@ export type Database = {
           bid_type?: Database["public"]["Enums"]["ad_bid_type"]
           bid_value_cents?: number
           budget_cents?: number
+          campaign_type?: string | null
           created_at?: string
           daily_cap_cents?: number | null
           end_at?: string | null
           id?: string
           name?: string
           objective?: Database["public"]["Enums"]["ad_objective"]
+          package_id?: string | null
+          payment_status?: string | null
           spent_cents?: number
           start_at?: string | null
           status?: Database["public"]["Enums"]["ad_status"]
@@ -520,7 +701,21 @@ export type Database = {
             foreignKeyName: "campaigns_advertiser_id_fkey"
             columns: ["advertiser_id"]
             isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["advertiser_id"]
+          },
+          {
+            foreignKeyName: "campaigns_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
             referencedRelation: "advertisers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaigns_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "ad_packages"
             referencedColumns: ["id"]
           },
         ]
@@ -1019,6 +1214,13 @@ export type Database = {
             foreignKeyName: "creatives_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "creatives_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign_performance"
             referencedColumns: ["campaign_id"]
           },
@@ -1398,6 +1600,94 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      loop_sponsorships: {
+        Row: {
+          advertiser_id: string
+          campaign_id: string | null
+          community_id: string
+          created_at: string
+          end_at: string | null
+          id: string
+          label_text: string
+          sponsor_logo_url: string | null
+          sponsor_name: string | null
+          start_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          advertiser_id: string
+          campaign_id?: string | null
+          community_id: string
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          label_text?: string
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
+          start_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          advertiser_id?: string
+          campaign_id?: string | null
+          community_id?: string
+          created_at?: string
+          end_at?: string | null
+          id?: string
+          label_text?: string
+          sponsor_logo_url?: string | null
+          sponsor_name?: string | null
+          start_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loop_sponsorships_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["advertiser_id"]
+          },
+          {
+            foreignKeyName: "loop_sponsorships_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "advertisers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loop_sponsorships_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "loop_sponsorships_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_performance"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "loop_sponsorships_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "loop_sponsorships_community_id_fkey"
+            columns: ["community_id"]
+            isOneToOne: false
+            referencedRelation: "communities"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       messages: {
         Row: {
@@ -2219,6 +2509,13 @@ export type Database = {
             foreignKeyName: "targeting_rules_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "targeting_rules_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "campaign_performance"
             referencedColumns: ["campaign_id"]
           },
@@ -2395,6 +2692,23 @@ export type Database = {
       }
     }
     Views: {
+      ad_revenue_summary: {
+        Row: {
+          advertiser_id: string | null
+          advertiser_name: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          campaign_type: string | null
+          clicks: number | null
+          ctr: number | null
+          gross_revenue_cents: number | null
+          impressions: number | null
+          net_revenue_cents: number | null
+          platform_fee_cents: number | null
+          status: Database["public"]["Enums"]["ad_status"] | null
+        }
+        Relationships: []
+      }
       campaign_performance: {
         Row: {
           advertiser_id: string | null
@@ -2412,6 +2726,13 @@ export type Database = {
           total_revenue_cents: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "campaigns_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "ad_revenue_summary"
+            referencedColumns: ["advertiser_id"]
+          },
           {
             foreignKeyName: "campaigns_advertiser_id_fkey"
             columns: ["advertiser_id"]
