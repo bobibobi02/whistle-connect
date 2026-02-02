@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Shield, UserCog, Lock, Search, Plus, X, Clock, History, Trash2, UserPlus, UserMinus, CheckCircle, XCircle, Ban, Undo2, Megaphone, Rocket, FileText, BarChart3, Database, Headphones } from "lucide-react";
+import { ArrowLeft, Shield, UserCog, Lock, Search, Plus, X, Clock, History, Trash2, UserPlus, UserMinus, CheckCircle, XCircle, Ban, Undo2, Megaphone, Rocket, FileText, BarChart3, Database, Headphones, Bug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -178,6 +178,12 @@ const AdminSettings = () => {
               <Button variant="outline" className="w-full gap-2 justify-start">
                 <Headphones className="h-4 w-4" />
                 Support
+              </Button>
+            </Link>
+            <Link to="/admin/bugs">
+              <Button variant="outline" className="w-full gap-2 justify-start">
+                <Bug className="h-4 w-4" />
+                Bug Triage
               </Button>
             </Link>
           </CardContent>
