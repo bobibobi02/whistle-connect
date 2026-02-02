@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface SupportTicket {
   id: string;
@@ -12,9 +13,12 @@ export interface SupportTicket {
   screenshot_url: string | null;
   route: string | null;
   app_version: string | null;
-  browser_info: Record<string, any> | null;
+  browser_info: Json | null;
   status: string;
   priority: string;
+  severity: string;
+  duplicate_count: number;
+  duplicate_of: string | null;
   assigned_to: string | null;
   resolved_at: string | null;
   resolved_by: string | null;
@@ -23,14 +27,15 @@ export interface SupportTicket {
   updated_at: string;
 }
 
-export const useSupportTickets = (status?: string) => {
+export const useSupportTickets = (status?: string, limit = 100) => {
   return useQuery({
-    queryKey: ["support-tickets", status],
+    queryKey: ["support-tickets", status, limit],
     queryFn: async () => {
       let query = supabase
         .from("support_tickets")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
       if (status) {
         query = query.eq("status", status);
@@ -120,22 +125,28 @@ export const useUpdateTicket = () => {
       id,
       status,
       priority,
+      severity,
       notes,
       assigned_to,
+      duplicate_of,
     }: {
       id: string;
       status?: string;
       priority?: string;
+      severity?: string;
       notes?: string;
       assigned_to?: string;
+      duplicate_of?: string;
     }) => {
       const { data: { user } } = await supabase.auth.getUser();
       
       const updates: Partial<SupportTicket> = {};
       if (status) updates.status = status;
       if (priority) updates.priority = priority;
+      if (severity) updates.severity = severity;
       if (notes !== undefined) updates.notes = notes;
       if (assigned_to !== undefined) updates.assigned_to = assigned_to;
+      if (duplicate_of !== undefined) updates.duplicate_of = duplicate_of;
       
       if (status === "resolved") {
         updates.resolved_at = new Date().toISOString();
@@ -151,6 +162,7 @@ export const useUpdateTicket = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["support-tickets"] });
+      queryClient.invalidateQueries({ queryKey: ["top-issues"] });
     },
   });
 };
