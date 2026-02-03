@@ -179,53 +179,61 @@ const fetchForYouPage = async (
   allowNsfw: boolean,
   pageParam: number = 0
 ): Promise<{ posts: Post[]; nextPage: number | null }> => {
-  // Get blocked user IDs
-  const blockedIds = user ? await getBlockedUserIds(user.id) : [];
+  try {
+    // Get blocked user IDs
+    const blockedIds = user ? await getBlockedUserIds(user.id) : [];
 
-  // Fetch candidate posts (more than we need for scoring)
-  const candidateCount = POSTS_PER_PAGE * 3;
-  
-  let query = supabase
-    .from("posts")
-    .select("*")
-    .eq("is_removed", false)
-    .order("created_at", { ascending: false })
-    .range(pageParam * candidateCount, (pageParam + 1) * candidateCount - 1);
+    // Fetch candidate posts (more than we need for scoring)
+    const candidateCount = POSTS_PER_PAGE * 3;
+    
+    let query = supabase
+      .from("posts")
+      .select("*")
+      .or("is_removed.is.null,is_removed.eq.false")
+      .order("created_at", { ascending: false })
+      .range(pageParam * candidateCount, (pageParam + 1) * candidateCount - 1);
 
-  // Filter NSFW content if not allowed
-  if (!allowNsfw) {
-    query = query.eq("is_nsfw", false);
+    // Filter NSFW content if not allowed
+    if (!allowNsfw) {
+      query = query.or("is_nsfw.is.null,is_nsfw.eq.false");
+    }
+
+    // Filter out blocked users' posts
+    if (blockedIds.length > 0) {
+      query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
+    }
+
+    const { data: posts, error } = await query;
+    if (error) throw error;
+    if (!posts || posts.length === 0) return { posts: [], nextPage: null };
+
+    // Get user profile for scoring
+    const profile = user ? await fetchUserProfile(user.id) : defaultProfile;
+    const nowMs = Date.now();
+
+    // Score and sort posts
+    const scoredPosts = posts.map((post) => ({
+      post,
+      score: scorePost(post, profile, nowMs),
+    }));
+
+    scoredPosts.sort((a, b) => b.score - a.score);
+
+    // Take top posts
+    const topPosts = scoredPosts.slice(0, POSTS_PER_PAGE).map((s) => s.post);
+    const enrichedPosts = await enrichPosts(topPosts, user);
+
+    return {
+      posts: enrichedPosts,
+      nextPage: posts.length === candidateCount ? pageParam + 1 : null,
+    };
+  } catch (error) {
+    if (import.meta.env.DEV) {
+      console.error("[ForYou] Feed fetch error:", error);
+    }
+    // Return empty instead of throwing to avoid breaking the UI
+    return { posts: [], nextPage: null };
   }
-
-  // Filter out blocked users' posts
-  if (blockedIds.length > 0) {
-    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
-  }
-
-  const { data: posts, error } = await query;
-  if (error) throw error;
-  if (!posts || posts.length === 0) return { posts: [], nextPage: null };
-
-  // Get user profile for scoring
-  const profile = user ? await fetchUserProfile(user.id) : defaultProfile;
-  const nowMs = Date.now();
-
-  // Score and sort posts
-  const scoredPosts = posts.map((post) => ({
-    post,
-    score: scorePost(post, profile, nowMs),
-  }));
-
-  scoredPosts.sort((a, b) => b.score - a.score);
-
-  // Take top posts
-  const topPosts = scoredPosts.slice(0, POSTS_PER_PAGE).map((s) => s.post);
-  const enrichedPosts = await enrichPosts(topPosts, user);
-
-  return {
-    posts: enrichedPosts,
-    nextPage: posts.length === candidateCount ? pageParam + 1 : null,
-  };
 };
 
 export const useForYouFeed = () => {

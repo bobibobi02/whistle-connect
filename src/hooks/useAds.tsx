@@ -61,29 +61,46 @@ export function useAdRequest(context: AdRequestContext, enabled = true) {
   return useQuery({
     queryKey: ["ad", context.placementKey, context.loopId, context.postId],
     queryFn: async (): Promise<AdResponse> => {
-      const response = await fetch(`${supabaseUrl}/functions/v1/ad-request`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          context: {
-            ...context,
-            sessionId: getSessionId(),
-            deviceType: getDeviceType(),
-          },
-          userId: user?.id || null,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch ad");
+      // Guard against missing env vars
+      if (!supabaseUrl) {
+        if (import.meta.env.DEV) {
+          console.warn("[Ads] VITE_SUPABASE_URL not configured");
+        }
+        return { ad: null, reason: "not_configured" };
       }
 
-      return response.json();
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/ad-request`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            context: {
+              ...context,
+              sessionId: getSessionId(),
+              deviceType: getDeviceType(),
+            },
+            userId: user?.id || null,
+          }),
+        });
+
+        if (!response.ok) {
+          // Return empty ad instead of throwing - ads are non-critical
+          return { ad: null, reason: "request_failed" };
+        }
+
+        return response.json();
+      } catch (error) {
+        // Network errors should not break the page
+        if (import.meta.env.DEV) {
+          console.warn("[Ads] Ad request failed:", error);
+        }
+        return { ad: null, reason: "network_error" };
+      }
     },
-    enabled: enabled,
+    enabled: enabled && !!supabaseUrl,
     staleTime: 30 * 1000, // Cache for 30 seconds
     gcTime: 60 * 1000,
     retry: false, // Don't retry failed ad requests
@@ -112,29 +129,45 @@ export function useAdEvent() {
       postId?: string;
       community?: string;
     }) => {
-      const response = await fetch(`${supabaseUrl}/functions/v1/ad-event`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({
-          requestId,
-          campaignId,
-          creativeId,
-          placementKey,
-          eventType,
-          postId,
-          community,
-          userId: user?.id || null,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to track ad event");
+      // Guard against missing env vars
+      if (!supabaseUrl) {
+        if (import.meta.env.DEV) {
+          console.warn("[Ads] VITE_SUPABASE_URL not configured for ad-event");
+        }
+        return { success: false };
       }
 
-      return response.json();
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/ad-event`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            requestId,
+            campaignId,
+            creativeId,
+            placementKey,
+            eventType,
+            postId,
+            community,
+            userId: user?.id || null,
+          }),
+        });
+
+        if (!response.ok) {
+          // Don't throw - ad events are non-critical
+          return { success: false };
+        }
+
+        return response.json();
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn("[Ads] Ad event tracking failed:", error);
+        }
+        return { success: false };
+      }
     },
   });
 }
@@ -153,32 +186,50 @@ export function useAdHide() {
       advertiserId?: string;
     }) => {
       if (!user?.id) {
-        throw new Error("Must be logged in to hide ads");
+        // Not logged in - just pretend we hid it locally
+        return { success: true, local: true };
       }
 
-      // Get the current session token for authentication
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error("No valid session");
+      // Guard against missing env vars
+      if (!supabaseUrl) {
+        return { success: false };
       }
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/ad-hide`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          campaignId,
-          advertiserId,
-        }),
-      });
+      try {
+        // Get the current session token for authentication
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          // No session but user exists - maybe session expired
+          return { success: false, reason: "no_session" };
+        }
 
-      if (!response.ok) {
-        throw new Error("Failed to hide ad");
+        const response = await fetch(`${supabaseUrl}/functions/v1/ad-hide`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            campaignId,
+            advertiserId,
+          }),
+        });
+
+        if (!response.ok) {
+          // Non-critical - just log in dev
+          if (import.meta.env.DEV) {
+            console.warn("[Ads] Failed to hide ad on server");
+          }
+          return { success: false };
+        }
+
+        return response.json();
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn("[Ads] Hide ad failed:", error);
+        }
+        return { success: false };
       }
-
-      return response.json();
     },
     onSuccess: () => {
       // Invalidate all ad queries to refresh ads
