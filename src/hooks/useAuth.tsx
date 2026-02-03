@@ -30,14 +30,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (!error && data) {
-      setProfile(data);
+      if (error) {
+        if (import.meta.env.DEV) {
+          console.warn("[Auth] Profile fetch error:", error.message);
+        }
+        // Profile might not exist yet - that's OK
+        return;
+      }
+      
+      if (data) {
+        setProfile(data);
+      }
+    } catch (err) {
+      if (import.meta.env.DEV) {
+        console.warn("[Auth] Profile fetch exception:", err);
+      }
     }
   };
 

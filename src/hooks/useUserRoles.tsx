@@ -5,12 +5,17 @@ import { useAuth } from "@/hooks/useAuth";
 export type AppRole = 'admin' | 'moderator' | 'user';
 
 export const useUserRoles = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
 
   return useQuery({
     queryKey: ["user-roles", user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+
+      // Log in dev mode for debugging
+      if (import.meta.env.DEV) {
+        console.log("[Roles] Fetching roles for user:", user.id);
+      }
 
       const { data, error } = await supabase
         .from("user_roles")
@@ -18,13 +23,24 @@ export const useUserRoles = () => {
         .eq("user_id", user.id);
 
       if (error) {
-        console.error("Error fetching roles:", error);
+        if (import.meta.env.DEV) {
+          console.error("[Roles] Error fetching roles:", error.message);
+        }
+        // Return empty array on error (user has no special roles)
         return [];
       }
 
-      return data.map(r => r.role as AppRole);
+      const roles = data.map(r => r.role as AppRole);
+      
+      if (import.meta.env.DEV) {
+        console.log("[Roles] Found roles:", roles.length > 0 ? roles : "(none)");
+      }
+
+      return roles;
     },
-    enabled: !!user?.id,
+    enabled: !!user?.id && !authLoading,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    retry: 1, // Only retry once on failure
   });
 };
 
