@@ -16,6 +16,7 @@ interface DebugInfo {
   } | null;
   localStorageKeys: string[];
   timestamp: string;
+  maskedAnonKey: string;
 }
 
 const DebugPage = () => {
@@ -33,7 +34,13 @@ const DebugPage = () => {
     setLoading(true);
     
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "NOT SET";
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "UNKNOWN";
+    
+    // Mask the anon key for display (first 10 and last 4 chars)
+    const maskedAnonKey = anonKey
+      ? `${anonKey.substring(0, 10)}...${anonKey.substring(anonKey.length - 4)}`
+      : "NOT SET";
     
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -59,6 +66,7 @@ const DebugPage = () => {
       sessionUser: user ? { id: user.id, email: user.email || "no email" } : null,
       localStorageKeys,
       timestamp: new Date().toISOString(),
+      maskedAnonKey,
     };
 
     setInfo(debugInfo);
@@ -71,6 +79,7 @@ const DebugPage = () => {
     console.log("[Debug] Project Ref:", projectRef);
     console.log("[Debug] Expected Ref:", expectedRef);
     console.log("[Debug] Match:", projectRef === expectedRef ? "✅ YES" : "❌ NO");
+    console.log("[Debug] Anon Key (masked):", maskedAnonKey);
     console.log("[Debug] Current User:", user ? { id: user.id, email: user.email } : "Not signed in");
     console.log("[Debug] LocalStorage Auth Keys:", localStorageKeys);
     console.log("=".repeat(60));
@@ -148,22 +157,13 @@ const DebugPage = () => {
   };
 
   useEffect(() => {
-    // Only allow in dev mode
-    if (import.meta.env.PROD) {
-      window.location.href = "/";
-      return;
-    }
     fetchDebugInfo();
   }, []);
-
-  if (import.meta.env.PROD) {
-    return null;
-  }
 
   return (
     <div className="container max-w-2xl py-8 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">🔧 Debug Page (DEV Only)</h1>
+        <h1 className="text-2xl font-bold">🔧 Debug Page</h1>
         <Button variant="outline" size="sm" onClick={fetchDebugInfo} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
@@ -173,13 +173,13 @@ const DebugPage = () => {
       {info && (
         <>
           {/* Project Match Status */}
-          <Card className={info.isMatch ? "border-green-500" : "border-red-500"}>
+          <Card className={info.isMatch ? "border-green-600" : "border-destructive"}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
                 {info.isMatch ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5 text-green-600" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-red-500" />
+                  <XCircle className="h-5 w-5 text-destructive" />
                 )}
                 Project Match Status
               </CardTitle>
@@ -200,15 +200,24 @@ const DebugPage = () => {
             </CardContent>
           </Card>
 
-          {/* Supabase URL */}
+          {/* Supabase Configuration */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Supabase URL</CardTitle>
+              <CardTitle className="text-lg">Supabase Configuration</CardTitle>
             </CardHeader>
-            <CardContent>
-              <code className="text-xs bg-muted px-2 py-1 rounded break-all">
-                {info.supabaseUrl}
-              </code>
+            <CardContent className="space-y-3">
+              <div>
+                <span className="text-sm text-muted-foreground">URL:</span>
+                <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">
+                  {info.supabaseUrl}
+                </code>
+              </div>
+              <div>
+                <span className="text-sm text-muted-foreground">Anon Key (masked):</span>
+                <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">
+                  {info.maskedAnonKey}
+                </code>
+              </div>
             </CardContent>
           </Card>
 
@@ -217,9 +226,9 @@ const DebugPage = () => {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
                 {info.sessionUser ? (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5 text-green-600" />
                 ) : (
-                  <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                  <AlertTriangle className="h-5 w-5 text-yellow-600" />
                 )}
                 Current User
               </CardTitle>

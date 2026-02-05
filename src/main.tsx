@@ -6,7 +6,7 @@ import "./index.css";
 import { syncStorageFromPreferences } from "./lib/capacitorStorage";
 
 // ========== Supabase Environment Verification ==========
-// Log at startup (dev only) to confirm correct project is in use
+// Log at startup to confirm correct project is in use
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const expectedProject = "fzgtckfxntalxrwanhdn";
@@ -16,16 +16,21 @@ const projectRef = typeof supabaseUrl === "string"
   ? supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] 
   : null;
 
-// Always log in dev mode
+// ALWAYS log project ref on boot (both dev and prod for debugging)
+console.log("[Debug] Supabase Project Ref:", projectRef || "NOT SET");
+
+// Additional dev-mode logging
 if (import.meta.env.DEV) {
   console.log("=".repeat(60));
   console.log("[Whistle] 🚀 STARTUP ENVIRONMENT CHECK");
-  console.log("[Whistle] VITE_SUPABASE_URL:", supabaseUrl);
+  console.log("[Whistle] VITE_SUPABASE_URL:", supabaseUrl || "NOT SET");
   console.log("[Whistle] VITE_SUPABASE_PUBLISHABLE_KEY:", anonKey ? `${anonKey.substring(0, 20)}...` : "NOT SET");
   console.log("[Whistle] Extracted Project Ref:", projectRef);
   console.log("[Whistle] Expected Project Ref:", expectedProject);
   
-  if (projectRef === expectedProject) {
+  if (!supabaseUrl || !anonKey) {
+    console.error("[Whistle] ❌ MISSING ENV VARS - App may not function correctly!");
+  } else if (projectRef === expectedProject) {
     console.log("[Whistle] ✅ Using correct Supabase project:", projectRef);
   } else {
     console.error("[Whistle] ❌ PROJECT MISMATCH!");

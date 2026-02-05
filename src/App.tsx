@@ -13,6 +13,7 @@ import SafeAreaWrapper from "@/components/SafeAreaWrapper";
 import { PWAInstallBanner } from "@/components/PWAInstallBanner";
 import EmergencyBanner from "@/components/EmergencyBanner";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import EnvErrorBanner from "@/components/EnvErrorBanner";
 import Index from "./pages/Index";
 import PostDetail from "./pages/PostDetail";
 import Auth from "./pages/Auth";
@@ -119,6 +120,7 @@ const AppContent = () => {
   
   return (
     <SafeAreaWrapper>
+      <EnvErrorBanner />
       <EmergencyBanner />
       <AnimatedRoutes />
       {!isNative && <PWAInstallBanner />}
