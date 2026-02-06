@@ -216,13 +216,6 @@ export type Database = {
             foreignKeyName: "ad_payments_advertiser_id_fkey"
             columns: ["advertiser_id"]
             isOneToOne: false
-            referencedRelation: "ad_revenue_summary"
-            referencedColumns: ["advertiser_id"]
-          },
-          {
-            foreignKeyName: "ad_payments_advertiser_id_fkey"
-            columns: ["advertiser_id"]
-            isOneToOne: false
             referencedRelation: "advertisers"
             referencedColumns: ["id"]
           },
@@ -494,6 +487,57 @@ export type Database = {
         }
         Relationships: []
       }
+      anonymous_submissions: {
+        Row: {
+          category: string
+          content: string
+          created_at: string
+          file_urls: string[] | null
+          id: string
+          notes: string | null
+          priority: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          subject: string
+          submission_token: string
+          target_community: string | null
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          content: string
+          created_at?: string
+          file_urls?: string[] | null
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          subject: string
+          submission_token?: string
+          target_community?: string | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          content?: string
+          created_at?: string
+          file_urls?: string[] | null
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          subject?: string
+          submission_token?: string
+          target_community?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           description: string | null
@@ -697,13 +741,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "campaigns_advertiser_id_fkey"
-            columns: ["advertiser_id"]
-            isOneToOne: false
-            referencedRelation: "ad_revenue_summary"
-            referencedColumns: ["advertiser_id"]
-          },
           {
             foreignKeyName: "campaigns_advertiser_id_fkey"
             columns: ["advertiser_id"]
@@ -1649,13 +1686,6 @@ export type Database = {
             foreignKeyName: "loop_sponsorships_advertiser_id_fkey"
             columns: ["advertiser_id"]
             isOneToOne: false
-            referencedRelation: "ad_revenue_summary"
-            referencedColumns: ["advertiser_id"]
-          },
-          {
-            foreignKeyName: "loop_sponsorships_advertiser_id_fkey"
-            columns: ["advertiser_id"]
-            isOneToOne: false
             referencedRelation: "advertisers"
             referencedColumns: ["id"]
           },
@@ -2371,6 +2401,41 @@ export type Database = {
           },
         ]
       }
+      submission_responses: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_internal: boolean | null
+          responder_id: string
+          submission_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          responder_id: string
+          submission_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_internal?: boolean | null
+          responder_id?: string
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submission_responses_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "anonymous_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_tickets: {
         Row: {
           app_version: string | null
@@ -2707,7 +2772,15 @@ export type Database = {
           platform_fee_cents: number | null
           status: Database["public"]["Enums"]["ad_status"] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_advertiser_id_fkey"
+            columns: ["advertiser_id"]
+            isOneToOne: false
+            referencedRelation: "advertisers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       campaign_performance: {
         Row: {
@@ -2726,13 +2799,6 @@ export type Database = {
           total_revenue_cents: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "campaigns_advertiser_id_fkey"
-            columns: ["advertiser_id"]
-            isOneToOne: false
-            referencedRelation: "ad_revenue_summary"
-            referencedColumns: ["advertiser_id"]
-          },
           {
             foreignKeyName: "campaigns_advertiser_id_fkey"
             columns: ["advertiser_id"]

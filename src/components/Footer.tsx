@@ -14,6 +14,7 @@ const otherLinks = [
   { label: "Help", href: "/help" },
   { label: "Status", href: "/status" },
   { label: "Report Bug", href: "/report-bug" },
+  { label: "Submit Tip", href: "/submit-tip" },
 ];
 
 export default function Footer() {
