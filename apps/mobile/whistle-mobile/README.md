@@ -12,11 +12,11 @@ npx expo start
 
 ## Environment Setup
 
-Create a `.env` file in this directory:
+Create a `.env` file in this directory with your project credentials:
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://sdtuywnesmsanuazqgqx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_N1-MtZ29UUpEUT3HjqSO-g_FIwowYAH
+EXPO_PUBLIC_SUPABASE_URL=<your-supabase-url>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
 
 ## EAS Build Commands
