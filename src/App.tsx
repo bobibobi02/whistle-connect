@@ -37,6 +37,7 @@ import AdminAnalytics from "./pages/AdminAnalytics";
 import AdminBackups from "./pages/AdminBackups";
 import AdminSupport from "./pages/AdminSupport";
 import AdminBugs from "./pages/AdminBugs";
+import AdminSubmissions from "./pages/AdminSubmissions";
 import Settings from "./pages/Settings";
 import CreatorMonetization from "./pages/CreatorMonetization";
 import AuthCallback from "./pages/AuthCallback";
@@ -46,6 +47,7 @@ import LegalPage from "./pages/LegalPage";
 import Status from "./pages/Status";
 import Help from "./pages/Help";
 import ReportBug from "./pages/ReportBug";
+import SubmitTip from "./pages/SubmitTip";
 
 const queryClient = new QueryClient();
 
@@ -83,7 +85,9 @@ const AnimatedRoutes = () => {
           <Route path="/admin/backups" element={<PageTransition><ErrorBoundary><AdminBackups /></ErrorBoundary></PageTransition>} />
           <Route path="/admin/support" element={<PageTransition><ErrorBoundary><AdminSupport /></ErrorBoundary></PageTransition>} />
           <Route path="/admin/bugs" element={<PageTransition><ErrorBoundary><AdminBugs /></ErrorBoundary></PageTransition>} />
+          <Route path="/admin/submissions" element={<PageTransition><ErrorBoundary><AdminSubmissions /></ErrorBoundary></PageTransition>} />
           <Route path="/settings" element={<PageTransition><ErrorBoundary><Settings /></ErrorBoundary></PageTransition>} />
+          <Route path="/submit-tip" element={<PageTransition><SubmitTip /></PageTransition>} />
           <Route path="/settings/monetization" element={<PageTransition><ErrorBoundary><CreatorMonetization /></ErrorBoundary></PageTransition>} />
           <Route path="/c/:communityName" element={<PageTransition><ErrorBoundary><Community /></ErrorBoundary></PageTransition>} />
           <Route path="/post/:postId" element={<PageTransition><ErrorBoundary><PostDetail /></ErrorBoundary></PageTransition>} />
