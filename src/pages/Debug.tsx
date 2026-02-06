@@ -35,24 +35,20 @@ const DebugPage = () => {
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "NOT SET";
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "UNKNOWN";
 
-    // Mask the anon key for display (first 10 and last 4 chars)
     const maskedAnonKey = anonKey
       ? `${anonKey.substring(0, 10)}...${anonKey.substring(anonKey.length - 4)}`
       : "NOT SET";
 
-    // Get current user
     const {
       data: { user },
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError) {
-      console.log("[Debug] Auth error:", userError);
-    }
+    if (userError) console.log("[Debug] Auth error:", userError);
 
-    // Find all Supabase auth keys in localStorage
     const localStorageKeys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -75,7 +71,6 @@ const DebugPage = () => {
     setInfo(debugInfo);
     setLoading(false);
 
-    // Log to console
     console.log("=".repeat(60));
     console.log("[Debug] Supabase Environment Info:");
     console.log("[Debug] VITE_SUPABASE_URL:", supabaseUrl);
@@ -95,15 +90,10 @@ const DebugPage = () => {
     console.log("[Debug] Testing edge function at:", functionsUrl);
 
     try {
-      // Get auth token
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
-      console.log("[Debug] Session exists:", !!session);
-      console.log("[Debug] User ID:", session?.user?.id || "none");
-
-      // Try invoking the edge function with a test payload
       const { data, error } = await supabase.functions.invoke("create-boost-checkout", {
         body: {
           post_id: "test-debug-id",
@@ -114,37 +104,25 @@ const DebugPage = () => {
       });
 
       if (error) {
-        console.error("[Debug] Edge function error:", {
-          message: error.message,
-          name: error.name,
-          context: error.context,
-          stack: error.stack,
-        });
-
+        console.error("[Debug] Edge function error:", error);
         setEdgeFunctionTest({
           status: "error",
           message: error.message || "Unknown error",
-          details: {
-            name: error.name,
-            context: error.context,
-          },
+          details: { name: error.name, context: error.context },
         });
       } else if ((data as any)?.error) {
-        console.log("[Debug] Edge function returned error:", (data as any).error);
         setEdgeFunctionTest({
           status: "app-error",
           message: (data as any).error,
           details: data as any,
         });
       } else if ((data as any)?.url) {
-        console.log("[Debug] Edge function returned checkout URL!");
         setEdgeFunctionTest({
           status: "success",
           message: "Checkout URL received!",
-          details: { hasUrl: true },
+          details: { hasUrl: true, userId: session?.user?.id || null },
         });
       } else {
-        console.log("[Debug] Edge function returned:", data);
         setEdgeFunctionTest({
           status: "unknown",
           message: "Response received but no URL",
@@ -153,10 +131,7 @@ const DebugPage = () => {
       }
     } catch (err) {
       console.error("[Debug] Caught exception:", err);
-      setEdgeFunctionTest({
-        status: "exception",
-        message: String(err),
-      });
+      setEdgeFunctionTest({ status: "exception", message: String(err) });
     }
   };
 
@@ -242,25 +217,6 @@ const DebugPage = () => {
                 </div>
               ) : (
                 <p className="text-muted-foreground">Not signed in</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg">Auth LocalStorage Keys</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {info.localStorageKeys.length > 0 ? (
-                <ul className="space-y-1">
-                  {info.localStorageKeys.map((key) => (
-                    <li key={key}>
-                      <code className="text-xs bg-muted px-2 py-0.5 rounded">{key}</code>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground text-sm">No Supabase auth keys found</p>
               )}
             </CardContent>
           </Card>

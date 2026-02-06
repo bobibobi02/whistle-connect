@@ -7,9 +7,12 @@ import { syncStorageFromPreferences } from "./lib/capacitorStorage";
 
 // ========== Supabase Environment Verification ==========
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
 const expectedProject = "sdtuywnesmsanuazqgqx";
 
+// Extract project ref from URL
 const projectRef = typeof supabaseUrl === "string" ? supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] : null;
 
 console.log("[Debug] Supabase Project Ref:", projectRef || "NOT SET");
@@ -33,7 +36,6 @@ if (import.meta.env.DEV) {
     console.error("[Whistle] ❌ PROJECT MISMATCH!");
     console.error("[Whistle] Expected:", expectedProject);
     console.error("[Whistle] Actual:", projectRef);
-    console.error("[Whistle] This may cause auth/db issues!");
   }
   console.log("=".repeat(60));
 }
