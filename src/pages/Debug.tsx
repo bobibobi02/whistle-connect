@@ -8,8 +8,6 @@ import { RefreshCw, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 interface DebugInfo {
   supabaseUrl: string;
   projectRef: string;
-  expectedRef: string;
-  isMatch: boolean;
   sessionUser: {
     id: string;
     email: string;
@@ -27,8 +25,6 @@ const DebugPage = () => {
     message: string;
     details?: Record<string, unknown>;
   } | null>(null);
-
-  const expectedRef = "sdtuywnesmsanuazqgqx";
 
   const fetchDebugInfo = async () => {
     setLoading(true);
@@ -60,8 +56,6 @@ const DebugPage = () => {
     const debugInfo: DebugInfo = {
       supabaseUrl,
       projectRef,
-      expectedRef,
-      isMatch: projectRef === expectedRef,
       sessionUser: user ? { id: user.id, email: user.email || "no email" } : null,
       localStorageKeys,
       timestamp: new Date().toISOString(),
@@ -75,8 +69,6 @@ const DebugPage = () => {
     console.log("[Debug] Supabase Environment Info:");
     console.log("[Debug] VITE_SUPABASE_URL:", supabaseUrl);
     console.log("[Debug] Project Ref:", projectRef);
-    console.log("[Debug] Expected Ref:", expectedRef);
-    console.log("[Debug] Match:", projectRef === expectedRef ? "✅ YES" : "❌ NO");
     console.log("[Debug] Anon Key (masked):", maskedAnonKey);
     console.log("[Debug] Current User:", user ? { id: user.id, email: user.email } : "Not signed in");
     console.log("[Debug] LocalStorage Auth Keys:", localStorageKeys);
@@ -151,26 +143,28 @@ const DebugPage = () => {
 
       {info && (
         <>
-          <Card className={info.isMatch ? "border-green-600" : "border-destructive"}>
+          <Card className={info.projectRef ? "border-primary" : "border-destructive"}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
-                {info.isMatch ? (
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                {info.projectRef ? (
+                  <CheckCircle className="h-5 w-5 text-primary" />
                 ) : (
                   <XCircle className="h-5 w-5 text-destructive" />
                 )}
-                Project Match Status
+                Project Configuration
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 font-mono text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Expected:</span>
-                  <Badge variant="outline">{info.expectedRef}</Badge>
+                  <span className="text-muted-foreground">Project Ref:</span>
+                  <Badge variant={info.projectRef ? "default" : "destructive"}>{info.projectRef || "NOT SET"}</Badge>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Actual:</span>
-                  <Badge variant={info.isMatch ? "default" : "destructive"}>{info.projectRef}</Badge>
+                  <span className="text-muted-foreground">Status:</span>
+                  <Badge variant={info.projectRef ? "default" : "destructive"}>
+                    {info.projectRef ? "✓ Connected" : "✗ Not Configured"}
+                  </Badge>
                 </div>
               </div>
             </CardContent>
@@ -196,9 +190,9 @@ const DebugPage = () => {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
                 {info.sessionUser ? (
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <CheckCircle className="h-5 w-5 text-primary" />
                 ) : (
-                  <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                  <AlertTriangle className="h-5 w-5 text-muted-foreground" />
                 )}
                 Current User
               </CardTitle>
