@@ -12,9 +12,7 @@ const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const expectedProject = "fzgtckfxntalxrwanhdn";
 
 // Extract project ref from URL
-const projectRef = typeof supabaseUrl === "string" 
-  ? supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] 
-  : null;
+const projectRef = typeof supabaseUrl === "string" ? supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] : null;
 
 // ALWAYS log project ref on boot (both dev and prod for debugging)
 console.log("[Debug] Supabase Project Ref:", projectRef || "NOT SET");
@@ -27,7 +25,7 @@ if (import.meta.env.DEV) {
   console.log("[Whistle] VITE_SUPABASE_PUBLISHABLE_KEY:", anonKey ? `${anonKey.substring(0, 20)}...` : "NOT SET");
   console.log("[Whistle] Extracted Project Ref:", projectRef);
   console.log("[Whistle] Expected Project Ref:", expectedProject);
-  
+
   if (!supabaseUrl || !anonKey) {
     console.error("[Whistle] ❌ MISSING ENV VARS - App may not function correctly!");
   } else if (projectRef === expectedProject) {
@@ -46,11 +44,11 @@ const initApp = async () => {
   if (Capacitor.isNativePlatform()) {
     await syncStorageFromPreferences();
   }
-  
+
   createRoot(document.getElementById("root")!).render(
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <App />
-    </ThemeProvider>
+    </ThemeProvider>,
   );
 };
 

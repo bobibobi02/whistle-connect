@@ -28,27 +28,30 @@ const DebugPage = () => {
     details?: Record<string, unknown>;
   } | null>(null);
 
-  const expectedRef = "fzgtckfxntalxrwanhdn";
+  const expectedRef = "sdtuywnesmsanuazqgqx";
 
   const fetchDebugInfo = async () => {
     setLoading(true);
-    
+
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "NOT SET";
-    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "UNKNOWN";
-    
+
     // Mask the anon key for display (first 10 and last 4 chars)
     const maskedAnonKey = anonKey
       ? `${anonKey.substring(0, 10)}...${anonKey.substring(anonKey.length - 4)}`
       : "NOT SET";
-    
+
     // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
     if (userError) {
       console.log("[Debug] Auth error:", userError);
     }
-    
+
     // Find all Supabase auth keys in localStorage
     const localStorageKeys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -87,17 +90,19 @@ const DebugPage = () => {
 
   const testEdgeFunction = async () => {
     setEdgeFunctionTest({ status: "loading", message: "Testing..." });
-    
+
     const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-boost-checkout`;
     console.log("[Debug] Testing edge function at:", functionsUrl);
-    
+
     try {
       // Get auth token
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       console.log("[Debug] Session exists:", !!session);
       console.log("[Debug] User ID:", session?.user?.id || "none");
-      
+
       // Try invoking the edge function with a test payload
       const { data, error } = await supabase.functions.invoke("create-boost-checkout", {
         body: {
@@ -115,7 +120,7 @@ const DebugPage = () => {
           context: error.context,
           stack: error.stack,
         });
-        
+
         setEdgeFunctionTest({
           status: "error",
           message: error.message || "Unknown error",
@@ -124,15 +129,14 @@ const DebugPage = () => {
             context: error.context,
           },
         });
-      } else if (data?.error) {
-        // Edge function responded but with an error
-        console.log("[Debug] Edge function returned error:", data.error);
+      } else if ((data as any)?.error) {
+        console.log("[Debug] Edge function returned error:", (data as any).error);
         setEdgeFunctionTest({
           status: "app-error",
-          message: data.error,
-          details: data,
+          message: (data as any).error,
+          details: data as any,
         });
-      } else if (data?.url) {
+      } else if ((data as any)?.url) {
         console.log("[Debug] Edge function returned checkout URL!");
         setEdgeFunctionTest({
           status: "success",
@@ -144,7 +148,7 @@ const DebugPage = () => {
         setEdgeFunctionTest({
           status: "unknown",
           message: "Response received but no URL",
-          details: data,
+          details: data as any,
         });
       }
     } catch (err) {
@@ -172,7 +176,6 @@ const DebugPage = () => {
 
       {info && (
         <>
-          {/* Project Match Status */}
           <Card className={info.isMatch ? "border-green-600" : "border-destructive"}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -192,15 +195,12 @@ const DebugPage = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Actual:</span>
-                  <Badge variant={info.isMatch ? "default" : "destructive"}>
-                    {info.projectRef}
-                  </Badge>
+                  <Badge variant={info.isMatch ? "default" : "destructive"}>{info.projectRef}</Badge>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Supabase Configuration */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Supabase Configuration</CardTitle>
@@ -208,20 +208,15 @@ const DebugPage = () => {
             <CardContent className="space-y-3">
               <div>
                 <span className="text-sm text-muted-foreground">URL:</span>
-                <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">
-                  {info.supabaseUrl}
-                </code>
+                <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">{info.supabaseUrl}</code>
               </div>
               <div>
                 <span className="text-sm text-muted-foreground">Anon Key (masked):</span>
-                <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">
-                  {info.maskedAnonKey}
-                </code>
+                <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">{info.maskedAnonKey}</code>
               </div>
             </CardContent>
           </Card>
 
-          {/* Auth Status */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -251,7 +246,6 @@ const DebugPage = () => {
             </CardContent>
           </Card>
 
-          {/* LocalStorage Keys */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Auth LocalStorage Keys</CardTitle>
@@ -271,7 +265,6 @@ const DebugPage = () => {
             </CardContent>
           </Card>
 
-          {/* Edge Function Test */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Edge Function Test</CardTitle>
@@ -286,28 +279,28 @@ const DebugPage = () => {
               {edgeFunctionTest && (
                 <div className="mt-4 p-3 bg-muted rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Badge variant={
-                      edgeFunctionTest.status === "success" ? "default" :
-                      edgeFunctionTest.status === "loading" ? "secondary" : "destructive"
-                    }>
+                    <Badge
+                      variant={
+                        edgeFunctionTest.status === "success"
+                          ? "default"
+                          : edgeFunctionTest.status === "loading"
+                            ? "secondary"
+                            : "destructive"
+                      }
+                    >
                       {edgeFunctionTest.status}
                     </Badge>
                     <span className="text-sm">{edgeFunctionTest.message}</span>
                   </div>
                   {edgeFunctionTest.details && (
-                    <pre className="text-xs overflow-auto">
-                      {JSON.stringify(edgeFunctionTest.details, null, 2)}
-                    </pre>
+                    <pre className="text-xs overflow-auto">{JSON.stringify(edgeFunctionTest.details, null, 2)}</pre>
                   )}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Timestamp */}
-          <p className="text-xs text-muted-foreground text-center">
-            Last updated: {info.timestamp}
-          </p>
+          <p className="text-xs text-muted-foreground text-center">Last updated: {info.timestamp}</p>
         </>
       )}
     </div>
