@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
+import { RefreshCw, CheckCircle, XCircle, AlertTriangle, AlertCircle } from "lucide-react";
+
+// Old project ref that should NEVER be used
+const FORBIDDEN_PROJECT_REF = "fzgtckfxntalxrwanhdn";
 
 interface DebugInfo {
   supabaseUrl: string;
@@ -15,6 +18,7 @@ interface DebugInfo {
   localStorageKeys: string[];
   timestamp: string;
   maskedAnonKey: string;
+  isUsingForbiddenRef: boolean;
 }
 
 const DebugPage = () => {
@@ -33,6 +37,7 @@ const DebugPage = () => {
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
     const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "UNKNOWN";
+    const isUsingForbiddenRef = projectRef === FORBIDDEN_PROJECT_REF || supabaseUrl.includes(FORBIDDEN_PROJECT_REF);
 
     const maskedAnonKey = anonKey
       ? `${anonKey.substring(0, 10)}...${anonKey.substring(anonKey.length - 4)}`
@@ -60,6 +65,7 @@ const DebugPage = () => {
       localStorageKeys,
       timestamp: new Date().toISOString(),
       maskedAnonKey,
+      isUsingForbiddenRef,
     };
 
     setInfo(debugInfo);
@@ -70,6 +76,7 @@ const DebugPage = () => {
     console.log("[Debug] VITE_SUPABASE_URL:", supabaseUrl);
     console.log("[Debug] Project Ref:", projectRef);
     console.log("[Debug] Anon Key (masked):", maskedAnonKey);
+    console.log("[Debug] Using Forbidden Ref:", isUsingForbiddenRef);
     console.log("[Debug] Current User:", user ? { id: user.id, email: user.email } : "Not signed in");
     console.log("[Debug] LocalStorage Auth Keys:", localStorageKeys);
     console.log("=".repeat(60));
@@ -143,10 +150,33 @@ const DebugPage = () => {
 
       {info && (
         <>
-          <Card className={info.projectRef ? "border-primary" : "border-destructive"}>
+          {/* CRITICAL WARNING - Forbidden Project Ref */}
+          {info.isUsingForbiddenRef && (
+            <Card className="border-destructive bg-destructive/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg text-destructive">
+                  <AlertCircle className="h-6 w-6" />
+                  ⚠️ CRITICAL: Wrong Project Reference Detected!
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-destructive">
+                  <p className="font-bold">
+                    This build is using the FORBIDDEN project ref: {FORBIDDEN_PROJECT_REF}
+                  </p>
+                  <p className="text-sm">
+                    All requests are going to the wrong backend. This is a critical configuration error.
+                    Check your environment variables and rebuild.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Card className={info.projectRef && !info.isUsingForbiddenRef ? "border-primary" : "border-destructive"}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
-                {info.projectRef ? (
+                {info.projectRef && !info.isUsingForbiddenRef ? (
                   <CheckCircle className="h-5 w-5 text-primary" />
                 ) : (
                   <XCircle className="h-5 w-5 text-destructive" />
@@ -158,12 +188,18 @@ const DebugPage = () => {
               <div className="space-y-2 font-mono text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Project Ref:</span>
-                  <Badge variant={info.projectRef ? "default" : "destructive"}>{info.projectRef || "NOT SET"}</Badge>
+                  <Badge variant={info.projectRef && !info.isUsingForbiddenRef ? "default" : "destructive"}>
+                    {info.projectRef || "NOT SET"}
+                  </Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status:</span>
-                  <Badge variant={info.projectRef ? "default" : "destructive"}>
-                    {info.projectRef ? "✓ Connected" : "✗ Not Configured"}
+                  <Badge variant={info.projectRef && !info.isUsingForbiddenRef ? "default" : "destructive"}>
+                    {info.isUsingForbiddenRef 
+                      ? "✗ Using Forbidden Ref" 
+                      : info.projectRef 
+                        ? "✓ Connected" 
+                        : "✗ Not Configured"}
                   </Badge>
                 </div>
               </div>

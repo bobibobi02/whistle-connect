@@ -22,12 +22,14 @@ npx expo start
 
 ## Environment Setup
 
-Create a `.env` file:
+Create a `.env` file with your own Supabase credentials:
 
 ```
-EXPO_PUBLIC_SUPABASE_URL=https://sdtuywnesmsmsanuazqgqx.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_N1-MtZ29UUpEUT3HjqSO-g_FIwowYAH
+EXPO_PUBLIC_SUPABASE_URL=<your-supabase-url>
+EXPO_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
+
+**Important**: Never commit real credentials to the repository. Get your project URL and anon key from your Supabase dashboard or Lovable Cloud settings.
 
 ## Project Structure
 
