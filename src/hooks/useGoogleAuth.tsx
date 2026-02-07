@@ -4,14 +4,14 @@ import { toast } from "sonner";
 /**
  * Google OAuth Hook
  * 
- * IMPORTANT: Google OAuth must be enabled in the Supabase Dashboard:
- * 1. Go to Authentication → Providers → Google
+ * IMPORTANT: Google OAuth must be enabled in the backend:
+ * 1. Go to Lovable Cloud → Users → Auth Settings → Google
  * 2. Enable Google provider
  * 3. Add Google OAuth Client ID and Client Secret from Google Cloud Console
  * 4. In Google Cloud Console, add this as authorized redirect URI:
- *    https://<PROJECT_REF>.supabase.co/auth/v1/callback
+ *    ${VITE_SUPABASE_URL}/auth/v1/callback
  * 
- * If you see "provider is not enabled" error, configure Google in Supabase Dashboard.
+ * If you see "provider is not enabled" error, configure Google in your backend settings.
  */
 export const useGoogleAuth = () => {
   const signInWithGoogle = async () => {
