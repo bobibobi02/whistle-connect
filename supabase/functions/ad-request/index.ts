@@ -1,9 +1,27 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+// CORS headers for browser preflight requests
+// Allow production domain + localhost for development
+const ALLOWED_ORIGINS = [
+  "https://whistle-connect-hub.lovable.app",
+  "http://localhost:5173",
+  "http://localhost:8080",
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  // Allow any Lovable preview domain or listed origins
+  const isAllowed = origin && (
+    ALLOWED_ORIGINS.includes(origin) ||
+    origin.endsWith(".lovableproject.com") ||
+    origin.endsWith(".lovable.app")
+  );
+  
+  return {
+    "Access-Control-Allow-Origin": isAllowed ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Credentials": "true",
+  };
 };
 
 interface AdRequestContext {
@@ -62,8 +80,12 @@ interface TargetingRule {
 }
 
 Deno.serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
+  // Handle CORS preflight - return 200 OK immediately
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response("ok", { status: 200, headers: corsHeaders });
   }
 
   try {
@@ -106,18 +128,23 @@ Deno.serve(async (req) => {
     }
 
     // Get active campaigns with their creatives and targeting
+    // Use a single combined OR filter to avoid multiple or= params
     const now = new Date().toISOString();
-    let campaignsQuery = supabase
+    const campaignsFilter = [
+      `and(start_at.is.null,end_at.is.null)`,
+      `and(start_at.is.null,end_at.gte.${now})`,
+      `and(start_at.lte.${now},end_at.is.null)`,
+      `and(start_at.lte.${now},end_at.gte.${now})`,
+    ].join(",");
+    
+    const { data: campaigns, error: campaignsError } = await supabase
       .from("campaigns")
       .select(`
         *,
         creatives:creatives(*)
       `)
       .eq("status", "active")
-      .or(`start_at.is.null,start_at.lte.${now}`)
-      .or(`end_at.is.null,end_at.gte.${now}`);
-
-    const { data: campaigns, error: campaignsError } = await campaignsQuery;
+      .or(campaignsFilter);
 
     if (campaignsError || !campaigns || campaigns.length === 0) {
       return new Response(
@@ -262,6 +289,8 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     console.error("Ad request error:", error);
+    const origin = req.headers.get("origin");
+    const corsHeaders = getCorsHeaders(origin);
     return new Response(
       JSON.stringify({ ad: null, reason: "error", error: String(error) }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
