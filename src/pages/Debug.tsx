@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, AlertCircle } from "lucide-react";
 
-// List of known deprecated/forbidden project refs (informational warning only)
-// This does NOT block the app; it just shows a warning if misconfigured
-const FORBIDDEN_PROJECT_REFS = ["fzgtckfxntalxrwanhdn"];
+// Get forbidden project refs from env (optional), or empty list
+// This is purely informational - shows a warning if the derived ref matches any forbidden ref
+const FORBIDDEN_PROJECT_REFS_ENV = import.meta.env.VITE_FORBIDDEN_PROJECT_REFS || "";
+const FORBIDDEN_PROJECT_REFS = FORBIDDEN_PROJECT_REFS_ENV
+  ? FORBIDDEN_PROJECT_REFS_ENV.split(",").map((r: string) => r.trim()).filter(Boolean)
+  : [];
 
 interface DebugInfo {
   supabaseUrl: string;
