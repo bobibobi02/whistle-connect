@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, AlertCircle } from "lucide-react";
 
-// Old project ref that should NEVER be used
-const FORBIDDEN_PROJECT_REF = "fzgtckfxntalxrwanhdn";
+// List of known deprecated/forbidden project refs (informational warning only)
+// This does NOT block the app; it just shows a warning if misconfigured
+const FORBIDDEN_PROJECT_REFS = ["fzgtckfxntalxrwanhdn"];
 
 interface DebugInfo {
   supabaseUrl: string;
@@ -19,6 +20,7 @@ interface DebugInfo {
   timestamp: string;
   maskedAnonKey: string;
   isUsingForbiddenRef: boolean;
+  envStatus: "ok" | "missing" | "forbidden";
 }
 
 const DebugPage = () => {
@@ -33,11 +35,24 @@ const DebugPage = () => {
   const fetchDebugInfo = async () => {
     setLoading(true);
 
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "NOT SET";
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "UNKNOWN";
-    const isUsingForbiddenRef = projectRef === FORBIDDEN_PROJECT_REF || supabaseUrl.includes(FORBIDDEN_PROJECT_REF);
+    // Derive project ref from URL at runtime (no hardcoded expected ref)
+    const projectRef = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1] || "";
+    
+    // Check if using any forbidden (deprecated) project ref
+    const isUsingForbiddenRef = FORBIDDEN_PROJECT_REFS.some(
+      (ref) => projectRef === ref || supabaseUrl.includes(ref)
+    );
+
+    // Determine environment status
+    let envStatus: "ok" | "missing" | "forbidden" = "ok";
+    if (!supabaseUrl || !anonKey) {
+      envStatus = "missing";
+    } else if (isUsingForbiddenRef) {
+      envStatus = "forbidden";
+    }
 
     const maskedAnonKey = anonKey
       ? `${anonKey.substring(0, 10)}...${anonKey.substring(anonKey.length - 4)}`
@@ -48,7 +63,9 @@ const DebugPage = () => {
       error: userError,
     } = await supabase.auth.getUser();
 
-    if (userError) console.log("[Debug] Auth error:", userError);
+    if (userError && import.meta.env.DEV) {
+      console.log("[Debug] Auth error:", userError);
+    }
 
     const localStorageKeys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
@@ -59,13 +76,14 @@ const DebugPage = () => {
     }
 
     const debugInfo: DebugInfo = {
-      supabaseUrl,
-      projectRef,
+      supabaseUrl: supabaseUrl || "NOT SET",
+      projectRef: projectRef || "UNKNOWN",
       sessionUser: user ? { id: user.id, email: user.email || "no email" } : null,
       localStorageKeys,
       timestamp: new Date().toISOString(),
       maskedAnonKey,
       isUsingForbiddenRef,
+      envStatus,
     };
 
     setInfo(debugInfo);
@@ -150,33 +168,51 @@ const DebugPage = () => {
 
       {info && (
         <>
-          {/* CRITICAL WARNING - Forbidden Project Ref */}
+          {/* WARNING - Deprecated/Forbidden Project Ref */}
           {info.isUsingForbiddenRef && (
             <Card className="border-destructive bg-destructive/10">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-lg text-destructive">
                   <AlertCircle className="h-6 w-6" />
-                  ⚠️ CRITICAL: Wrong Project Reference Detected!
+                  ⚠️ Deprecated Project Reference Detected
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2 text-destructive">
                   <p className="font-bold">
-                    This build is using the FORBIDDEN project ref: {FORBIDDEN_PROJECT_REF}
+                    This build is using a deprecated project ref: {info.projectRef}
                   </p>
                   <p className="text-sm">
-                    All requests are going to the wrong backend. This is a critical configuration error.
-                    Check your environment variables and rebuild.
+                    Requests may be going to an old backend. Check environment variables and rebuild.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* WARNING - Missing Environment Variables */}
+          {info.envStatus === "missing" && (
+            <Card className="border-destructive bg-destructive/10">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg text-destructive">
+                  <AlertCircle className="h-6 w-6" />
+                  ⚠️ Missing Environment Variables
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-destructive">
+                  <p className="text-sm">
+                    VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY is not set. The app may not function correctly.
                   </p>
                 </div>
               </CardContent>
             </Card>
           )}
 
-          <Card className={info.projectRef && !info.isUsingForbiddenRef ? "border-primary" : "border-destructive"}>
+          <Card className={info.envStatus === "ok" ? "border-primary" : "border-destructive"}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-lg">
-                {info.projectRef && !info.isUsingForbiddenRef ? (
+                {info.envStatus === "ok" ? (
                   <CheckCircle className="h-5 w-5 text-primary" />
                 ) : (
                   <XCircle className="h-5 w-5 text-destructive" />
@@ -187,19 +223,19 @@ const DebugPage = () => {
             <CardContent>
               <div className="space-y-2 font-mono text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Project Ref:</span>
-                  <Badge variant={info.projectRef && !info.isUsingForbiddenRef ? "default" : "destructive"}>
+                  <span className="text-muted-foreground">Project Ref (derived):</span>
+                  <Badge variant={info.envStatus === "ok" ? "default" : "destructive"}>
                     {info.projectRef || "NOT SET"}
                   </Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status:</span>
-                  <Badge variant={info.projectRef && !info.isUsingForbiddenRef ? "default" : "destructive"}>
-                    {info.isUsingForbiddenRef 
-                      ? "✗ Using Forbidden Ref" 
-                      : info.projectRef 
-                        ? "✓ Connected" 
-                        : "✗ Not Configured"}
+                  <Badge variant={info.envStatus === "ok" ? "default" : "destructive"}>
+                    {info.envStatus === "missing" 
+                      ? "✗ Env Missing" 
+                      : info.envStatus === "forbidden"
+                        ? "⚠️ Deprecated Ref" 
+                        : "✓ Connected"}
                   </Badge>
                 </div>
               </div>
