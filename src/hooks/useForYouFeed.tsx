@@ -186,17 +186,30 @@ const fetchForYouPage = async (
     // Fetch candidate posts (more than we need for scoring)
     const candidateCount = POSTS_PER_PAGE * 3;
     
+    // Build a single combined OR filter to avoid multiple or= params (PostgREST 400)
+    // Filter: (is_removed is null OR is_removed = false) AND (if !allowNsfw: is_nsfw is null OR is_nsfw = false)
+    let filterClauses: string[];
+    if (!allowNsfw) {
+      // Combine removed + nsfw filters into one or()
+      filterClauses = [
+        "and(is_removed.is.null,is_nsfw.is.null)",
+        "and(is_removed.is.null,is_nsfw.eq.false)",
+        "and(is_removed.eq.false,is_nsfw.is.null)",
+        "and(is_removed.eq.false,is_nsfw.eq.false)",
+      ];
+    } else {
+      filterClauses = [
+        "is_removed.is.null",
+        "is_removed.eq.false",
+      ];
+    }
+    
     let query = supabase
       .from("posts")
       .select("*")
-      .or("is_removed.is.null,is_removed.eq.false")
+      .or(filterClauses.join(","))
       .order("created_at", { ascending: false })
       .range(pageParam * candidateCount, (pageParam + 1) * candidateCount - 1);
-
-    // Filter NSFW content if not allowed
-    if (!allowNsfw) {
-      query = query.or("is_nsfw.is.null,is_nsfw.eq.false");
-    }
 
     // Filter out blocked users' posts
     if (blockedIds.length > 0) {

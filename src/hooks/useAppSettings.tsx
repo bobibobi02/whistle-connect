@@ -30,14 +30,27 @@ export const useAppSetting = (key: string) => {
   return useQuery({
     queryKey: ["app-settings", key],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("app_settings")
-        .select("*")
-        .eq("key", key)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("app_settings")
+          .select("*")
+          .eq("key", key)
+          .maybeSingle();
 
-      if (error) throw error;
-      return data as AppSetting | null;
+        // Handle table not existing (404) or permission errors gracefully
+        if (error) {
+          // PGRST116 = table doesn't exist, 42P01 = relation doesn't exist
+          if (error.code === "PGRST116" || error.code === "42P01" || error.message?.includes("does not exist")) {
+            console.warn(`[useAppSetting] app_settings table may not exist, returning null for key: ${key}`);
+            return null;
+          }
+          throw error;
+        }
+        return data as AppSetting | null;
+      } catch (err) {
+        console.warn(`[useAppSetting] Error fetching ${key}:`, err);
+        return null;
+      }
     },
   });
 };
