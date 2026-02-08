@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useGoogleAuth } from "@/hooks/useGoogleAuth";
 import { Button } from "@/components/ui/button";
@@ -36,59 +36,31 @@ const signUpSchema = z.object({
 type SignInFormData = z.infer<typeof signInSchema>;
 type SignUpFormData = z.infer<typeof signUpSchema>;
 
+// Helper to send optional welcome email (non-blocking)
+const sendWelcomeEmail = async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.access_token) return;
+    
+    await supabase.functions.invoke("send-welcome-email", {
+      headers: {
+        Authorization: `Bearer ${session.access_token}`,
+      },
+    });
+  } catch (err) {
+    // Non-blocking - just log and continue
+    console.warn("[Auth] Welcome email send failed (non-blocking):", err);
+  }
+};
+
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [rateLimitEmail, setRateLimitEmail] = useState<string | null>(null);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [isResending, setIsResending] = useState(false);
   const { signIn, signUp, user, loading } = useAuth();
   const { signInWithGoogle } = useGoogleAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  // Cooldown timer for resend button
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
-
-  const handleResendVerification = useCallback(async () => {
-    if (!rateLimitEmail || resendCooldown > 0) return;
-    
-    setIsResending(true);
-    try {
-      const { error } = await supabase.auth.resend({
-        type: "signup",
-        email: rateLimitEmail,
-      });
-      
-      if (error) {
-        toast({
-          title: "Resend failed",
-          description: error.message,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Email sent",
-          description: "Check your inbox for the verification link.",
-        });
-        setResendCooldown(60); // 60 second cooldown
-      }
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsResending(false);
-    }
-  }, [rateLimitEmail, resendCooldown, toast]);
 
   const signInForm = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
@@ -112,20 +84,16 @@ const Auth = () => {
     setIsLoading(false);
 
     if (error) {
-      // Enhanced error handling for login failures
       let errorTitle = "Sign in failed";
       let errorDescription = error.message;
       
-      // Check for common auth error scenarios
       if (error.message === "Invalid login credentials" || 
           error.message?.includes("Invalid login") ||
           error.message?.includes("invalid_credentials")) {
-        errorDescription = "Invalid email or password. If you recently migrated, please sign up again or use Google.";
+        errorDescription = "Invalid email or password. Please check your credentials and try again.";
       } else if (error.message?.includes("User not found") || 
                  error.message?.includes("user_not_found")) {
         errorDescription = "This account may not exist. Please sign up or try Google sign-in.";
-      } else if (error.message?.includes("Email not confirmed")) {
-        errorDescription = "Please check your email and confirm your account.";
       }
       
       toast({
@@ -144,25 +112,19 @@ const Auth = () => {
 
   const handleSignUp = async (data: SignUpFormData) => {
     setIsLoading(true);
-    setRateLimitEmail(null); // Clear any previous rate limit state
     const { error } = await signUp(data.email, data.password, data.username);
     setIsLoading(false);
 
     if (error) {
       let errorMessage = error.message;
-      let showResend = false;
       
       if (error.message.includes("already registered")) {
         errorMessage = "This email is already registered. Please sign in instead.";
       } else if (
         error.message.toLowerCase().includes("rate limit") ||
-        error.message.toLowerCase().includes("email rate limit exceeded") ||
         error.message.toLowerCase().includes("too many requests")
       ) {
         errorMessage = "Too many signup attempts. Please wait a few minutes before trying again.";
-        showResend = true;
-        setRateLimitEmail(data.email);
-        setResendCooldown(60); // Start with 60s cooldown
       }
       
       toast({
@@ -171,11 +133,26 @@ const Auth = () => {
         variant: "destructive",
       });
     } else {
-      toast({
-        title: "Account created!",
-        description: "Check your email to verify your account, then sign in.",
-      });
-      setIsSignUp(false); // Switch to sign-in view
+      // With email confirmation OFF, user should be auto-signed in
+      // Check if we have a session now
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (sessionData?.session) {
+        // User is signed in - send welcome email (non-blocking) and navigate
+        toast({
+          title: "Welcome to Whistle!",
+          description: "Your account has been created successfully.",
+        });
+        sendWelcomeEmail(); // Fire and forget
+        navigate("/");
+      } else {
+        // Edge case: no session but signup succeeded - prompt to sign in
+        toast({
+          title: "Account created!",
+          description: "Please sign in to continue.",
+        });
+        setIsSignUp(false);
+      }
     }
   };
 
@@ -318,32 +295,6 @@ const Auth = () => {
               >
                 {isLoading ? "Creating account..." : "Create account"}
               </Button>
-              
-              {/* Rate limit - Resend verification email option */}
-              {rateLimitEmail && (
-                <div className="p-3 rounded-lg bg-muted border border-border">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Didn't receive the email or hit a rate limit?
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="w-full gap-2"
-                    onClick={handleResendVerification}
-                    disabled={resendCooldown > 0 || isResending}
-                  >
-                    {isResending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Mail className="h-4 w-4" />
-                    )}
-                    {resendCooldown > 0 
-                      ? `Resend in ${resendCooldown}s` 
-                      : "Resend verification email"}
-                  </Button>
-                </div>
-              )}
             </form>
           ) : (
             <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">
