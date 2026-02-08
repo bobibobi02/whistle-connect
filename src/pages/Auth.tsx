@@ -116,20 +116,34 @@ const Auth = () => {
     setIsLoading(false);
 
     if (error) {
-      let errorMessage = error.message;
+      const errorLower = error.message.toLowerCase();
       
-      if (error.message.includes("already registered")) {
-        errorMessage = "This email is already registered. Please sign in instead.";
-      } else if (
-        error.message.toLowerCase().includes("rate limit") ||
-        error.message.toLowerCase().includes("too many requests")
-      ) {
-        errorMessage = "Too many signup attempts. Please wait a few minutes before trying again.";
+      // Handle "already registered" - switch to sign in and pre-fill email
+      if (errorLower.includes("already registered") || errorLower.includes("user already registered")) {
+        toast({
+          title: "Email already registered",
+          description: "This email already has an account. Please sign in or reset your password.",
+        });
+        // Switch to sign in mode and pre-fill email
+        setIsSignUp(false);
+        signInForm.setValue("email", data.email);
+        return;
       }
       
+      // Handle rate limit errors
+      if (errorLower.includes("rate limit") || errorLower.includes("too many requests")) {
+        toast({
+          title: "Too many attempts",
+          description: "Please wait a few minutes before trying again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Generic error
       toast({
         title: "Sign up failed",
-        description: errorMessage,
+        description: error.message,
         variant: "destructive",
       });
     } else {
@@ -152,6 +166,7 @@ const Auth = () => {
           description: "Please sign in to continue.",
         });
         setIsSignUp(false);
+        signInForm.setValue("email", data.email);
       }
     }
   };
@@ -331,9 +346,9 @@ const Auth = () => {
               >
                 {isLoading ? "Signing in..." : "Sign in"}
               </Button>
-              <div className="text-center">
-                <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary">
-                  Forgot your password?
+              <div className="text-center space-y-2">
+                <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary block">
+                  Forgot password?
                 </Link>
               </div>
             </form>
