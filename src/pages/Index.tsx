@@ -26,14 +26,22 @@ const sortOptions = [
 
 const Index = () => {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [feedType, setFeedType] = useState<"all" | "foryou" | "joined" | "following" | "live">("foryou");
+  const { user } = useAuth();
+  // Default to "all" feed for guests, "foryou" for logged-in users
+  const [feedType, setFeedType] = useState<"all" | "foryou" | "joined" | "following" | "live">("all");
   const [sortBy, setSortBy] = useState<SortOption>("best");
   const navigate = useNavigate();
   
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { initializeQueue } = useVideoQueue();
   const { updateProfile } = useUpdateFeedProfile();
+  
+  // Switch to "foryou" when user logs in
+  useEffect(() => {
+    if (user && feedType === "all") {
+      setFeedType("foryou");
+    }
+  }, [user]);
 
   // Update feed profile periodically
   useEffect(() => {

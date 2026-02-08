@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Rocket, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -51,7 +52,13 @@ const BoostModal = ({ postId, postTitle, trigger }: BoostModalProps) => {
 
   const handleBoost = async () => {
     if (!user) {
-      navigate("/auth");
+      toast.info("Sign in to boost posts", {
+        action: {
+          label: "Sign in",
+          onClick: () => navigate("/auth"),
+        },
+      });
+      setIsOpen(false);
       return;
     }
 

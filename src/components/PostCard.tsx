@@ -58,7 +58,12 @@ const PostCard = ({ post, index = 0, showModActions = false, isFocused = false }
 
   const handleVote = (type: 1 | -1) => {
     if (!user) {
-      navigate("/auth");
+      toast.info("Sign in to vote", {
+        action: {
+          label: "Sign in",
+          onClick: () => navigate("/auth"),
+        },
+      });
       return;
     }
 
@@ -350,7 +355,12 @@ const PostCard = ({ post, index = 0, showModActions = false, isFocused = false }
             )}
             onClick={() => {
               if (!user) {
-                navigate("/auth");
+                toast.info("Sign in to save posts", {
+                  action: {
+                    label: "Sign in",
+                    onClick: () => navigate("/auth"),
+                  },
+                });
                 return;
               }
               toggleBookmark.mutate({ postId: post.id, isBookmarked });

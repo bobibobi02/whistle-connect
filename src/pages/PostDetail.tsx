@@ -204,7 +204,12 @@ const PostDetail = () => {
 
   const handleVote = (type: 1 | -1) => {
     if (!user) {
-      navigate("/auth");
+      toast.info("Sign in to vote", {
+        action: {
+          label: "Sign in",
+          onClick: () => navigate("/auth"),
+        },
+      });
       return;
     }
     if (!post) return;
@@ -218,7 +223,12 @@ const PostDetail = () => {
 
   const handleSubmitComment = () => {
     if (!user) {
-      navigate("/auth");
+      toast.info("Sign in to comment", {
+        action: {
+          label: "Sign in",
+          onClick: () => navigate("/auth"),
+        },
+      });
       return;
     }
     if (!commentText.trim() || !postId) return;
