@@ -15,6 +15,7 @@ const FORBIDDEN_PROJECT_REFS = FORBIDDEN_PROJECT_REFS_ENV
 interface DebugInfo {
   supabaseUrl: string;
   projectRef: string;
+  appDomain: string;
   sessionUser: {
     id: string;
     email: string;
@@ -24,6 +25,7 @@ interface DebugInfo {
   maskedAnonKey: string;
   isUsingForbiddenRef: boolean;
   envStatus: "ok" | "missing" | "forbidden";
+  redirectUrls: string[];
 }
 
 const DebugPage = () => {
@@ -78,15 +80,25 @@ const DebugPage = () => {
       }
     }
 
+    const appDomain = window.location.origin;
+    const redirectUrls = [
+      `${appDomain}/*`,
+      `${appDomain}/auth/callback`,
+      `${appDomain}/reset-password`,
+      `http://localhost:3000/*`,
+    ];
+
     const debugInfo: DebugInfo = {
       supabaseUrl: supabaseUrl || "NOT SET",
       projectRef: projectRef || "UNKNOWN",
+      appDomain,
       sessionUser: user ? { id: user.id, email: user.email || "no email" } : null,
       localStorageKeys,
       timestamp: new Date().toISOString(),
       maskedAnonKey,
       isUsingForbiddenRef,
       envStatus,
+      redirectUrls,
     };
 
     setInfo(debugInfo);
@@ -258,6 +270,37 @@ const DebugPage = () => {
                 <span className="text-sm text-muted-foreground">Anon Key (masked):</span>
                 <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">{info.maskedAnonKey}</code>
               </div>
+              <div>
+                <span className="text-sm text-muted-foreground">App Domain:</span>
+                <code className="text-xs bg-muted px-2 py-1 rounded break-all block mt-1">{info.appDomain}</code>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Production Redirect URLs</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Set the <strong>Site URL</strong> to <code className="text-xs bg-muted px-1 py-0.5 rounded">{info.appDomain}</code> in your backend auth settings.
+                Add these as <strong>Redirect URLs</strong>:
+              </p>
+              <div className="space-y-1">
+                {info.redirectUrls.map((url) => (
+                  <code key={url} className="text-xs bg-muted px-2 py-1 rounded break-all block">{url}</code>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(info.redirectUrls.join("\n"));
+                  alert("Redirect URLs copied to clipboard!");
+                }}
+              >
+                📋 Copy Redirect URLs
+              </Button>
             </CardContent>
           </Card>
 
