@@ -310,6 +310,9 @@ const Auth = () => {
               >
                 {isLoading ? "Creating account..." : "Create account"}
               </Button>
+              <p className="text-xs text-muted-foreground mt-2">
+                Tip: Use Gmail aliases like <span className="font-mono text-foreground/70">name+test@gmail.com</span> to create multiple test accounts.
+              </p>
             </form>
           ) : (
             <form onSubmit={signInForm.handleSubmit(handleSignIn)} className="space-y-4">

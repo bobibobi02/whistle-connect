@@ -36,10 +36,15 @@ const Index = () => {
   const { initializeQueue } = useVideoQueue();
   const { updateProfile } = useUpdateFeedProfile();
   
-  // Switch to "foryou" when user logs in
+  // Switch feed type based on auth state
   useEffect(() => {
     if (user && feedType === "all") {
       setFeedType("foryou");
+    }
+    // On logout: reset to "all" if on auth-required feed, and clear cache
+    if (!user && (feedType === "foryou" || feedType === "joined" || feedType === "following")) {
+      setFeedType("all");
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
     }
   }, [user]);
 
