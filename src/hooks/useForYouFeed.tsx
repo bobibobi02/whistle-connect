@@ -186,28 +186,21 @@ const fetchForYouPage = async (
     // Fetch candidate posts (more than we need for scoring)
     const candidateCount = POSTS_PER_PAGE * 3;
     
-    // Build a single combined OR filter to avoid multiple or= params (PostgREST 400)
-    // Filter: (is_removed is null OR is_removed = false) AND (if !allowNsfw: is_nsfw is null OR is_nsfw = false)
-    let filterClauses: string[];
+    // Use public_posts view which pre-filters drafts, scheduled, and removed posts
+    let nsfwFilter: string | undefined;
     if (!allowNsfw) {
-      // Combine removed + nsfw filters into one or()
-      filterClauses = [
-        "and(is_removed.is.null,is_nsfw.is.null)",
-        "and(is_removed.is.null,is_nsfw.eq.false)",
-        "and(is_removed.eq.false,is_nsfw.is.null)",
-        "and(is_removed.eq.false,is_nsfw.eq.false)",
-      ];
-    } else {
-      filterClauses = [
-        "is_removed.is.null",
-        "is_removed.eq.false",
-      ];
+      nsfwFilter = "is_nsfw.is.null,is_nsfw.eq.false";
     }
     
     let query = supabase
-      .from("posts")
-      .select("*")
-      .or(filterClauses.join(","))
+      .from("public_posts")
+      .select("*");
+    
+    if (nsfwFilter) {
+      query = query.or(nsfwFilter);
+    }
+    
+    query = query
       .order("created_at", { ascending: false })
       .range(pageParam * candidateCount, (pageParam + 1) * candidateCount - 1);
 

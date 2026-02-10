@@ -163,26 +163,10 @@ const fetchPostsPage = async (
   // Get blocked user IDs
   const blockedIds = user ? await getBlockedUserIds(user.id) : [];
 
-  const now = new Date().toISOString();
-  
-  // Build query with proper filtering for drafts and scheduled posts
-  // A post should appear if: NOT a draft AND (no schedule OR scheduled time has passed)
-  // Combine into a single OR clause to avoid multiple or= params (PostgREST 400 issue):
-  // (is_draft is null AND scheduled_at is null) OR
-  // (is_draft is null AND scheduled_at <= now) OR
-  // (is_draft = false AND scheduled_at is null) OR
-  // (is_draft = false AND scheduled_at <= now)
-  const combinedFilter = [
-    `and(is_draft.is.null,scheduled_at.is.null)`,
-    `and(is_draft.is.null,scheduled_at.lte.${now})`,
-    `and(is_draft.eq.false,scheduled_at.is.null)`,
-    `and(is_draft.eq.false,scheduled_at.lte.${now})`,
-  ].join(",");
-  
+  // Use public_posts view which pre-filters drafts, scheduled, and removed posts
   let query = supabase
-    .from("posts")
-    .select("*")
-    .or(combinedFilter);
+    .from("public_posts")
+    .select("*");
 
   if (community) {
     query = query.eq("community", community);
@@ -268,22 +252,11 @@ const fetchJoinedCommunityPostsPage = async (
   if (!communities || communities.length === 0) return { posts: [], nextPage: null };
 
   const communityNames = communities.map((c) => c.name);
-  const now = new Date().toISOString();
-  
-  // Combined filter for drafts and scheduled posts (single or= to avoid PostgREST 400)
-  const combinedFilter = [
-    `and(is_draft.is.null,scheduled_at.is.null)`,
-    `and(is_draft.is.null,scheduled_at.lte.${now})`,
-    `and(is_draft.eq.false,scheduled_at.is.null)`,
-    `and(is_draft.eq.false,scheduled_at.lte.${now})`,
-  ].join(",");
-
-  // Fetch posts from joined communities with pagination
+  // Use public_posts view which pre-filters drafts, scheduled, and removed posts
   let query = supabase
-    .from("posts")
+    .from("public_posts")
     .select("*")
     .in("community", communityNames)
-    .or(combinedFilter)
     .order("created_at", { ascending: false })
     .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
 
@@ -329,22 +302,11 @@ const fetchFollowingPostsPage = async (
 
   if (followingIds.length === 0) return { posts: [], nextPage: null };
 
-  const now = new Date().toISOString();
-  
-  // Combined filter for drafts and scheduled posts (single or= to avoid PostgREST 400)
-  const combinedFilter = [
-    `and(is_draft.is.null,scheduled_at.is.null)`,
-    `and(is_draft.is.null,scheduled_at.lte.${now})`,
-    `and(is_draft.eq.false,scheduled_at.is.null)`,
-    `and(is_draft.eq.false,scheduled_at.lte.${now})`,
-  ].join(",");
-
-  // Fetch posts from followed users with pagination
+  // Use public_posts view which pre-filters drafts, scheduled, and removed posts
   const { data: posts, error } = await supabase
-    .from("posts")
+    .from("public_posts")
     .select("*")
     .in("user_id", followingIds)
-    .or(combinedFilter)
     .order("created_at", { ascending: false })
     .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
 

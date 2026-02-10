@@ -28,9 +28,9 @@ export const useSearch = (query: string) => {
         .or(`name.ilike.${searchTerm},display_name.ilike.${searchTerm},description.ilike.${searchTerm}`)
         .limit(10);
 
-      // Search posts
+      // Search posts (use public_posts view to exclude drafts/scheduled/removed)
       const { data: posts } = await supabase
-        .from("posts")
+        .from("public_posts")
         .select("*")
         .or(`title.ilike.${searchTerm},content.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
