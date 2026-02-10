@@ -92,7 +92,7 @@ const fetchLivePostsPage = async (
   const blockedIds = user ? await getBlockedUserIds(user.id) : [];
 
   let query = supabase
-    .from("posts")
+    .from("public_posts")
     .select("*")
     .not("live_url", "is", null)
     .order("created_at", { ascending: false })
