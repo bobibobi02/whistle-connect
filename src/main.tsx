@@ -5,7 +5,7 @@ import App from "./App.tsx";
 import "./index.css";
 import { syncStorageFromPreferences } from "./lib/capacitorStorage";
 
-// ========== Supabase Environment Verification ==========
+// ========== Supabase Environment Verification ========== //
 // Runtime guard: Extract and validate project ref from environment URL
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
