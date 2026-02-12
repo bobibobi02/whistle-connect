@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Post } from "@/hooks/usePosts";
 import { Community } from "@/hooks/useCommunities";
 import { useAuth } from "@/hooks/useAuth";
+import { getPostsTable, isViewMissingError, markViewMissing, filterPublishedPosts } from "@/lib/postQuery";
 
 interface SearchResults {
   posts: Post[];
@@ -28,13 +29,20 @@ export const useSearch = (query: string) => {
         .or(`name.ilike.${searchTerm},display_name.ilike.${searchTerm},description.ilike.${searchTerm}`)
         .limit(10);
 
-      // Search posts (use public_posts view to exclude drafts/scheduled/removed)
-      const { data: posts } = await supabase
-        .from("public_posts")
+      // Search posts with resilient view fallback
+      const buildQuery = (table: string) => supabase
+        .from(table as any)
         .select("*")
         .or(`title.ilike.${searchTerm},content.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(20);
+
+      let result = await buildQuery(getPostsTable());
+      if (result.error && isViewMissingError(result.error)) {
+        markViewMissing();
+        result = await buildQuery(getPostsTable());
+      }
+      const posts: any[] = filterPublishedPosts(result.data || []);
 
       if (!posts || posts.length === 0) {
         return { posts: [], communities: communities || [] };

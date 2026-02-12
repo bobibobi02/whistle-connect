@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { createMentionNotifications } from "@/hooks/useMentionNotifications";
+import { getPostsTable, isViewMissingError, markViewMissing, filterPublishedPosts } from "@/lib/postQuery";
 
 export interface PostFlair {
   id: string;
@@ -163,41 +164,39 @@ const fetchPostsPage = async (
   // Get blocked user IDs
   const blockedIds = user ? await getBlockedUserIds(user.id) : [];
 
-  // Use public_posts view which pre-filters drafts, scheduled, and removed posts
-  let query = supabase
-    .from("public_posts")
-    .select("*");
+  // Use public_posts view with fallback to posts table
+  const buildQuery = (table: string) => {
+    let q = supabase.from(table as any).select("*");
+    if (community) q = q.eq("community", community);
+    if (blockedIds.length > 0) q = q.not("user_id", "in", `(${blockedIds.join(",")})`);
+    if (sort === "new") {
+      q = q.order("created_at", { ascending: false });
+    } else if (sort === "hot") {
+      q = q.order("created_at", { ascending: false }).order("upvotes", { ascending: false });
+    } else {
+      q = q.order("upvotes", { ascending: false }).order("created_at", { ascending: false });
+    }
+    return q.range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+  };
 
-  if (community) {
-    query = query.eq("community", community);
+  let { data: posts, error } = await buildQuery(getPostsTable());
+
+  // Fallback: if view is missing, retry with posts table
+  if (error && isViewMissingError(error)) {
+    markViewMissing();
+    const result = await buildQuery(getPostsTable());
+    posts = result.data;
+    error = result.error;
   }
-
-  // Filter out blocked users' posts
-  if (blockedIds.length > 0) {
-    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
-  }
-
-  // Apply sorting
-  if (sort === "new") {
-    query = query.order("created_at", { ascending: false });
-  } else if (sort === "hot") {
-    query = query.order("created_at", { ascending: false }).order("upvotes", { ascending: false });
-  } else {
-    query = query.order("upvotes", { ascending: false }).order("created_at", { ascending: false });
-  }
-
-  // Apply pagination
-  query = query.range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
-
-  const { data: posts, error } = await query;
 
   if (error) throw error;
+  const filteredPosts = filterPublishedPosts(posts || []);
 
-  const enrichedPosts = await enrichPosts(posts || [], user, sort);
+  const enrichedPosts = await enrichPosts(filteredPosts, user, sort);
 
   return {
     posts: enrichedPosts,
-    nextPage: posts && posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
+    nextPage: filteredPosts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
   };
 };
 
@@ -252,29 +251,33 @@ const fetchJoinedCommunityPostsPage = async (
   if (!communities || communities.length === 0) return { posts: [], nextPage: null };
 
   const communityNames = communities.map((c) => c.name);
-  // Use public_posts view which pre-filters drafts, scheduled, and removed posts
-  let query = supabase
-    .from("public_posts")
-    .select("*")
-    .in("community", communityNames)
-    .order("created_at", { ascending: false })
-    .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+  // Use public_posts view with fallback to posts table
+  const buildQuery = (table: string) => {
+    let q = supabase.from(table as any).select("*")
+      .in("community", communityNames)
+      .order("created_at", { ascending: false })
+      .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+    if (blockedIds.length > 0) q = q.not("user_id", "in", `(${blockedIds.join(",")})`);
+    return q;
+  };
 
-  // Filter out blocked users' posts
-  if (blockedIds.length > 0) {
-    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
+  let { data: posts, error } = await buildQuery(getPostsTable());
+  if (error && isViewMissingError(error)) {
+    markViewMissing();
+    const result = await buildQuery(getPostsTable());
+    posts = result.data;
+    error = result.error;
   }
 
-  const { data: posts, error } = await query;
-
   if (error) throw error;
-  if (!posts || posts.length === 0) return { posts: [], nextPage: null };
+  const filteredPosts = filterPublishedPosts(posts || []);
+  if (filteredPosts.length === 0) return { posts: [], nextPage: null };
 
-  const enrichedPosts = await enrichPosts(posts, user, "new");
+  const enrichedPosts = await enrichPosts(filteredPosts, user, "new");
 
   return {
     posts: enrichedPosts,
-    nextPage: posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
+    nextPage: filteredPosts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
   };
 };
 
@@ -302,22 +305,29 @@ const fetchFollowingPostsPage = async (
 
   if (followingIds.length === 0) return { posts: [], nextPage: null };
 
-  // Use public_posts view which pre-filters drafts, scheduled, and removed posts
-  const { data: posts, error } = await supabase
-    .from("public_posts")
-    .select("*")
+  // Use public_posts view with fallback to posts table
+  const buildQuery = (table: string) => supabase.from(table as any).select("*")
     .in("user_id", followingIds)
     .order("created_at", { ascending: false })
     .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
 
-  if (error) throw error;
-  if (!posts || posts.length === 0) return { posts: [], nextPage: null };
+  let { data: posts, error } = await buildQuery(getPostsTable());
+  if (error && isViewMissingError(error)) {
+    markViewMissing();
+    const result = await buildQuery(getPostsTable());
+    posts = result.data;
+    error = result.error;
+  }
 
-  const enrichedPosts = await enrichPosts(posts, user, "new");
+  if (error) throw error;
+  const filteredPosts = filterPublishedPosts(posts || []);
+  if (filteredPosts.length === 0) return { posts: [], nextPage: null };
+
+  const enrichedPosts = await enrichPosts(filteredPosts, user, "new");
 
   return {
     posts: enrichedPosts,
-    nextPage: posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
+    nextPage: filteredPosts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
   };
 };
 
