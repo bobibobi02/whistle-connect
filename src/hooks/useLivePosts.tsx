@@ -2,6 +2,7 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Post, PostFlair, getBlockedUserIds } from "@/hooks/usePosts";
+import { getPostsTable, isViewMissingError, markViewMissing, filterPublishedPosts } from "@/lib/postQuery";
 
 const POSTS_PER_PAGE = 10;
 
@@ -91,27 +92,31 @@ const fetchLivePostsPage = async (
   // Get blocked user IDs
   const blockedIds = user ? await getBlockedUserIds(user.id) : [];
 
-  let query = supabase
-    .from("public_posts")
-    .select("*")
-    .not("live_url", "is", null)
-    .order("created_at", { ascending: false })
-    .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+  const buildQuery = (table: string) => {
+    let q = supabase.from(table as any).select("*")
+      .not("live_url", "is", null)
+      .order("created_at", { ascending: false })
+      .range(pageParam * POSTS_PER_PAGE, (pageParam + 1) * POSTS_PER_PAGE - 1);
+    if (blockedIds.length > 0) q = q.not("user_id", "in", `(${blockedIds.join(",")})`);
+    return q;
+  };
 
-  // Filter out blocked users' posts
-  if (blockedIds.length > 0) {
-    query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
+  let { data: posts, error } = await buildQuery(getPostsTable());
+  if (error && isViewMissingError(error)) {
+    markViewMissing();
+    const result = await buildQuery(getPostsTable());
+    posts = result.data;
+    error = result.error;
   }
 
-  const { data: posts, error } = await query;
-
   if (error) throw error;
+  const filteredPosts = filterPublishedPosts(posts || []);
 
-  const enrichedPosts = await enrichLivePosts(posts || [], user);
+  const enrichedPosts = await enrichLivePosts(filteredPosts, user);
 
   return {
     posts: enrichedPosts,
-    nextPage: posts && posts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
+    nextPage: filteredPosts.length === POSTS_PER_PAGE ? pageParam + 1 : null,
   };
 };
 

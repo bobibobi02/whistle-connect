@@ -2,6 +2,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Post, PostFlair, getBlockedUserIds } from "@/hooks/usePosts";
+import { getPostsTable, isViewMissingError, markViewMissing, filterPublishedPosts } from "@/lib/postQuery";
 
 const POSTS_PER_PAGE = 10;
 
@@ -186,39 +187,39 @@ const fetchForYouPage = async (
     // Fetch candidate posts (more than we need for scoring)
     const candidateCount = POSTS_PER_PAGE * 3;
     
-    // Use public_posts view which pre-filters drafts, scheduled, and removed posts
+    // Use public_posts view with fallback to posts table
     let nsfwFilter: string | undefined;
     if (!allowNsfw) {
       nsfwFilter = "is_nsfw.is.null,is_nsfw.eq.false";
     }
     
-    let query = supabase
-      .from("public_posts")
-      .select("*");
-    
-    if (nsfwFilter) {
-      query = query.or(nsfwFilter);
-    }
-    
-    query = query
-      .order("created_at", { ascending: false })
-      .range(pageParam * candidateCount, (pageParam + 1) * candidateCount - 1);
+    const buildQuery = (table: string) => {
+      let q = supabase.from(table as any).select("*");
+      if (nsfwFilter) q = q.or(nsfwFilter);
+      q = q.order("created_at", { ascending: false })
+        .range(pageParam * candidateCount, (pageParam + 1) * candidateCount - 1);
+      if (blockedIds.length > 0) q = q.not("user_id", "in", `(${blockedIds.join(",")})`);
+      return q;
+    };
 
-    // Filter out blocked users' posts
-    if (blockedIds.length > 0) {
-      query = query.not("user_id", "in", `(${blockedIds.join(",")})`);
+    let { data: posts, error } = await buildQuery(getPostsTable());
+    if (error && isViewMissingError(error)) {
+      markViewMissing();
+      const result = await buildQuery(getPostsTable());
+      posts = result.data;
+      error = result.error;
     }
 
-    const { data: posts, error } = await query;
     if (error) throw error;
-    if (!posts || posts.length === 0) return { posts: [], nextPage: null };
+    const filteredPosts = filterPublishedPosts(posts || []);
+    if (filteredPosts.length === 0) return { posts: [], nextPage: null };
 
     // Get user profile for scoring
     const profile = user ? await fetchUserProfile(user.id) : defaultProfile;
     const nowMs = Date.now();
 
     // Score and sort posts
-    const scoredPosts = posts.map((post) => ({
+    const scoredPosts = filteredPosts.map((post: any) => ({
       post,
       score: scorePost(post, profile, nowMs),
     }));
@@ -231,7 +232,7 @@ const fetchForYouPage = async (
 
     return {
       posts: enrichedPosts,
-      nextPage: posts.length === candidateCount ? pageParam + 1 : null,
+      nextPage: filteredPosts.length === candidateCount ? pageParam + 1 : null,
     };
   } catch (error) {
     if (import.meta.env.DEV) {
